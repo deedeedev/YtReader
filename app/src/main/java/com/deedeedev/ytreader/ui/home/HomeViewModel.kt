@@ -89,6 +89,7 @@ class HomeViewModel(
                 val entity = SubtitleEntity(
                     videoId = info.url ?: "unknown", // Using URL as ID for now or info.id
                     title = info.name,
+                    channelName = info.uploaderName ?: "Unknown Channel",
                     languageCode = subtitle.languageTag ?: "unknown",
                     content = parsedContent
                 )

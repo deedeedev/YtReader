@@ -9,7 +9,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import com.deedeedev.ytreader.ui.home.HomeScreen
+import com.deedeedev.ytreader.ui.MainScreen
 import com.deedeedev.ytreader.ui.home.HomeViewModel
 import com.deedeedev.ytreader.ui.reader.ReaderScreen
 import com.deedeedev.ytreader.ui.theme.YtReaderTheme
@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
                         onBack = { viewModel.clearSelection() }
                     )
                 } else {
-                    HomeScreen(
+                    MainScreen(
                         appContainer = appContainer,
                         onSubtitleClick = { id -> 
                             viewModel.selectSubtitle(id)

@@ -9,6 +9,7 @@ data class SubtitleEntity(
     val id: Long = 0,
     val videoId: String,
     val title: String,
+    val channelName: String = "", // Default for migration, though we'll likely clear DB
     val languageCode: String,
     val content: String,
     val createdAt: Long = System.currentTimeMillis()

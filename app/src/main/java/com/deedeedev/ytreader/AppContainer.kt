@@ -21,7 +21,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             context.applicationContext,
             AppDatabase::class.java,
             "ytreader.db"
-        ).build()
+        )
+        .fallbackToDestructiveMigration()
+        .build()
     }
 
     private val okHttpClient: OkHttpClient by lazy {
