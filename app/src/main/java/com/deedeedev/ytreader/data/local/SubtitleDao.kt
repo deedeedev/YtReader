@@ -20,4 +20,7 @@ interface SubtitleDao {
 
     @Delete
     suspend fun delete(subtitle: SubtitleEntity)
+
+    @Query("DELETE FROM subtitles WHERE videoId = :videoId")
+    suspend fun deleteByVideoId(videoId: String)
 }
