@@ -84,14 +84,13 @@ class HomeViewModel(
             try {
                 val url = subtitle.url ?: throw IllegalArgumentException("Subtitle URL is missing")
                 val content = youtubeRepository.downloadSubtitle(url)
-                val parsedContent = SubtitleParser.parse(content)
                 
                 val entity = SubtitleEntity(
                     videoId = info.url ?: "unknown", // Using URL as ID for now or info.id
                     title = info.name,
                     channelName = info.uploaderName ?: "Unknown Channel",
                     languageCode = subtitle.languageTag ?: "unknown",
-                    content = parsedContent
+                    content = content
                 )
                 subtitleDao.insert(entity)
                 
