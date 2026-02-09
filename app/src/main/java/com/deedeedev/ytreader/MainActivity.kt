@@ -1,47 +1,61 @@
 package com.deedeedev.ytreader
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import com.deedeedev.ytreader.ui.home.HomeScreen
+import com.deedeedev.ytreader.ui.home.HomeViewModel
+import com.deedeedev.ytreader.ui.reader.ReaderScreen
 import com.deedeedev.ytreader.ui.theme.YtReaderTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val appContainer = (application as YtReaderApplication).container
+        
         setContent {
             YtReaderTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
+                val viewModel: HomeViewModel = viewModel(
+                    factory = HomeViewModel.provideFactory(
+                        appContainer.youtubeRepository,
+                        appContainer.subtitleDao
+                    )
+                )
+                
+                val uiState by viewModel.uiState.collectAsState()
+                
+                // Handle Intent
+                LaunchedEffect(intent) {
+                    if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+                        intent.getStringExtra(Intent.EXTRA_TEXT)?.let { url ->
+                            viewModel.onUrlChange(url)
+                            viewModel.searchVideo()
+                        }
+                    }
+                }
+
+                if (uiState.selectedSubtitle != null) {
+                    ReaderScreen(
+                        subtitle = uiState.selectedSubtitle!!,
+                        onBack = { viewModel.clearSelection() }
+                    )
+                } else {
+                    HomeScreen(
+                        appContainer = appContainer,
+                        onSubtitleClick = { id -> 
+                            viewModel.selectSubtitle(id)
+                        },
+                        viewModel = viewModel
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    YtReaderTheme {
-        Greeting("Android")
     }
 }

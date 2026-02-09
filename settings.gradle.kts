@@ -22,3 +22,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "YtReader"
 include(":app")
+include(":extractor")
+project(":extractor").projectDir = file("extractor/extractor")

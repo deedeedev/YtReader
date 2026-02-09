@@ -1,11 +1,14 @@
+import com.android.build.api.dsl.ApplicationExtension
+import org.gradle.kotlin.dsl.configure
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("com.google.devtools.ksp") version "2.0.21-1.0.28"
+    alias(libs.plugins.ksp)
 }
 
-android {
+configure<ApplicationExtension> {
     namespace = "com.deedeedev.ytreader"
     compileSdk = 36
 
@@ -29,14 +32,18 @@ android {
         }
     }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
     buildFeatures {
         compose = true
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
     }
 }
 
@@ -62,19 +69,20 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     // Navigation
-    implementation("androidx.navigation:navigation-compose:2.8.6")
+    implementation(libs.androidx.navigation.compose)
 
     // NewPipe Extractor
-    implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.25.1")
-    implementation("com.jakewharton.threetenabp:threetenabp:1.4.9")
+    implementation(project(":extractor"))
+    implementation(libs.threetenabp)
 
     // Networking & Parsing
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("org.jsoup:jsoup:1.17.2")
+    implementation(libs.okhttp)
+    implementation(libs.jsoup)
 
     // Local DB
-    val roomVersion = "2.6.1"
-    implementation("androidx.room:room-runtime:$roomVersion")
-    implementation("androidx.room:room-ktx:$roomVersion")
-    ksp("androidx.room:room-compiler:$roomVersion")
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
 }
