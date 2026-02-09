@@ -102,6 +102,13 @@ class HomeViewModel(
         }
     }
 
+
+    fun deleteLibraryItem(subtitle: SubtitleEntity) {
+        viewModelScope.launch {
+            subtitleDao.deleteByVideoId(subtitle.videoId)
+        }
+    }
+
     companion object {
         fun provideFactory(
             repository: YoutubeRepository,
