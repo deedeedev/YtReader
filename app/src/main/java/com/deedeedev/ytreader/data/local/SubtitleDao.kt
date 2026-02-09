@@ -21,6 +21,12 @@ interface SubtitleDao {
     @Delete
     suspend fun delete(subtitle: SubtitleEntity)
 
+    @Query("UPDATE subtitles SET lastTimestamp = :timestamp WHERE id = :id")
+    suspend fun updateLastTimestamp(id: Long, timestamp: Long)
+
+    @Query("UPDATE subtitles SET fontSize = :fontSize WHERE id = :id")
+    suspend fun updateFontSize(id: Long, fontSize: Float)
+
     @Query("DELETE FROM subtitles WHERE videoId = :videoId")
     suspend fun deleteByVideoId(videoId: String)
 }

@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -27,10 +28,12 @@ import com.deedeedev.ytreader.ui.home.HomeViewModel
 import com.deedeedev.ytreader.ui.home.LibraryScreen
 import com.deedeedev.ytreader.ui.home.SearchScreen
 import com.deedeedev.ytreader.ui.reader.ReaderScreen
+import com.deedeedev.ytreader.ui.settings.SettingsScreen
 
 sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     object Search : Screen("search", "Search", Icons.Default.Search)
     object Library : Screen("library", "Library", Icons.Default.Home)
+    object Settings : Screen("settings", "Settings", Icons.Default.Settings)
     object Reader : Screen("reader/{subtitleId}", "Reader", Icons.AutoMirrored.Filled.MenuBook)
 }
 
@@ -63,7 +66,7 @@ fun MainScreen(
             // Hide bottom bar on Reader screen
             if (currentRoute?.startsWith("reader") != true) {
                 NavigationBar {
-                    val items = listOf(Screen.Search, Screen.Library)
+                    val items = listOf(Screen.Search, Screen.Library, Screen.Settings)
                     items.forEach { screen ->
                         NavigationBarItem(
                             icon = { Icon(screen.icon, contentDescription = null) },
@@ -101,95 +104,22 @@ fun MainScreen(
                     onSubtitleClick = { id -> navController.navigate("reader/$id") }
                 )
             }
+            composable(Screen.Settings.route) {
+                SettingsScreen()
+            }
             composable(
                 route = Screen.Reader.route,
                 arguments = listOf(navArgument("subtitleId") { type = NavType.LongType })
             ) { backStackEntry ->
-                val subtitleId = backStackEntry.arguments?.getLong("subtitleId")
-                val subtitle = uiState.savedSubtitles.find { it.id == subtitleId }
+                val subtitleId = backStackEntry.arguments?.getLong("subtitleId") ?: return@composable
                 
-                if (subtitle != null) {
-                    ReaderScreen(
-                        subtitle = subtitle,
-                        onBack = { navController.popBackStack() }
-                    )
-                } else {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MainScreen(
-    appContainer: AppContainer,
-    onSubtitleClick: (Long) -> Unit,
-    viewModel: HomeViewModel = viewModel(
-        factory = HomeViewModel.provideFactory(
-            appContainer.youtubeRepository,
-            appContainer.subtitleDao
-        )
-    )
-) {
-    val navController = rememberNavController()
-
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(title = { Text("YtReader") })
-        },
-        bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
-
-                val items = listOf(Screen.Search, Screen.Library)
-                items.forEach { screen ->
-                    NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = null) },
-                        label = { Text(screen.label) },
-                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                // Pop up to the start destination of the graph to
-                                // avoid building up a large stack of destinations
-                                // on the back stack as users select items
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                // Avoid multiple copies of the same destination when
-                                // reselecting the same item
-                                launchSingleTop = true
-                                // Restore state when reselecting a previously selected item
-                                restoreState = true
-                            }
-                        }
-                    )
-                }
-            }
-        }
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = Screen.Search.route,
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            composable(Screen.Search.route) {
-                SearchScreen(
-                    viewModel = viewModel,
-                    onSubtitleClick = onSubtitleClick
-                )
-            }
-            composable(Screen.Library.route) {
-                LibraryScreen(
-                    viewModel = viewModel,
-                    onSubtitleClick = onSubtitleClick
+                ReaderScreen(
+                    subtitleId = subtitleId,
+                    subtitleDao = appContainer.subtitleDao,
+                    onBack = { navController.popBackStack() }
                 )
             }
         }
     }
 }
+

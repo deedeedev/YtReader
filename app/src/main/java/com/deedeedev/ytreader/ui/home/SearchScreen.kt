@@ -15,7 +15,9 @@ import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @Composable
 fun SearchScreen(
@@ -32,14 +34,17 @@ fun SearchScreen(
     ) {
         // Search Area
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
                 value = uiState.url,
                 onValueChange = viewModel::onUrlChange,
-                label = { Text("YouTube URL") },
-                modifier = Modifier.weight(1f),
+                placeholder = { Text("YouTube URL") },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
                 singleLine = true,
                 trailingIcon = {
                     if (uiState.url.isNotEmpty()) {
@@ -53,13 +58,29 @@ fun SearchScreen(
                 }
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Button(onClick = viewModel::searchVideo, enabled = !uiState.isLoading) {
-                Text("Search")
+            Button(
+                onClick = viewModel::searchVideo,
+                enabled = !uiState.isLoading,
+                modifier = Modifier.height(56.dp),
+                shape = RoundedCornerShape(4.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search"
+                )
             }
         }
 
-        if (uiState.isLoading) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+                .height(4.dp)
+        ) {
+            if (uiState.isLoading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxSize())
+            }
         }
 
         if (uiState.error != null) {

@@ -12,5 +12,7 @@ data class SubtitleEntity(
     val channelName: String = "", // Default for migration, though we'll likely clear DB
     val languageCode: String,
     val content: String,
+    val lastTimestamp: Long = 0L,
+    val fontSize: Float = 16f,
     val createdAt: Long = System.currentTimeMillis()
 )
