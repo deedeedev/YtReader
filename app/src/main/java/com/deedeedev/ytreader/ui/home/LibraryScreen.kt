@@ -1,21 +1,27 @@
 package com.deedeedev.ytreader.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.deedeedev.ytreader.data.local.SubtitleEntity
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     viewModel: HomeViewModel,
@@ -55,8 +61,50 @@ fun LibraryScreen(
                 )
             }
         } else {
-            items(libraryItems) { item ->
-                LibraryItemCard(item = item, onSubtitleClick = onSubtitleClick)
+            items(
+                items = libraryItems,
+                key = { it.videoId }
+            ) { item ->
+                val dismissState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = {
+                        if (it == SwipeToDismissBoxValue.EndToStart) {
+                            // Delete the item
+                            // We pass the first subtitle to get the videoId
+                            viewModel.deleteLibraryItem(item.subtitles.first())
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                )
+
+                SwipeToDismissBox(
+                    state = dismissState,
+                    enableDismissFromStartToEnd = false,
+                    backgroundContent = {
+                        val color = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                            MaterialTheme.colorScheme.errorContainer
+                        } else {
+                            Color.Transparent
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(color)
+                                .padding(horizontal = 20.dp),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                tint = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                ) {
+                    LibraryItemCard(item = item, onSubtitleClick = onSubtitleClick)
+                }
             }
         }
     }
