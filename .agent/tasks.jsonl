@@ -1,4 +1,0 @@
-{"id":"task-1770396594-eae7","title":"Implement Room Database","status":"closed","priority":1,"blocked_by":[],"created":"2026-02-06T16:49:54.846571555+00:00","closed":"2026-02-06T16:52:41.616291339+00:00"}
-{"id":"task-1770396594-0b98","title":"Setup NewPipe Extractor","status":"closed","priority":1,"blocked_by":[],"created":"2026-02-06T16:49:54.854945293+00:00","closed":"2026-02-06T16:57:23.687300659+00:00"}
-{"id":"task-1770397044-71e8","title":"Implement Subtitle Search and Download","status":"closed","priority":1,"blocked_by":["task-1770396594-0b98"],"created":"2026-02-06T16:57:24.225774118+00:00","closed":"2026-02-06T17:05:34.303221596+00:00"}
-{"id":"task-1770397606-f041","title":"Verify and Finalize","status":"closed","priority":1,"blocked_by":[],"created":"2026-02-06T17:06:46.520274237+00:00","closed":"2026-02-06T17:07:09.716364097+00:00"}

@@ -41,20 +41,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                if (uiState.selectedSubtitle != null) {
-                    ReaderScreen(
-                        subtitle = uiState.selectedSubtitle!!,
-                        onBack = { viewModel.clearSelection() }
-                    )
-                } else {
-                    MainScreen(
-                        appContainer = appContainer,
-                        onSubtitleClick = { id -> 
-                            viewModel.selectSubtitle(id)
-                        },
-                        viewModel = viewModel
-                    )
-                }
+                MainScreen(
+                    appContainer = appContainer,
+                    viewModel = viewModel
+                )
             }
         }
     }

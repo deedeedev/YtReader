@@ -1,25 +1,33 @@
 package com.deedeedev.ytreader.ui.home
 
+import android.content.Intent
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.deedeedev.ytreader.data.local.SubtitleEntity
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -103,7 +111,16 @@ fun LibraryScreen(
                         }
                     }
                 ) {
-                    LibraryItemCard(item = item, onSubtitleClick = onSubtitleClick)
+                    LibraryItemCard(
+                        item = item,
+                        onSubtitleClick = onSubtitleClick,
+                        onDelete = {
+                            viewModel.deleteLibraryItem(item.subtitles.first())
+                        },
+                        onSubtitleDelete = { subtitle ->
+                            viewModel.deleteSubtitle(subtitle)
+                        }
+                    )
                 }
             }
         }
@@ -117,48 +134,181 @@ data class LibraryItem(
     val subtitles: List<SubtitleEntity>
 )
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun LibraryItemCard(
     item: LibraryItem,
-    onSubtitleClick: (Long) -> Unit
+    onSubtitleClick: (Long) -> Unit,
+    onDelete: () -> Unit,
+    onSubtitleDelete: (SubtitleEntity) -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
+    var showMenu by remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+
+    Box {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = { showMenu = true }
+                ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            
-            if (item.channelName.isNotBlank()) {
-                Text(
-                    text = item.channelName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            Column(
+                modifier = Modifier.padding(16.dp)
             ) {
-                item.subtitles.forEach { subtitle ->
-                    SuggestionChip(
-                        onClick = { onSubtitleClick(subtitle.id) },
-                        label = { Text(subtitle.languageCode.uppercase()) }
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                if (item.channelName.isNotBlank()) {
+                    Text(
+                        text = item.channelName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item.subtitles.forEach { subtitle ->
+                        SubtitleChip(
+                            subtitle = subtitle,
+                            onClick = { onSubtitleClick(subtitle.id) },
+                            onDelete = { onSubtitleDelete(subtitle) }
+                        )
+                    }
+                }
             }
+        }
+
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Copy video URL") },
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(item.videoId))
+                    showMenu = false
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.ContentCopy,
+                        contentDescription = null
+                    )
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Share video URL") },
+                onClick = {
+                    val sendIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_TEXT, item.videoId)
+                        type = "text/plain"
+                    }
+                    val shareIntent = Intent.createChooser(sendIntent, null)
+                    context.startActivity(shareIntent)
+                    showMenu = false
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Share,
+                        contentDescription = null
+                    )
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Delete entry") },
+                onClick = {
+                    onDelete()
+                    showMenu = false
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = null
+                    )
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun SubtitleChip(
+    subtitle: SubtitleEntity,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
+
+    Box {
+        Surface(
+            shape = MaterialTheme.shapes.small,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            color = Color.Transparent,
+            modifier = Modifier
+                .height(32.dp)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { showMenu = true }
+                )
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
+                Text(
+                    text = subtitle.languageCode.uppercase(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Copy subtitles") },
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(subtitle.content))
+                    showMenu = false
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.ContentCopy,
+                        contentDescription = null
+                    )
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Delete subtitles") },
+                onClick = {
+                    onDelete()
+                    showMenu = false
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = null
+                    )
+                }
+            )
         }
     }
 }
