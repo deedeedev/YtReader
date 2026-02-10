@@ -2,6 +2,7 @@ package com.deedeedev.ytreader
 
 import android.content.Context
 import androidx.room.Room
+import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.local.AppDatabase
 import com.deedeedev.ytreader.data.local.SubtitleDao
@@ -13,6 +14,7 @@ import org.schabi.newpipe.extractor.NewPipe
 interface AppContainer {
     val subtitleDao: SubtitleDao
     val youtubeRepository: YoutubeRepository
+    val userPreferencesRepository: UserPreferencesRepository
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -40,5 +42,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val youtubeRepository: YoutubeRepository by lazy {
         YoutubeRepository(okHttpClient)
+    }
+
+    override val userPreferencesRepository: UserPreferencesRepository by lazy {
+        UserPreferencesRepository(context)
     }
 }

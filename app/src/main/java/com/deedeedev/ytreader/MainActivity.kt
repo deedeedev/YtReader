@@ -25,7 +25,8 @@ class MainActivity : ComponentActivity() {
                 val viewModel: HomeViewModel = viewModel(
                     factory = HomeViewModel.provideFactory(
                         appContainer.youtubeRepository,
-                        appContainer.subtitleDao
+                        appContainer.subtitleDao,
+                        appContainer.userPreferencesRepository
                     )
                 )
                 

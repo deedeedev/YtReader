@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
@@ -24,12 +25,14 @@ data class HomeUiState(
     val error: String? = null,
     val streamInfo: StreamInfo? = null,
     val savedSubtitles: List<SubtitleEntity> = emptyList(),
-    val selectedSubtitle: SubtitleEntity? = null
+    val selectedSubtitle: SubtitleEntity? = null,
+    val favoriteLanguages: Set<String> = emptySet()
 )
 
 class HomeViewModel(
     private val youtubeRepository: YoutubeRepository,
-    private val subtitleDao: SubtitleDao
+    private val subtitleDao: SubtitleDao,
+    private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -37,6 +40,19 @@ class HomeViewModel(
 
     init {
         loadSavedSubtitles()
+        loadFavoriteLanguages()
+    }
+
+    private fun loadFavoriteLanguages() {
+        viewModelScope.launch {
+            userPreferencesRepository.favoriteLanguages.collect { favorites ->
+                _uiState.update { it.copy(favoriteLanguages = favorites) }
+            }
+        }
+    }
+
+    fun toggleFavoriteLanguage(languageCode: String) {
+        userPreferencesRepository.toggleFavoriteLanguage(languageCode)
     }
 
     private fun loadSavedSubtitles() {
@@ -118,11 +134,12 @@ class HomeViewModel(
     companion object {
         fun provideFactory(
             repository: YoutubeRepository,
-            dao: SubtitleDao
+            dao: SubtitleDao,
+            userPreferencesRepository: UserPreferencesRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return HomeViewModel(repository, dao) as T
+                return HomeViewModel(repository, dao, userPreferencesRepository) as T
             }
         }
     }
