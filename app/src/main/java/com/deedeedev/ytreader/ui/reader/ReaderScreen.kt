@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Timer
@@ -168,6 +169,14 @@ fun ReaderScreen(
                                     onClick = {
                                         viewModel.updateFontFamily(font)
                                         showFontMenu = false
+                                    },
+                                    trailingIcon = {
+                                        if (uiState.fontFamily == font) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = "Selected"
+                                            )
+                                        }
                                     }
                                 )
                             }
