@@ -104,6 +104,31 @@ fun SettingsScreen(
                     }
                 }
             }
+            item {
+                Text(
+                    text = "Line Height Multiplier: ${String.format("%.1f", uiState.lineHeightMultiplier)}x",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Slider(
+                    value = uiState.lineHeightMultiplier,
+                    onValueChange = { viewModel.setLineHeightMultiplier(it) },
+                    valueRange = 0.5f..2.5f,
+                    steps = 19 // (2.5-0.5)/0.1 - 1 = 19 steps of size 0.1
+                )
+            }
+
+            item {
+                Text(
+                    text = "Paragraph Spacing: ${uiState.paragraphSpacing.toInt()}dp",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Slider(
+                    value = uiState.paragraphSpacing,
+                    onValueChange = { viewModel.setParagraphSpacing(it) },
+                    valueRange = 0f..64f,
+                    steps = 31 // (64-0)/2 - 1 = 31 steps of size 2
+                )
+            }
         }
     }
 }

@@ -195,7 +195,7 @@ fun ReaderScreen(
         ) {
             itemsIndexed(uiState.segments) { index, segment ->
                 SelectionContainer {
-                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                    Column(modifier = Modifier.padding(vertical = (uiState.paragraphSpacing / 2).dp)) {
                         if (showTimestamps) {
                             Text(
                                 text = formatTime(segment.startTime),
@@ -208,7 +208,7 @@ fun ReaderScreen(
                         Text(
                             text = segment.text,
                             fontSize = fontSize.sp,
-                            lineHeight = (fontSize * 1.5).sp,
+                            lineHeight = (fontSize * uiState.lineHeightMultiplier).sp,
                             fontFamily = fontFamily
                         )
                     }

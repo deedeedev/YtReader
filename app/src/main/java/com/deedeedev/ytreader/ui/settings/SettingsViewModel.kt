@@ -13,7 +13,9 @@ import kotlinx.coroutines.launch
 data class SettingsUiState(
     val defaultFontSize: Float = 16f,
     val fontFamily: String = "Default",
-    val availableFonts: List<String> = listOf("Default", "Serif", "SansSerif", "Monospace", "Cursive")
+    val availableFonts: List<String> = listOf("Default", "Serif", "SansSerif", "Monospace", "Cursive"),
+    val lineHeightMultiplier: Float = 1.5f,
+    val paragraphSpacing: Float = 16f
 )
 
 class SettingsViewModel(
@@ -34,6 +36,16 @@ class SettingsViewModel(
                 _uiState.update { it.copy(fontFamily = family) }
             }
         }
+        viewModelScope.launch {
+            userPreferencesRepository.lineHeightMultiplier.collect { multiplier ->
+                _uiState.update { it.copy(lineHeightMultiplier = multiplier) }
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.paragraphSpacing.collect { spacing ->
+                _uiState.update { it.copy(paragraphSpacing = spacing) }
+            }
+        }
     }
 
     fun setDefaultFontSize(size: Float) {
@@ -42,6 +54,14 @@ class SettingsViewModel(
 
     fun setFontFamily(family: String) {
         userPreferencesRepository.setFontFamily(family)
+    }
+
+    fun setLineHeightMultiplier(multiplier: Float) {
+        userPreferencesRepository.setLineHeightMultiplier(multiplier)
+    }
+
+    fun setParagraphSpacing(spacing: Float) {
+        userPreferencesRepository.setParagraphSpacing(spacing)
     }
 
     companion object {
