@@ -106,7 +106,7 @@ fun MainScreen(
                 )
             }
             composable(Screen.Settings.route) {
-                SettingsScreen()
+                SettingsScreen(appContainer = appContainer)
             }
             composable(
                 route = Screen.Reader.route,
@@ -117,6 +117,7 @@ fun MainScreen(
                 ReaderScreen(
                     subtitleId = subtitleId,
                     subtitleDao = appContainer.subtitleDao,
+                    userPreferencesRepository = appContainer.userPreferencesRepository,
                     onBack = { navController.popBackStack() }
                 )
             }

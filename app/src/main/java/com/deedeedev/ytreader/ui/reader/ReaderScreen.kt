@@ -24,10 +24,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.domain.SubtitleParser
 import com.deedeedev.ytreader.domain.SubtitleSegment
@@ -37,12 +39,13 @@ import com.deedeedev.ytreader.domain.SubtitleSegment
 fun ReaderScreen(
     subtitleId: Long,
     subtitleDao: SubtitleDao,
-    onBack: () -> Unit,
-    viewModel: ReaderViewModel = viewModel(
-        key = "Reader_$subtitleId",
-        factory = ReaderViewModel.provideFactory(subtitleDao, subtitleId)
-    )
+    userPreferencesRepository: UserPreferencesRepository,
+    onBack: () -> Unit
 ) {
+    val viewModel: ReaderViewModel = viewModel(
+        key = "Reader_$subtitleId",
+        factory = ReaderViewModel.provideFactory(subtitleDao, userPreferencesRepository, subtitleId)
+    )
     val uiState by viewModel.uiState.collectAsState()
     val subtitle = uiState.subtitle
 
@@ -54,6 +57,14 @@ fun ReaderScreen(
     }
 
     val fontSize = uiState.fontSize
+    val fontFamily = when (uiState.fontFamily) {
+        "Serif" -> FontFamily.Serif
+        "SansSerif" -> FontFamily.SansSerif
+        "Monospace" -> FontFamily.Monospace
+        "Cursive" -> FontFamily.Cursive
+        else -> FontFamily.Default
+    }
+    
     var showTimestamps by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val listState = rememberLazyListState()
@@ -133,7 +144,7 @@ fun ReaderScreen(
 
                     // Increase Font Size
                     IconButton(onClick = {
-                        if (fontSize < 30f) viewModel.updateFontSize(fontSize + 2f)
+                        if (fontSize < 42f) viewModel.updateFontSize(fontSize + 2f)
                     }) {
                         Icon(Icons.Filled.Add, contentDescription = "Increase Font Size")
                     }
@@ -156,13 +167,15 @@ fun ReaderScreen(
                                 text = formatTime(segment.startTime),
                                 fontSize = (fontSize * 0.8).sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.secondary
+                                color = MaterialTheme.colorScheme.secondary,
+                                fontFamily = fontFamily
                             )
                         }
                         Text(
                             text = segment.text,
                             fontSize = fontSize.sp,
-                            lineHeight = (fontSize * 1.5).sp
+                            lineHeight = (fontSize * 1.5).sp,
+                            fontFamily = fontFamily
                         )
                     }
                 }

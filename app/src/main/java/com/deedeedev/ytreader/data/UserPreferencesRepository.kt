@@ -12,13 +12,25 @@ class UserPreferencesRepository(context: Context) {
     private val _favoriteLanguages = MutableStateFlow<Set<String>>(emptySet())
     val favoriteLanguages: StateFlow<Set<String>> = _favoriteLanguages.asStateFlow()
 
+    private val _defaultFontSize = MutableStateFlow(16f)
+    val defaultFontSize: StateFlow<Float> = _defaultFontSize.asStateFlow()
+
+    private val _fontFamily = MutableStateFlow("Default")
+    val fontFamily: StateFlow<String> = _fontFamily.asStateFlow()
+
     init {
         loadFavorites()
+        loadDisplaySettings()
     }
 
     private fun loadFavorites() {
         val saved = prefs.getStringSet(KEY_FAVORITE_LANGUAGES, emptySet()) ?: emptySet()
         _favoriteLanguages.value = saved
+    }
+
+    private fun loadDisplaySettings() {
+        _defaultFontSize.value = prefs.getFloat(KEY_DEFAULT_FONT_SIZE, 16f)
+        _fontFamily.value = prefs.getString(KEY_FONT_FAMILY, "Default") ?: "Default"
     }
 
     fun toggleFavoriteLanguage(languageCode: String) {
@@ -33,8 +45,20 @@ class UserPreferencesRepository(context: Context) {
         _favoriteLanguages.value = current
     }
 
+    fun setDefaultFontSize(size: Float) {
+        prefs.edit().putFloat(KEY_DEFAULT_FONT_SIZE, size).apply()
+        _defaultFontSize.value = size
+    }
+
+    fun setFontFamily(family: String) {
+        prefs.edit().putString(KEY_FONT_FAMILY, family).apply()
+        _fontFamily.value = family
+    }
+
     companion object {
         private const val PREFS_NAME = "user_preferences"
         private const val KEY_FAVORITE_LANGUAGES = "favorite_languages"
+        private const val KEY_DEFAULT_FONT_SIZE = "default_font_size"
+        private const val KEY_FONT_FAMILY = "font_family"
     }
 }

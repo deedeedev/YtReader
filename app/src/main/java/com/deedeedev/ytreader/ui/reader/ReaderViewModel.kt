@@ -3,6 +3,7 @@ package com.deedeedev.ytreader.ui.reader
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.domain.SubtitleParser
@@ -17,11 +18,13 @@ data class ReaderUiState(
     val subtitle: SubtitleEntity? = null,
     val segments: List<SubtitleSegment> = emptyList(),
     val fontSize: Float = 16f,
+    val fontFamily: String = "Default",
     val isLoading: Boolean = false
 )
 
 class ReaderViewModel(
     private val subtitleDao: SubtitleDao,
+    private val userPreferencesRepository: UserPreferencesRepository,
     private val subtitleId: Long
 ) : ViewModel() {
 
@@ -30,6 +33,15 @@ class ReaderViewModel(
 
     init {
         loadSubtitle()
+        loadPreferences()
+    }
+
+    private fun loadPreferences() {
+        viewModelScope.launch {
+            userPreferencesRepository.fontFamily.collect { family ->
+                _uiState.update { it.copy(fontFamily = family) }
+            }
+        }
     }
 
     private fun loadSubtitle() {
@@ -37,6 +49,10 @@ class ReaderViewModel(
             val subtitle = subtitleDao.getById(subtitleId)
             if (subtitle != null) {
                 val segments = SubtitleParser.parseToSegments(subtitle.content)
+                // If subtitle.fontSize is 0 or default, maybe use preference?
+                // But subtitleEntity has a default of 16f. 
+                // Let's trust the entity's fontSize, assuming new ones are created with the preference.
+                
                 _uiState.update { it.copy(
                     subtitle = subtitle,
                     segments = segments,
@@ -65,11 +81,12 @@ class ReaderViewModel(
     companion object {
         fun provideFactory(
             dao: SubtitleDao,
+            userPreferencesRepository: UserPreferencesRepository,
             subtitleId: Long
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return ReaderViewModel(dao, subtitleId) as T
+                return ReaderViewModel(dao, userPreferencesRepository, subtitleId) as T
             }
         }
     }

@@ -107,7 +107,8 @@ class HomeViewModel(
                     title = info.name,
                     channelName = info.uploaderName ?: "Unknown Channel",
                     languageCode = subtitle.languageTag ?: "unknown",
-                    content = srtContent
+                    content = srtContent,
+                    fontSize = userPreferencesRepository.defaultFontSize.value
                 )
                 subtitleDao.insert(entity)
                 
