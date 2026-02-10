@@ -102,7 +102,18 @@ fun MainScreen(
             composable(Screen.Library.route) {
                 LibraryScreen(
                     viewModel = viewModel,
-                    onSubtitleClick = { id -> navController.navigate("reader/$id") }
+                    onSubtitleClick = { id -> navController.navigate("reader/$id") },
+                    onVideoClick = { url ->
+                        viewModel.onUrlChange(url)
+                        viewModel.searchVideo()
+                        navController.navigate(Screen.Search.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             }
             composable(Screen.Settings.route) {

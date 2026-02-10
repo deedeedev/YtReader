@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Check
 fun LibraryScreen(
     viewModel: HomeViewModel,
     onSubtitleClick: (Long) -> Unit,
+    onVideoClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -241,6 +242,7 @@ fun LibraryScreen(
                         LibraryItemCard(
                             item = item,
                             onSubtitleClick = onSubtitleClick,
+                            onVideoClick = onVideoClick,
                             onDelete = {
                                 viewModel.deleteLibraryItem(item.subtitles.first())
                             },
@@ -269,6 +271,7 @@ data class LibraryItem(
 fun LibraryItemCard(
     item: LibraryItem,
     onSubtitleClick: (Long) -> Unit,
+    onVideoClick: (String) -> Unit,
     onDelete: () -> Unit,
     onSubtitleDelete: (SubtitleEntity) -> Unit
 ) {
@@ -281,7 +284,7 @@ fun LibraryItemCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .combinedClickable(
-                    onClick = {},
+                    onClick = { onVideoClick(item.videoId) },
                     onLongClick = { showMenu = true }
                 ),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
