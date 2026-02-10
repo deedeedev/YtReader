@@ -26,7 +26,8 @@ data class HomeUiState(
     val streamInfo: StreamInfo? = null,
     val savedSubtitles: List<SubtitleEntity> = emptyList(),
     val selectedSubtitle: SubtitleEntity? = null,
-    val favoriteLanguages: Set<String> = emptySet()
+    val favoriteLanguages: Set<String> = emptySet(),
+    val selectedChannelFilter: String? = null
 )
 
 class HomeViewModel(
@@ -61,6 +62,10 @@ class HomeViewModel(
                 _uiState.update { it.copy(savedSubtitles = subtitles) }
             }
         }
+    }
+
+    fun setChannelFilter(channelName: String?) {
+        _uiState.update { it.copy(selectedChannelFilter = channelName) }
     }
 
     fun onUrlChange(newUrl: String) {

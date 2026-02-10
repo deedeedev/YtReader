@@ -13,12 +13,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,12 +33,25 @@ fun LibraryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // Extract filtering logic
+    val uniqueChannels = remember(uiState.savedSubtitles) {
+        uiState.savedSubtitles.map { it.channelName }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+    }
+    
+    // Apply filter
+    val filteredSubtitles = if (uiState.selectedChannelFilter == null) {
+        uiState.savedSubtitles
+    } else {
+        uiState.savedSubtitles.filter { it.channelName == uiState.selectedChannelFilter }
+    }
+
     // Group subtitles by videoId
-    val libraryItems = remember(uiState.savedSubtitles) {
-        uiState.savedSubtitles.groupBy { it.videoId }
+    val libraryItems = remember(filteredSubtitles) {
+        filteredSubtitles.groupBy { it.videoId }
             .map { (_, subtitles) ->
-                // Assume all subtitles for the same video share the same title and channel name
-                // Use the most recent one for metadata just in case
                 val first = subtitles.first()
                 LibraryItem(
                     videoId = first.videoId,
@@ -54,73 +62,118 @@ fun LibraryScreen(
             }
     }
 
-    LazyColumn(
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(16.dp)
     ) {
-        if (libraryItems.isEmpty()) {
-            item {
-                Text(
-                    text = "No saved subtitles yet.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-        } else {
-            items(
-                items = libraryItems,
-                key = { it.videoId }
-            ) { item ->
-                val dismissState = rememberSwipeToDismissBoxState(
-                    confirmValueChange = {
-                        if (it == SwipeToDismissBoxValue.EndToStart) {
-                            // Delete the item
-                            // We pass the first subtitle to get the videoId
-                            viewModel.deleteLibraryItem(item.subtitles.first())
-                            true
-                        } else {
-                            false
-                        }
+        // Channel Filter Dropdown
+        var expanded by remember { mutableStateOf(false) }
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        ) {
+            OutlinedTextField(
+                value = uiState.selectedChannelFilter ?: "All Channels",
+                onValueChange = {},
+                readOnly = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
+                label = { Text("Filter by Channel") }
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("All Channels") },
+                    onClick = {
+                        viewModel.setChannelFilter(null)
+                        expanded = false
                     }
                 )
-
-                SwipeToDismissBox(
-                    state = dismissState,
-                    enableDismissFromStartToEnd = false,
-                    backgroundContent = {
-                        val color = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
-                            MaterialTheme.colorScheme.errorContainer
-                        } else {
-                            Color.Transparent
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(color)
-                                .padding(horizontal = 20.dp),
-                            contentAlignment = Alignment.CenterEnd
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete",
-                                tint = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                    }
-                ) {
-                    LibraryItemCard(
-                        item = item,
-                        onSubtitleClick = onSubtitleClick,
-                        onDelete = {
-                            viewModel.deleteLibraryItem(item.subtitles.first())
-                        },
-                        onSubtitleDelete = { subtitle ->
-                            viewModel.deleteSubtitle(subtitle)
+                uniqueChannels.forEach { channel ->
+                    DropdownMenuItem(
+                        text = { Text(channel) },
+                        onClick = {
+                            viewModel.setChannelFilter(channel)
+                            expanded = false
                         }
                     )
+                }
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            if (libraryItems.isEmpty()) {
+                item {
+                    Text(
+                        text = "No saved subtitles found.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            } else {
+                items(
+                    items = libraryItems,
+                    key = { it.videoId }
+                ) { item ->
+                    val dismissState = rememberSwipeToDismissBoxState(
+                        confirmValueChange = {
+                            if (it == SwipeToDismissBoxValue.EndToStart) {
+                                viewModel.deleteLibraryItem(item.subtitles.first())
+                                true
+                            } else {
+                                false
+                            }
+                        }
+                    )
+
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        enableDismissFromStartToEnd = false,
+                        backgroundContent = {
+                            val color = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                                MaterialTheme.colorScheme.errorContainer
+                            } else {
+                                Color.Transparent
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(color)
+                                    .padding(horizontal = 20.dp),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete",
+                                    tint = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    ) {
+                        LibraryItemCard(
+                            item = item,
+                            onSubtitleClick = onSubtitleClick,
+                            onDelete = {
+                                viewModel.deleteLibraryItem(item.subtitles.first())
+                            },
+                            onSubtitleDelete = { subtitle ->
+                                viewModel.deleteSubtitle(subtitle)
+                            }
+                        )
+                    }
                 }
             }
         }
