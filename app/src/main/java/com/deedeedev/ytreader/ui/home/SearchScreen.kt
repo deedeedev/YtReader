@@ -193,7 +193,13 @@ fun SubtitleItem(
                 .fillMaxWidth()
                 .padding(vertical = 4.dp)
                 .combinedClickable(
-                    onClick = {},
+                    onClick = {
+                        if (isDownloaded) {
+                            onView()
+                        } else {
+                            onDownload()
+                        }
+                    },
                     onLongClick = { showMenu = true }
                 ),
             horizontalArrangement = Arrangement.SpaceBetween,

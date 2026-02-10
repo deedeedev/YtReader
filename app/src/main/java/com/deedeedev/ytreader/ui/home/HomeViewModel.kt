@@ -82,8 +82,8 @@ class HomeViewModel(
         _uiState.update { it.copy(isAscending = !it.isAscending) }
     }
 
-    fun onUrlChange(newUrl: String) {
-        _uiState.update { it.copy(url = newUrl, error = null) }
+    fun onUrlChange(newUrl: String?) {
+        _uiState.update { it.copy(url = newUrl ?: "", error = null) }
     }
 
     fun selectSubtitle(id: Long) {
