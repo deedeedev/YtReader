@@ -9,6 +9,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 
@@ -26,6 +30,7 @@ fun SearchScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Column(
         modifier = modifier
@@ -46,6 +51,13 @@ fun SearchScreen(
                     .weight(1f)
                     .height(56.dp),
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        keyboardController?.hide()
+                        viewModel.searchVideo()
+                    }
+                ),
                 trailingIcon = {
                     if (uiState.url.isNotEmpty()) {
                         IconButton(onClick = { viewModel.onUrlChange("") }) {
@@ -59,7 +71,10 @@ fun SearchScreen(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Button(
-                onClick = viewModel::searchVideo,
+                onClick = {
+                    keyboardController?.hide()
+                    viewModel.searchVideo()
+                },
                 enabled = !uiState.isLoading,
                 modifier = Modifier.height(56.dp),
                 shape = RoundedCornerShape(4.dp),
