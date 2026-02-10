@@ -11,6 +11,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.AppContainer
 
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.sp
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
@@ -23,6 +26,14 @@ fun SettingsScreen(
     
     // Convert to proper types for DropdownMenuItem
     val availableFonts = listOf("Default", "Serif", "SansSerif", "Monospace", "Cursive")
+
+    val selectedFontFamily = when (uiState.fontFamily) {
+        "Serif" -> FontFamily.Serif
+        "SansSerif" -> FontFamily.SansSerif
+        "Monospace" -> FontFamily.Monospace
+        "Cursive" -> FontFamily.Cursive
+        else -> FontFamily.Default
+    }
 
     Scaffold(
         topBar = {
@@ -47,7 +58,10 @@ fun SettingsScreen(
             item {
                 Text(
                     text = "Default Font Size: ${uiState.defaultFontSize.toInt()}sp",
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = uiState.defaultFontSize.sp,
+                        fontFamily = selectedFontFamily
+                    )
                 )
                 Slider(
                     value = uiState.defaultFontSize,

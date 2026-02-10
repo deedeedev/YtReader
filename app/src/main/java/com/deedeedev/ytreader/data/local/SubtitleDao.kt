@@ -27,6 +27,9 @@ interface SubtitleDao {
     @Query("UPDATE subtitles SET fontSize = :fontSize WHERE id = :id")
     suspend fun updateFontSize(id: Long, fontSize: Float)
 
+    @Query("UPDATE subtitles SET fontFamily = :fontFamily WHERE id = :id")
+    suspend fun updateFontFamily(id: Long, fontFamily: String)
+
     @Query("DELETE FROM subtitles WHERE videoId = :videoId")
     suspend fun deleteByVideoId(videoId: String)
 }

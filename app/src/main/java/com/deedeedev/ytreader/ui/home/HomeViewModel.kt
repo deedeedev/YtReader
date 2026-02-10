@@ -19,6 +19,10 @@ import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 
+enum class SortOption {
+    TITLE, CHANNEL_NAME, DATE_PUBLISHED, DOWNLOADED
+}
+
 data class HomeUiState(
     val url: String = "",
     val isLoading: Boolean = false,
@@ -27,7 +31,9 @@ data class HomeUiState(
     val savedSubtitles: List<SubtitleEntity> = emptyList(),
     val selectedSubtitle: SubtitleEntity? = null,
     val favoriteLanguages: Set<String> = emptySet(),
-    val selectedChannelFilter: String? = null
+    val selectedChannelFilter: String? = null,
+    val sortOption: SortOption = SortOption.DOWNLOADED,
+    val isAscending: Boolean = false
 )
 
 class HomeViewModel(
@@ -66,6 +72,14 @@ class HomeViewModel(
 
     fun setChannelFilter(channelName: String?) {
         _uiState.update { it.copy(selectedChannelFilter = channelName) }
+    }
+
+    fun setSortOption(sortOption: SortOption) {
+        _uiState.update { it.copy(sortOption = sortOption) }
+    }
+
+    fun toggleSortOrder() {
+        _uiState.update { it.copy(isAscending = !it.isAscending) }
     }
 
     fun onUrlChange(newUrl: String) {
@@ -113,7 +127,9 @@ class HomeViewModel(
                     channelName = info.uploaderName ?: "Unknown Channel",
                     languageCode = subtitle.languageTag ?: "unknown",
                     content = srtContent,
-                    fontSize = userPreferencesRepository.defaultFontSize.value
+                    fontSize = userPreferencesRepository.defaultFontSize.value,
+                    fontFamily = userPreferencesRepository.fontFamily.value,
+                    uploadDate = info.uploadDate?.instant?.toEpochMilli() ?: 0L
                 )
                 subtitleDao.insert(entity)
                 

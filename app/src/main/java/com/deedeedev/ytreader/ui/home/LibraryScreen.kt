@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +26,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.deedeedev.ytreader.data.local.SubtitleEntity
+
+import androidx.compose.material.icons.filled.Check
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -57,9 +62,22 @@ fun LibraryScreen(
                     videoId = first.videoId,
                     title = first.title,
                     channelName = first.channelName,
-                    subtitles = subtitles.sortedBy { it.languageCode }
+                    subtitles = subtitles.sortedBy { it.languageCode },
+                    uploadDate = first.uploadDate,
+                    lastDownloaded = subtitles.maxOf { it.createdAt }
                 )
             }
+    }
+
+    // Sort library items
+    val sortedLibraryItems = remember(libraryItems, uiState.sortOption, uiState.isAscending) {
+        val sorted = when (uiState.sortOption) {
+            SortOption.TITLE -> libraryItems.sortedBy { it.title }
+            SortOption.CHANNEL_NAME -> libraryItems.sortedBy { it.channelName }
+            SortOption.DATE_PUBLISHED -> libraryItems.sortedBy { it.uploadDate }
+            SortOption.DOWNLOADED -> libraryItems.sortedBy { it.lastDownloaded }
+        }
+        if (uiState.isAscending) sorted else sorted.reversed()
     }
 
     Column(
@@ -67,46 +85,103 @@ fun LibraryScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Channel Filter Dropdown
-        var expanded by remember { mutableStateOf(false) }
-
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded },
+        // Filter and Sort Row
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp)
+                .padding(bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedTextField(
-                value = uiState.selectedChannelFilter ?: "All Channels",
-                onValueChange = {},
-                readOnly = true,
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth(),
-                label = { Text("Filter by Channel") }
-            )
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("All Channels") },
-                    onClick = {
-                        viewModel.setChannelFilter(null)
-                        expanded = false
-                    }
-                )
-                uniqueChannels.forEach { channel ->
-                    DropdownMenuItem(
-                        text = { Text(channel) },
-                        onClick = {
-                            viewModel.setChannelFilter(channel)
-                            expanded = false
+            // Channel Filter Dropdown
+            var expandedFilter by remember { mutableStateOf(false) }
+
+            Box(modifier = Modifier.weight(1f)) {
+                ExposedDropdownMenuBox(
+                    expanded = expandedFilter,
+                    onExpandedChange = { expandedFilter = !expandedFilter }
+                ) {
+                    OutlinedTextField(
+                        value = uiState.selectedChannelFilter ?: "All Channels",
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFilter) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        label = { Text("Filter by Channel") }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedFilter,
+                        onDismissRequest = { expandedFilter = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("All Channels") },
+                            onClick = {
+                                viewModel.setChannelFilter(null)
+                                expandedFilter = false
+                            }
+                        )
+                        uniqueChannels.forEach { channel ->
+                            DropdownMenuItem(
+                                text = { Text(channel) },
+                                onClick = {
+                                    viewModel.setChannelFilter(channel)
+                                    expandedFilter = false
+                                }
+                            )
                         }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Sort Menu
+            var expandedSort by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { expandedSort = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Sort,
+                        contentDescription = "Sort"
                     )
                 }
+                DropdownMenu(
+                    expanded = expandedSort,
+                    onDismissRequest = { expandedSort = false }
+                ) {
+                    val sortOptions = mapOf(
+                        SortOption.TITLE to "Title",
+                        SortOption.CHANNEL_NAME to "Channel Name",
+                        SortOption.DATE_PUBLISHED to "Date Published",
+                        SortOption.DOWNLOADED to "Downloaded"
+                    )
+
+                    sortOptions.forEach { (option, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                viewModel.setSortOption(option)
+                                expandedSort = false
+                            },
+                            trailingIcon = {
+                                if (uiState.sortOption == option) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected"
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Order Toggle
+            IconButton(onClick = { viewModel.toggleSortOrder() }) {
+                Icon(
+                    imageVector = if (uiState.isAscending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                    contentDescription = if (uiState.isAscending) "Ascending" else "Descending"
+                )
             }
         }
 
@@ -114,7 +189,7 @@ fun LibraryScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (libraryItems.isEmpty()) {
+            if (sortedLibraryItems.isEmpty()) {
                 item {
                     Text(
                         text = "No saved subtitles found.",
@@ -124,7 +199,7 @@ fun LibraryScreen(
                 }
             } else {
                 items(
-                    items = libraryItems,
+                    items = sortedLibraryItems,
                     key = { it.videoId }
                 ) { item ->
                     val dismissState = rememberSwipeToDismissBoxState(
@@ -184,7 +259,9 @@ data class LibraryItem(
     val videoId: String,
     val title: String,
     val channelName: String,
-    val subtitles: List<SubtitleEntity>
+    val subtitles: List<SubtitleEntity>,
+    val uploadDate: Long,
+    val lastDownloaded: Long
 )
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)

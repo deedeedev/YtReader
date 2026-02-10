@@ -33,15 +33,6 @@ class ReaderViewModel(
 
     init {
         loadSubtitle()
-        loadPreferences()
-    }
-
-    private fun loadPreferences() {
-        viewModelScope.launch {
-            userPreferencesRepository.fontFamily.collect { family ->
-                _uiState.update { it.copy(fontFamily = family) }
-            }
-        }
     }
 
     private fun loadSubtitle() {
@@ -49,14 +40,12 @@ class ReaderViewModel(
             val subtitle = subtitleDao.getById(subtitleId)
             if (subtitle != null) {
                 val segments = SubtitleParser.parseToSegments(subtitle.content)
-                // If subtitle.fontSize is 0 or default, maybe use preference?
-                // But subtitleEntity has a default of 16f. 
-                // Let's trust the entity's fontSize, assuming new ones are created with the preference.
                 
                 _uiState.update { it.copy(
                     subtitle = subtitle,
                     segments = segments,
                     fontSize = subtitle.fontSize,
+                    fontFamily = subtitle.fontFamily,
                     isLoading = false
                 ) }
             } else {
@@ -75,6 +64,13 @@ class ReaderViewModel(
         _uiState.update { it.copy(fontSize = fontSize) }
         viewModelScope.launch {
             subtitleDao.updateFontSize(subtitleId, fontSize)
+        }
+    }
+
+    fun updateFontFamily(fontFamily: String) {
+        _uiState.update { it.copy(fontFamily = fontFamily) }
+        viewModelScope.launch {
+            subtitleDao.updateFontFamily(subtitleId, fontFamily)
         }
     }
 

@@ -34,6 +34,8 @@ import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.domain.SubtitleParser
 import com.deedeedev.ytreader.domain.SubtitleSegment
 
+import androidx.compose.material.icons.filled.FormatSize
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderScreen(
@@ -147,6 +149,29 @@ fun ReaderScreen(
                         if (fontSize < 42f) viewModel.updateFontSize(fontSize + 2f)
                     }) {
                         Icon(Icons.Filled.Add, contentDescription = "Increase Font Size")
+                    }
+
+                    // Font Family
+                    var showFontMenu by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { showFontMenu = true }) {
+                            Icon(Icons.Filled.FormatSize, contentDescription = "Font Family")
+                        }
+                        DropdownMenu(
+                            expanded = showFontMenu,
+                            onDismissRequest = { showFontMenu = false }
+                        ) {
+                            val fonts = listOf("Default", "Serif", "SansSerif", "Monospace", "Cursive")
+                            fonts.forEach { font ->
+                                DropdownMenuItem(
+                                    text = { Text(font) },
+                                    onClick = {
+                                        viewModel.updateFontFamily(font)
+                                        showFontMenu = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
