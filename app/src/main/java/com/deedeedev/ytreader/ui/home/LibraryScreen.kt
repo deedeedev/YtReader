@@ -14,7 +14,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -107,7 +107,7 @@ fun LibraryScreen(
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFilter) },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
                             .fillMaxWidth(),
                         label = { Text("Filter by Channel") }
                     )
@@ -140,12 +140,12 @@ fun LibraryScreen(
             // Sort Menu
             var expandedSort by remember { mutableStateOf(false) }
             Box {
-                IconButton(onClick = { expandedSort = true }) {
-                    Icon(
-                        imageVector = Icons.Default.Sort,
-                        contentDescription = "Sort"
-                    )
-                }
+                    IconButton(onClick = { expandedSort = true }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = "Sort"
+                        )
+                    }
                 DropdownMenu(
                     expanded = expandedSort,
                     onDismissRequest = { expandedSort = false }
@@ -248,7 +248,11 @@ fun LibraryScreen(
                             },
                             onSubtitleDelete = { subtitle ->
                                 viewModel.deleteSubtitle(subtitle)
-                            }
+                            },
+                            onSubtitleDownloadAgain = { subtitle ->
+                                viewModel.downloadSubtitleAgain(subtitle)
+                            },
+                            downloadingSubtitleIds = uiState.downloadingSubtitleIds
                         )
                     }
                 }
@@ -273,7 +277,9 @@ fun LibraryItemCard(
     onSubtitleClick: (Long) -> Unit,
     onVideoClick: (String) -> Unit,
     onDelete: () -> Unit,
-    onSubtitleDelete: (SubtitleEntity) -> Unit
+    onSubtitleDelete: (SubtitleEntity) -> Unit,
+    onSubtitleDownloadAgain: (SubtitleEntity) -> Unit,
+    downloadingSubtitleIds: Set<Long>
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
@@ -318,7 +324,9 @@ fun LibraryItemCard(
                         SubtitleChip(
                             subtitle = subtitle,
                             onClick = { onSubtitleClick(subtitle.id) },
-                            onDelete = { onSubtitleDelete(subtitle) }
+                            onDelete = { onSubtitleDelete(subtitle) },
+                            onDownloadAgain = { onSubtitleDownloadAgain(subtitle) },
+                            isDownloading = downloadingSubtitleIds.contains(subtitle.id)
                         )
                     }
                 }
@@ -383,9 +391,13 @@ fun LibraryItemCard(
 fun SubtitleChip(
     subtitle: SubtitleEntity,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onDownloadAgain: () -> Unit,
+    isDownloading: Boolean
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    var showDownloadAgainDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
 
     Box {
@@ -396,24 +408,31 @@ fun SubtitleChip(
             modifier = Modifier
                 .height(32.dp)
                 .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = { showMenu = true }
+                    onClick = { if (!isDownloading) onClick() },
+                    onLongClick = { if (!isDownloading) showMenu = true }
                 )
         ) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier.padding(horizontal = 16.dp)
             ) {
-                Text(
-                    text = subtitle.languageCode.uppercase(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (isDownloading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = subtitle.languageCode.uppercase(),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
         DropdownMenu(
-            expanded = showMenu,
+            expanded = showMenu && !isDownloading,
             onDismissRequest = { showMenu = false }
         ) {
             DropdownMenuItem(
@@ -430,10 +449,23 @@ fun SubtitleChip(
                 }
             )
             DropdownMenuItem(
+                text = { Text("Download again") },
+                onClick = {
+                    showMenu = false
+                    showDownloadAgainDialog = true
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.ArrowDownward,
+                        contentDescription = null
+                    )
+                }
+            )
+            DropdownMenuItem(
                 text = { Text("Delete subtitles") },
                 onClick = {
-                    onDelete()
                     showMenu = false
+                    showDeleteDialog = true
                 },
                 leadingIcon = {
                     Icon(
@@ -443,5 +475,47 @@ fun SubtitleChip(
                 }
             )
         }
+    }
+
+    if (showDownloadAgainDialog) {
+        AlertDialog(
+            onDismissRequest = { showDownloadAgainDialog = false },
+            title = { Text("Overwrite subtitles?") },
+            text = { Text("This will replace the current version with a freshly downloaded one.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDownloadAgainDialog = false
+                    onDownloadAgain()
+                }) {
+                    Text("Download")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDownloadAgainDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete subtitles?") },
+            text = { Text("This will permanently remove the subtitles from your library.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDelete()
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

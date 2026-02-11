@@ -21,9 +21,8 @@ class UserPreferencesRepository(context: Context) {
     private val _lineHeightMultiplier = MutableStateFlow(1.5f)
     val lineHeightMultiplier: StateFlow<Float> = _lineHeightMultiplier.asStateFlow()
 
-    private val _paragraphSpacing = MutableStateFlow(16f)
-    val paragraphSpacing: StateFlow<Float> = _paragraphSpacing.asStateFlow()
-
+    private val _aiApiKey = MutableStateFlow("")
+    val aiApiKey: StateFlow<String> = _aiApiKey.asStateFlow()
     init {
         loadFavorites()
         loadDisplaySettings()
@@ -38,7 +37,7 @@ class UserPreferencesRepository(context: Context) {
         _defaultFontSize.value = prefs.getFloat(KEY_DEFAULT_FONT_SIZE, 16f)
         _fontFamily.value = prefs.getString(KEY_FONT_FAMILY, "Default") ?: "Default"
         _lineHeightMultiplier.value = prefs.getFloat(KEY_LINE_HEIGHT_MULTIPLIER, 1.5f)
-        _paragraphSpacing.value = prefs.getFloat(KEY_PARAGRAPH_SPACING, 16f)
+        _aiApiKey.value = prefs.getString(KEY_AI_API_KEY, "") ?: ""
     }
 
     fun toggleFavoriteLanguage(languageCode: String) {
@@ -68,9 +67,9 @@ class UserPreferencesRepository(context: Context) {
         _lineHeightMultiplier.value = multiplier
     }
 
-    fun setParagraphSpacing(spacing: Float) {
-        prefs.edit().putFloat(KEY_PARAGRAPH_SPACING, spacing).apply()
-        _paragraphSpacing.value = spacing
+    fun setAiApiKey(key: String) {
+        prefs.edit().putString(KEY_AI_API_KEY, key).apply()
+        _aiApiKey.value = key
     }
 
     companion object {
@@ -79,6 +78,6 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_DEFAULT_FONT_SIZE = "default_font_size"
         private const val KEY_FONT_FAMILY = "font_family"
         private const val KEY_LINE_HEIGHT_MULTIPLIER = "line_height_multiplier"
-        private const val KEY_PARAGRAPH_SPACING = "paragraph_spacing"
+        private const val KEY_AI_API_KEY = "ai_api_key"
     }
 }

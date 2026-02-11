@@ -33,6 +33,9 @@ interface SubtitleDao {
     @Query("UPDATE subtitles SET content = :content WHERE id = :id")
     suspend fun updateContent(id: Long, content: String)
 
+    @Query("UPDATE subtitles SET content = :content, createdAt = :createdAt WHERE id = :id")
+    suspend fun updateContentAndCreatedAt(id: Long, content: String, createdAt: Long)
+
     @Query("DELETE FROM subtitles WHERE videoId = :videoId")
     suspend fun deleteByVideoId(videoId: String)
 }

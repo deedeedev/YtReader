@@ -19,7 +19,6 @@ data class ReaderUiState(
     val fontSize: Float = 16f,
     val fontFamily: String = "Default",
     val lineHeightMultiplier: Float = 1.5f,
-    val paragraphSpacing: Float = 16f,
     val isLoading: Boolean = false
 )
 
@@ -41,11 +40,6 @@ class ReaderViewModel(
         viewModelScope.launch {
             userPreferencesRepository.lineHeightMultiplier.collect { multiplier ->
                 _uiState.update { it.copy(lineHeightMultiplier = multiplier) }
-            }
-        }
-        viewModelScope.launch {
-            userPreferencesRepository.paragraphSpacing.collect { spacing ->
-                _uiState.update { it.copy(paragraphSpacing = spacing) }
             }
         }
     }

@@ -15,7 +15,7 @@ data class SettingsUiState(
     val fontFamily: String = "Default",
     val availableFonts: List<String> = listOf("Default", "Serif", "SansSerif", "Monospace", "Cursive"),
     val lineHeightMultiplier: Float = 1.5f,
-    val paragraphSpacing: Float = 16f
+    val aiApiKey: String = ""
 )
 
 class SettingsViewModel(
@@ -42,8 +42,8 @@ class SettingsViewModel(
             }
         }
         viewModelScope.launch {
-            userPreferencesRepository.paragraphSpacing.collect { spacing ->
-                _uiState.update { it.copy(paragraphSpacing = spacing) }
+            userPreferencesRepository.aiApiKey.collect { key ->
+                _uiState.update { it.copy(aiApiKey = key) }
             }
         }
     }
@@ -60,8 +60,8 @@ class SettingsViewModel(
         userPreferencesRepository.setLineHeightMultiplier(multiplier)
     }
 
-    fun setParagraphSpacing(spacing: Float) {
-        userPreferencesRepository.setParagraphSpacing(spacing)
+    fun setAiApiKey(key: String) {
+        userPreferencesRepository.setAiApiKey(key)
     }
 
     companion object {

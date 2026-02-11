@@ -84,7 +84,7 @@ fun SettingsScreen(
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
                             .fillMaxWidth(),
                         label = { Text("Font Family") }
                     )
@@ -118,15 +118,13 @@ fun SettingsScreen(
             }
 
             item {
-                Text(
-                    text = "Paragraph Spacing: ${uiState.paragraphSpacing.toInt()}dp",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Slider(
-                    value = uiState.paragraphSpacing,
-                    onValueChange = { viewModel.setParagraphSpacing(it) },
-                    valueRange = 0f..64f,
-                    steps = 31 // (64-0)/2 - 1 = 31 steps of size 2
+                OutlinedTextField(
+                    value = uiState.aiApiKey,
+                    onValueChange = { viewModel.setAiApiKey(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("AI API key") },
+                    placeholder = { Text("Paste your API key") },
+                    singleLine = true
                 )
             }
         }

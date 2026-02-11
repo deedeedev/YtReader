@@ -27,7 +27,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -37,7 +36,6 @@ import androidx.activity.compose.BackHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.SubtitleDao
-import kotlin.math.roundToInt
 import android.content.Intent
 
 import androidx.compose.material.icons.filled.FormatSize
@@ -76,7 +74,6 @@ fun ReaderScreen(
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    val density = LocalDensity.current
     val lineHeightSp = fontSize * uiState.lineHeightMultiplier
 
     var isEditing by rememberSaveable { mutableStateOf(false) }
@@ -92,17 +89,6 @@ fun ReaderScreen(
     LaunchedEffect(uiState.content, isEditing) {
         if (!isEditing) {
             editText = uiState.content
-        }
-    }
-
-    val displayText by remember(uiState.content, uiState.paragraphSpacing, lineHeightSp, density) {
-        derivedStateOf {
-            applyParagraphSpacing(
-                text = uiState.content,
-                paragraphSpacingDp = uiState.paragraphSpacing,
-                lineHeightSp = lineHeightSp,
-                density = density
-            )
         }
     }
 
@@ -197,7 +183,7 @@ fun ReaderScreen(
                             expanded = showFontMenu,
                             onDismissRequest = { showFontMenu = false }
                         ) {
-                            val fonts = listOf("Default", "Serif", "SansSerif", "Monospace", "Cursive")
+                            val fonts = listOf("Default", "Serif", "SansSerif", "Monospace")
                             fonts.forEach { font ->
                                 DropdownMenuItem(
                                     text = { Text(font) },
@@ -291,7 +277,7 @@ fun ReaderScreen(
             } else {
                 SelectionContainer {
                     Text(
-                        text = displayText,
+                        text = uiState.content,
                         fontSize = fontSize.sp,
                         lineHeight = lineHeightSp.sp,
                         fontFamily = fontFamily
@@ -394,29 +380,4 @@ fun ReaderScreen(
             }
         )
     }
-}
-
-private fun applyParagraphSpacing(
-    text: String,
-    paragraphSpacingDp: Float,
-    lineHeightSp: Float,
-    density: androidx.compose.ui.unit.Density
-): String {
-    if (text.isBlank() || paragraphSpacingDp <= 0f) {
-        return text
-    }
-
-    val lineHeightPx = with(density) { lineHeightSp.sp.toPx() }
-    if (lineHeightPx <= 0f) {
-        return text
-    }
-    val paragraphSpacingPx = with(density) { paragraphSpacingDp.dp.toPx() }
-    val extraBlankLines = (paragraphSpacingPx / lineHeightPx).roundToInt().coerceAtLeast(1)
-    val separator = "\n".repeat(1 + extraBlankLines)
-
-    val paragraphs = text.split(Regex("\\n\\s*\\n"))
-    if (paragraphs.size <= 1) {
-        return text
-    }
-    return paragraphs.joinToString(separator)
 }

@@ -33,7 +33,8 @@ data class HomeUiState(
     val favoriteLanguages: Set<String> = emptySet(),
     val selectedChannelFilter: String? = null,
     val sortOption: SortOption = SortOption.DOWNLOADED,
-    val isAscending: Boolean = false
+    val isAscending: Boolean = false,
+    val downloadingSubtitleIds: Set<Long> = emptySet()
 )
 
 class HomeViewModel(
@@ -117,9 +118,13 @@ class HomeViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                val url = subtitle.url ?: throw IllegalArgumentException("Subtitle URL is missing")
-                val content = youtubeRepository.downloadSubtitle(url)
-                val plainText = SubtitleParser.parse(content)
+                val subtitleContent = subtitle.content
+                val plainText = if (subtitle.isUrl) {
+                    val content = youtubeRepository.downloadSubtitle(subtitleContent)
+                    SubtitleParser.parse(content)
+                } else {
+                    SubtitleParser.parse(subtitleContent)
+                }
                 
                 val entity = SubtitleEntity(
                     videoId = info.url ?: "unknown", // Using URL as ID for now or info.id
@@ -136,6 +141,45 @@ class HomeViewModel(
                 _uiState.update { it.copy(isLoading = false, error = null) } // Success
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = e.message ?: "Download failed") }
+            }
+        }
+    }
+
+    fun downloadSubtitleAgain(subtitle: SubtitleEntity) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { state ->
+                state.copy(downloadingSubtitleIds = state.downloadingSubtitleIds + subtitle.id)
+            }
+            try {
+                val info = youtubeRepository.getStreamInfo(subtitle.videoId)
+                val matchingSubtitle = info.subtitles
+                    ?.firstOrNull { stream ->
+                        val tag = stream.languageTag
+                        tag != null && tag.equals(subtitle.languageCode, ignoreCase = true)
+                    }
+                    ?: throw IllegalStateException("Matching subtitle not found")
+
+                val subtitleContent = matchingSubtitle.content
+                val plainText = if (matchingSubtitle.isUrl) {
+                    val content = youtubeRepository.downloadSubtitle(subtitleContent)
+                    SubtitleParser.parse(content)
+                } else {
+                    SubtitleParser.parse(subtitleContent)
+                }
+
+                subtitleDao.updateContentAndCreatedAt(
+                    id = subtitle.id,
+                    content = plainText,
+                    createdAt = System.currentTimeMillis()
+                )
+                _uiState.update { it.copy(isLoading = false, error = null) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, error = e.message ?: "Download failed") }
+            } finally {
+                _uiState.update { state ->
+                    state.copy(downloadingSubtitleIds = state.downloadingSubtitleIds - subtitle.id)
+                }
             }
         }
     }
