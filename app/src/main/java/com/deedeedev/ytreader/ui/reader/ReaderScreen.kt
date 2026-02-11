@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
@@ -24,6 +26,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -35,6 +38,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import kotlin.math.roundToInt
+import android.content.Intent
 
 import androidx.compose.material.icons.filled.FormatSize
 
@@ -70,6 +74,7 @@ fun ReaderScreen(
     }
 
     val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
     val density = LocalDensity.current
     val lineHeightSp = fontSize * uiState.lineHeightMultiplier
@@ -78,6 +83,11 @@ fun ReaderScreen(
     var editText by rememberSaveable(subtitle.id) { mutableStateOf(uiState.content) }
     var showEmptyDialog by remember { mutableStateOf(false) }
     var showUnsavedDialog by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showFindReplaceDialog by remember { mutableStateOf(false) }
+    var findText by rememberSaveable { mutableStateOf("") }
+    var replaceText by rememberSaveable { mutableStateOf("") }
+    var isCaseSensitive by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(uiState.content, isEditing) {
         if (!isEditing) {
@@ -97,6 +107,16 @@ fun ReaderScreen(
     }
 
     val hasUnsavedChanges = isEditing && editText != uiState.content
+
+    fun currentText(): String = if (isEditing) editText else uiState.content
+
+    fun applyTextUpdate(updated: String) {
+        if (isEditing) {
+            editText = updated
+        } else {
+            viewModel.updateContent(updated)
+        }
+    }
 
     val attemptLeaveEditMode: () -> Unit = {
         if (hasUnsavedChanges) {
@@ -197,6 +217,54 @@ fun ReaderScreen(
                             }
                         }
                     }
+
+                    // More
+                    Box {
+                        IconButton(onClick = { showOverflowMenu = true }) {
+                            Icon(Icons.Filled.MoreVert, contentDescription = "More options")
+                        }
+                        DropdownMenu(
+                            expanded = showOverflowMenu,
+                            onDismissRequest = { showOverflowMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Share text") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, currentText())
+                                    }
+                                    context.startActivity(
+                                        Intent.createChooser(shareIntent, "Share text")
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Remove empty lines") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    val cleaned = currentText()
+                                        .lines()
+                                        .filter { it.isNotBlank() }
+                                        .joinToString("\n")
+                                    applyTextUpdate(cleaned)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Find and replace") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    showFindReplaceDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("AI cleaning") },
+                                onClick = { showOverflowMenu = false },
+                                enabled = false
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -250,6 +318,64 @@ fun ReaderScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showUnsavedDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showFindReplaceDialog) {
+        AlertDialog(
+            onDismissRequest = { showFindReplaceDialog = false },
+            title = { Text("Find and replace") },
+            text = {
+                Column {
+                    TextField(
+                        value = findText,
+                        onValueChange = { findText = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Find") }
+                    )
+                    Spacer(modifier = Modifier.padding(top = 12.dp))
+                    TextField(
+                        value = replaceText,
+                        onValueChange = { replaceText = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Replace with") }
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = isCaseSensitive,
+                            onCheckedChange = { isCaseSensitive = it }
+                        )
+                        Text("Case sensitive")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val query = findText
+                    if (query.isNotEmpty()) {
+                        val regex = if (isCaseSensitive) {
+                            Regex(Regex.escape(query))
+                        } else {
+                            Regex(Regex.escape(query), RegexOption.IGNORE_CASE)
+                        }
+                        val updated = currentText().replace(regex, replaceText)
+                        applyTextUpdate(updated)
+                    }
+                    showFindReplaceDialog = false
+                }) {
+                    Text("Replace")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFindReplaceDialog = false }) {
                     Text("Cancel")
                 }
             }
