@@ -18,7 +18,7 @@ class SubtitleParserTest {
         """.trimIndent()
 
         val result = SubtitleParser.parse(ttml)
-        val expected = "Line 1\nLine 2"
+        val expected = "Line 1\n\nLine 2"
         assertEquals(expected, result)
     }
 
@@ -35,7 +35,7 @@ class SubtitleParserTest {
         """.trimIndent()
 
         val result = SubtitleParser.parse(vtt)
-        val expected = "Line 1\nLine 2"
+        val expected = "Line 1\n\nLine 2"
         assertEquals(expected, result)
     }
 

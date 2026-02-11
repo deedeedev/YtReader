@@ -7,7 +7,6 @@ import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.domain.SubtitleParser
-import com.deedeedev.ytreader.domain.SubtitleSegment
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +15,7 @@ import kotlinx.coroutines.launch
 
 data class ReaderUiState(
     val subtitle: SubtitleEntity? = null,
-    val segments: List<SubtitleSegment> = emptyList(),
+    val content: String = "",
     val fontSize: Float = 16f,
     val fontFamily: String = "Default",
     val lineHeightMultiplier: Float = 1.5f,
@@ -55,11 +54,11 @@ class ReaderViewModel(
         viewModelScope.launch {
             val subtitle = subtitleDao.getById(subtitleId)
             if (subtitle != null) {
-                val segments = SubtitleParser.parseToSegments(subtitle.content)
+                val content = SubtitleParser.parse(subtitle.content)
                 
                 _uiState.update { it.copy(
                     subtitle = subtitle,
-                    segments = segments,
+                    content = content,
                     fontSize = subtitle.fontSize,
                     fontFamily = subtitle.fontFamily,
                     isLoading = false
@@ -87,6 +86,18 @@ class ReaderViewModel(
         _uiState.update { it.copy(fontFamily = fontFamily) }
         viewModelScope.launch {
             subtitleDao.updateFontFamily(subtitleId, fontFamily)
+        }
+    }
+
+    fun updateContent(content: String) {
+        _uiState.update { state ->
+            state.copy(
+                content = content,
+                subtitle = state.subtitle?.copy(content = content)
+            )
+        }
+        viewModelScope.launch {
+            subtitleDao.updateContent(subtitleId, content)
         }
     }
 

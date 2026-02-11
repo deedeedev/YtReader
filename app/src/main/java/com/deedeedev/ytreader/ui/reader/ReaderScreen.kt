@@ -7,33 +7,34 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.TimerOff
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.SubtitleDao
-import com.deedeedev.ytreader.domain.SubtitleParser
-import com.deedeedev.ytreader.domain.SubtitleSegment
+import kotlin.math.roundToInt
 
 import androidx.compose.material.icons.filled.FormatSize
 
@@ -67,43 +68,46 @@ fun ReaderScreen(
         "Cursive" -> FontFamily.Cursive
         else -> FontFamily.Default
     }
-    
-    var showTimestamps by remember { mutableStateOf(false) }
+
     val clipboardManager = LocalClipboardManager.current
-    val listState = rememberLazyListState()
+    val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+    val lineHeightSp = fontSize * uiState.lineHeightMultiplier
 
-    // Scroll to last position on first load
-    LaunchedEffect(subtitle.id) {
-        val lastTimestamp = subtitle.lastTimestamp
-        if (lastTimestamp > 0) {
-            val index = uiState.segments.indexOfFirst { it.startTime >= lastTimestamp }
-            if (index >= 0) {
-                listState.scrollToItem(index)
-            }
+    var isEditing by rememberSaveable { mutableStateOf(false) }
+    var editText by rememberSaveable(subtitle.id) { mutableStateOf(uiState.content) }
+    var showEmptyDialog by remember { mutableStateOf(false) }
+    var showUnsavedDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.content, isEditing) {
+        if (!isEditing) {
+            editText = uiState.content
         }
     }
 
-    // Save scroll position
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex }
-            .collect { index ->
-                if (index < uiState.segments.size) {
-                    val timestamp = uiState.segments[index].startTime
-                    viewModel.updateLastTimestamp(timestamp)
-                }
-            }
-    }
-
-    val fullText by remember(uiState.segments, showTimestamps) {
+    val displayText by remember(uiState.content, uiState.paragraphSpacing, lineHeightSp, density) {
         derivedStateOf {
-            uiState.segments.joinToString("\n\n") { segment ->
-                if (showTimestamps) {
-                    "[${formatTime(segment.startTime)}] ${segment.text}"
-                } else {
-                    segment.text
-                }
-            }
+            applyParagraphSpacing(
+                text = uiState.content,
+                paragraphSpacingDp = uiState.paragraphSpacing,
+                lineHeightSp = lineHeightSp,
+                density = density
+            )
         }
+    }
+
+    val hasUnsavedChanges = isEditing && editText != uiState.content
+
+    val attemptLeaveEditMode: () -> Unit = {
+        if (hasUnsavedChanges) {
+            showUnsavedDialog = true
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler {
+        attemptLeaveEditMode()
     }
 
     Scaffold(
@@ -111,7 +115,7 @@ fun ReaderScreen(
             TopAppBar(
                 title = { Text(subtitle.title) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = attemptLeaveEditMode) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -125,16 +129,27 @@ fun ReaderScreen(
                 ) {
                     // Copy
                     IconButton(onClick = {
-                        clipboardManager.setText(AnnotatedString(fullText))
+                        clipboardManager.setText(AnnotatedString(uiState.content))
                     }) {
                         Icon(Icons.Filled.ContentCopy, contentDescription = "Copy text")
                     }
 
-                    // Show/Hide Timestamps
-                    IconButton(onClick = { showTimestamps = !showTimestamps }) {
+                    // Edit / Save
+                    IconButton(onClick = {
+                        if (isEditing) {
+                            if (editText.isBlank()) {
+                                showEmptyDialog = true
+                            } else {
+                                viewModel.updateContent(editText.trimEnd())
+                                isEditing = false
+                            }
+                        } else {
+                            isEditing = true
+                        }
+                    }) {
                         Icon(
-                            imageVector = if (showTimestamps) Icons.Filled.TimerOff else Icons.Filled.Timer,
-                            contentDescription = if (showTimestamps) "Hide Timestamps" else "Show Timestamps"
+                            imageVector = if (isEditing) Icons.Filled.Save else Icons.Filled.Edit,
+                            contentDescription = if (isEditing) "Save" else "Edit"
                         )
                     }
 
@@ -186,48 +201,96 @@ fun ReaderScreen(
             }
         }
     ) { padding ->
-        LazyColumn(
-            state = listState,
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 16.dp)
+                .verticalScroll(scrollState)
         ) {
-            itemsIndexed(uiState.segments) { index, segment ->
+            if (isEditing) {
+                TextField(
+                    value = editText,
+                    onValueChange = { editText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = TextStyle(
+                        fontSize = fontSize.sp,
+                        lineHeight = lineHeightSp.sp,
+                        fontFamily = fontFamily
+                    ),
+                    colors = TextFieldDefaults.colors()
+                )
+            } else {
                 SelectionContainer {
-                    Column(modifier = Modifier.padding(vertical = (uiState.paragraphSpacing / 2).dp)) {
-                        if (showTimestamps) {
-                            Text(
-                                text = formatTime(segment.startTime),
-                                fontSize = (fontSize * 0.8).sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.secondary,
-                                fontFamily = fontFamily
-                            )
-                        }
-                        Text(
-                            text = segment.text,
-                            fontSize = fontSize.sp,
-                            lineHeight = (fontSize * uiState.lineHeightMultiplier).sp,
-                            fontFamily = fontFamily
-                        )
-                    }
+                    Text(
+                        text = displayText,
+                        fontSize = fontSize.sp,
+                        lineHeight = lineHeightSp.sp,
+                        fontFamily = fontFamily
+                    )
                 }
             }
         }
     }
-}
 
-private fun formatTime(millis: Long): String {
-    val seconds = millis / 1000
-    val m = seconds / 60
-    val s = seconds % 60
-    val h = m / 60
-    val mm = m % 60
-    return if (h > 0) {
-        String.format("%d:%02d:%02d", h, mm, s)
-    } else {
-        String.format("%d:%02d", mm, s)
+    if (showUnsavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedDialog = false },
+            title = { Text("Unsaved changes") },
+            text = { Text("Do you want to leave without saving your changes?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showUnsavedDialog = false
+                    isEditing = false
+                    editText = uiState.content
+                    onBack()
+                }) {
+                    Text("Leave")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnsavedDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showEmptyDialog) {
+        AlertDialog(
+            onDismissRequest = { showEmptyDialog = false },
+            title = { Text("Empty text") },
+            text = { Text("Subtitle text cannot be empty.") },
+            confirmButton = {
+                TextButton(onClick = { showEmptyDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
     }
 }
 
+private fun applyParagraphSpacing(
+    text: String,
+    paragraphSpacingDp: Float,
+    lineHeightSp: Float,
+    density: androidx.compose.ui.unit.Density
+): String {
+    if (text.isBlank() || paragraphSpacingDp <= 0f) {
+        return text
+    }
+
+    val lineHeightPx = with(density) { lineHeightSp.sp.toPx() }
+    if (lineHeightPx <= 0f) {
+        return text
+    }
+    val paragraphSpacingPx = with(density) { paragraphSpacingDp.dp.toPx() }
+    val extraBlankLines = (paragraphSpacingPx / lineHeightPx).roundToInt().coerceAtLeast(1)
+    val separator = "\n".repeat(1 + extraBlankLines)
+
+    val paragraphs = text.split(Regex("\\n\\s*\\n"))
+    if (paragraphs.size <= 1) {
+        return text
+    }
+    return paragraphs.joinToString(separator)
+}

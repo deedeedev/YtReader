@@ -93,27 +93,45 @@ object SubtitleParser {
      */
     fun parse(content: String): String {
         return when {
-            content.contains("-->") -> {
-                // Handle SRT / WebVTT (strip timestamps and indices)
-                content.lines()
-                    .filter { line ->
-                        !line.contains("-->") && 
-                        line.isNotBlank() && 
-                        !line.trim().matches(Regex("^\\d+$")) &&
-                        !line.startsWith("WEBVTT")
-                    }
-                    .joinToString("\n")
-            }
+            content.contains("-->") -> parseSrtToParagraphs(content).joinToString("\n\n")
             content.trim().startsWith("<?xml") || content.contains("<tt") -> {
                 // Handle TTML (Timed Text Markup Language)
                 val doc = Jsoup.parse(content, "", Parser.xmlParser())
-                doc.select("p").eachText().joinToString("\n")
+                doc.select("p").eachText().joinToString("\n\n")
             }
             else -> {
-                // Fallback: strip HTML tags
-                Jsoup.parse(content).text()
+                // Fallback: return plain text as-is
+                content
             }
         }
+    }
+
+    private fun parseSrtToParagraphs(content: String): List<String> {
+        val paragraphs = mutableListOf<String>()
+        val currentLines = mutableListOf<String>()
+
+        val lines = content.lines()
+        for (rawLine in lines) {
+            val line = rawLine.trimEnd()
+            if (line.startsWith("WEBVTT")) {
+                continue
+            }
+            if (line.contains("-->") || line.trim().matches(Regex("^\\d+$"))) {
+                continue
+            }
+            if (line.isBlank()) {
+                if (currentLines.isNotEmpty()) {
+                    paragraphs.add(currentLines.joinToString("\n").trim())
+                    currentLines.clear()
+                }
+            } else {
+                currentLines.add(line)
+            }
+        }
+        if (currentLines.isNotEmpty()) {
+            paragraphs.add(currentLines.joinToString("\n").trim())
+        }
+        return paragraphs
     }
 
     private fun convertTtmlToSrt(ttmlContent: String): String {

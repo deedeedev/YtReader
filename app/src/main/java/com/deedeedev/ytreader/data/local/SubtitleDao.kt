@@ -30,6 +30,9 @@ interface SubtitleDao {
     @Query("UPDATE subtitles SET fontFamily = :fontFamily WHERE id = :id")
     suspend fun updateFontFamily(id: Long, fontFamily: String)
 
+    @Query("UPDATE subtitles SET content = :content WHERE id = :id")
+    suspend fun updateContent(id: Long, content: String)
+
     @Query("DELETE FROM subtitles WHERE videoId = :videoId")
     suspend fun deleteByVideoId(videoId: String)
 }
