@@ -27,6 +27,7 @@ object SubtitleParser {
      */
     fun parseToSegments(content: String): List<SubtitleSegment> {
         return when {
+            content.contains("WEBVTT") -> parseWebVttToSegments(content)
             content.contains("-->") -> parseSrtToSegments(content)
             content.trim().startsWith("<?xml") || content.contains("<tt") -> parseTtmlToSegments(content)
             else -> emptyList() // Or some default parsing
@@ -88,11 +89,20 @@ object SubtitleParser {
         return segments
     }
 
+    private fun parseWebVttToSegments(content: String): List<SubtitleSegment> {
+        val srtContent = convertWebVttToSrt(content)
+        return parseSrtToSegments(srtContent)
+    }
+
     /**
      * Extracts plain text from subtitle content (SRT, TTML, WebVTT).
      */
     fun parse(content: String): String {
         return when {
+            content.contains("WEBVTT") -> {
+                val srtContent = convertWebVttToSrt(content)
+                parseSrtToParagraphs(srtContent).joinToString("\n\n")
+            }
             content.contains("-->") -> parseSrtToParagraphs(content).joinToString("\n\n")
             content.trim().startsWith("<?xml") || content.contains("<tt") -> {
                 // Handle TTML (Timed Text Markup Language)

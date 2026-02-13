@@ -2,6 +2,8 @@ package com.deedeedev.ytreader
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.local.AppDatabase
@@ -18,12 +20,17 @@ interface AppContainer {
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
+    private val MIGRATION_5_6 = Migration(5, 6) { database ->
+        database.execSQL("ALTER TABLE subtitles ADD COLUMN studyContent TEXT")
+    }
+
     private val database: AppDatabase by lazy {
         Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
             "ytreader.db"
         )
+        .addMigrations(MIGRATION_5_6)
         .fallbackToDestructiveMigration(false)
         .build()
     }

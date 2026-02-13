@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -20,6 +23,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.TimerOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -30,15 +36,30 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.SubtitleDao
+import com.deedeedev.ytreader.domain.SubtitleParser
+import com.deedeedev.ytreader.domain.SubtitleSegment
 import android.content.Intent
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.runtime.snapshotFlow
 
 import androidx.compose.material.icons.filled.FormatSize
+
+private enum class ReaderMode {
+    ORIGINAL,
+    STUDY
+}
+
+private sealed interface PendingAction {
+    data object ExitScreen : PendingAction
+    data class SwitchMode(val targetMode: ReaderMode) : PendingAction
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,13 +94,18 @@ fun ReaderScreen(
 
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
-    val scrollState = rememberScrollState()
+    val originalListState = rememberLazyListState()
+    val studyScrollState = rememberScrollState()
+    val originalFallbackScrollState = rememberScrollState()
     val lineHeightSp = fontSize * uiState.lineHeightMultiplier
 
+    var readerMode by rememberSaveable { mutableStateOf(ReaderMode.STUDY) }
+    var showTimestamps by rememberSaveable { mutableStateOf(false) }
     var isEditing by rememberSaveable { mutableStateOf(false) }
     var editText by rememberSaveable(subtitle.id) { mutableStateOf(uiState.content) }
     var showEmptyDialog by remember { mutableStateOf(false) }
     var showUnsavedDialog by remember { mutableStateOf(false) }
+    var pendingAction by remember { mutableStateOf<PendingAction?>(null) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showFindReplaceDialog by remember { mutableStateOf(false) }
     var findText by rememberSaveable { mutableStateOf("") }
@@ -94,7 +120,17 @@ fun ReaderScreen(
 
     val hasUnsavedChanges = isEditing && editText != uiState.content
 
-    fun currentText(): String = if (isEditing) editText else uiState.content
+    val originalSegments = remember(subtitle.content) {
+        SubtitleParser.parseToSegments(subtitle.content)
+    }
+    val originalModeText = remember(originalSegments, showTimestamps, uiState.originalParsedText) {
+        formatOriginalModeCopyText(originalSegments, showTimestamps, uiState.originalParsedText)
+    }
+
+    fun currentText(): String = when (readerMode) {
+        ReaderMode.ORIGINAL -> originalModeText
+        ReaderMode.STUDY -> if (isEditing) editText else uiState.content
+    }
 
     fun applyTextUpdate(updated: String) {
         if (isEditing) {
@@ -104,16 +140,54 @@ fun ReaderScreen(
         }
     }
 
-    val attemptLeaveEditMode: () -> Unit = {
-        if (hasUnsavedChanges) {
-            showUnsavedDialog = true
-        } else {
-            onBack()
+    fun runPendingAction(action: PendingAction) {
+        when (action) {
+            PendingAction.ExitScreen -> onBack()
+            is PendingAction.SwitchMode -> {
+                if (action.targetMode == ReaderMode.ORIGINAL) {
+                    isEditing = false
+                    editText = uiState.content
+                }
+                readerMode = action.targetMode
+            }
         }
     }
 
+    fun requestAction(action: PendingAction) {
+        if (hasUnsavedChanges) {
+            pendingAction = action
+            showUnsavedDialog = true
+        } else {
+            runPendingAction(action)
+        }
+    }
+
+    // Scroll to last position on first load in original mode.
+    LaunchedEffect(subtitle.id, originalSegments) {
+        val lastTimestamp = subtitle.lastTimestamp
+        if (lastTimestamp > 0 && originalSegments.isNotEmpty()) {
+            val index = originalSegments.indexOfFirst { it.startTime >= lastTimestamp }
+            if (index >= 0) {
+                originalListState.scrollToItem(index)
+            }
+        }
+    }
+
+    // Persist current timestamp while browsing original mode.
+    LaunchedEffect(originalListState, originalSegments) {
+        snapshotFlow { originalListState.firstVisibleItemIndex }
+            .collectLatest { index ->
+                if (readerMode == ReaderMode.ORIGINAL &&
+                    originalSegments.isNotEmpty() &&
+                    index < originalSegments.size
+                ) {
+                    viewModel.updateLastTimestamp(originalSegments[index].startTime)
+                }
+            }
+    }
+
     BackHandler {
-        attemptLeaveEditMode()
+        requestAction(PendingAction.ExitScreen)
     }
 
     Scaffold(
@@ -121,11 +195,32 @@ fun ReaderScreen(
             TopAppBar(
                 title = { Text(subtitle.title) },
                 navigationIcon = {
-                    IconButton(onClick = attemptLeaveEditMode) {
+                    IconButton(onClick = { requestAction(PendingAction.ExitScreen) }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    val targetMode = if (readerMode == ReaderMode.STUDY) {
+                        ReaderMode.ORIGINAL
+                    } else {
+                        ReaderMode.STUDY
+                    }
+                    requestAction(PendingAction.SwitchMode(targetMode))
+                }
+            ) {
+                Icon(
+                    imageVector = if (readerMode == ReaderMode.STUDY) Icons.Filled.Timer else Icons.Filled.Edit,
+                    contentDescription = if (readerMode == ReaderMode.STUDY) {
+                        "Switch to original mode"
+                    } else {
+                        "Switch to study mode"
+                    }
+                )
+            }
         },
         bottomBar = {
             BottomAppBar {
@@ -135,28 +230,51 @@ fun ReaderScreen(
                 ) {
                     // Copy
                     IconButton(onClick = {
-                        clipboardManager.setText(AnnotatedString(uiState.content))
+                        clipboardManager.setText(AnnotatedString(currentText()))
                     }) {
                         Icon(Icons.Filled.ContentCopy, contentDescription = "Copy text")
                     }
 
-                    // Edit / Save
-                    IconButton(onClick = {
-                        if (isEditing) {
-                            if (editText.isBlank()) {
-                                showEmptyDialog = true
-                            } else {
-                                viewModel.updateContent(editText.trimEnd())
-                                isEditing = false
+                    when (readerMode) {
+                        ReaderMode.ORIGINAL -> {
+                            IconButton(
+                                onClick = { showTimestamps = !showTimestamps },
+                                enabled = originalSegments.isNotEmpty()
+                            ) {
+                                Icon(
+                                    imageVector = if (showTimestamps) {
+                                        Icons.Filled.TimerOff
+                                    } else {
+                                        Icons.Filled.Timer
+                                    },
+                                    contentDescription = if (showTimestamps) {
+                                        "Hide timestamps"
+                                    } else {
+                                        "Show timestamps"
+                                    }
+                                )
                             }
-                        } else {
-                            isEditing = true
                         }
-                    }) {
-                        Icon(
-                            imageVector = if (isEditing) Icons.Filled.Save else Icons.Filled.Edit,
-                            contentDescription = if (isEditing) "Save" else "Edit"
-                        )
+                        ReaderMode.STUDY -> {
+                            // Edit / Save
+                            IconButton(onClick = {
+                                if (isEditing) {
+                                    if (editText.isBlank()) {
+                                        showEmptyDialog = true
+                                    } else {
+                                        viewModel.updateContent(editText.trimEnd())
+                                        isEditing = false
+                                    }
+                                } else {
+                                    isEditing = true
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = if (isEditing) Icons.Filled.Save else Icons.Filled.Edit,
+                                    contentDescription = if (isEditing) "Save" else "Edit"
+                                )
+                            }
+                        }
                     }
 
                     // Decrease Font Size
@@ -226,24 +344,26 @@ fun ReaderScreen(
                                     )
                                 }
                             )
-                            DropdownMenuItem(
-                                text = { Text("Remove empty lines") },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    val cleaned = currentText()
-                                        .lines()
-                                        .filter { it.isNotBlank() }
-                                        .joinToString("\n")
-                                    applyTextUpdate(cleaned)
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Find and replace") },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    showFindReplaceDialog = true
-                                }
-                            )
+                            if (readerMode == ReaderMode.STUDY) {
+                                DropdownMenuItem(
+                                    text = { Text("Remove empty lines") },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        val cleaned = currentText()
+                                            .lines()
+                                            .filter { it.isNotBlank() }
+                                            .joinToString("\n")
+                                        applyTextUpdate(cleaned)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Find and replace") },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        showFindReplaceDialog = true
+                                    }
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text("AI cleaning") },
                                 onClick = { showOverflowMenu = false },
@@ -255,33 +375,84 @@ fun ReaderScreen(
             }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(scrollState)
-        ) {
-            if (isEditing) {
-                TextField(
-                    value = editText,
-                    onValueChange = { editText = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = TextStyle(
-                        fontSize = fontSize.sp,
-                        lineHeight = lineHeightSp.sp,
-                        fontFamily = fontFamily
-                    ),
-                    colors = TextFieldDefaults.colors()
-                )
+        if (readerMode == ReaderMode.ORIGINAL) {
+            if (originalSegments.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = 16.dp)
+                        .verticalScroll(originalFallbackScrollState)
+                ) {
+                    SelectionContainer {
+                        Text(
+                            text = uiState.content,
+                            fontSize = fontSize.sp,
+                            lineHeight = lineHeightSp.sp,
+                            fontFamily = fontFamily
+                        )
+                    }
+                }
             } else {
-                SelectionContainer {
-                    Text(
-                        text = uiState.content,
-                        fontSize = fontSize.sp,
-                        lineHeight = lineHeightSp.sp,
-                        fontFamily = fontFamily
+                LazyColumn(
+                    state = originalListState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = 16.dp)
+                ) {
+                    itemsIndexed(originalSegments) { _, segment ->
+                        SelectionContainer {
+                            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                                if (showTimestamps) {
+                                    Text(
+                                        text = formatTime(segment.startTime),
+                                        fontSize = (fontSize * 0.8f).sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                        fontFamily = fontFamily
+                                    )
+                                }
+                        Text(
+                            text = segment.text,
+                            fontSize = fontSize.sp,
+                            lineHeight = lineHeightSp.sp,
+                            fontFamily = fontFamily
+                        )
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(studyScrollState)
+            ) {
+                if (isEditing) {
+                    TextField(
+                        value = editText,
+                        onValueChange = { editText = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = TextStyle(
+                            fontSize = fontSize.sp,
+                            lineHeight = lineHeightSp.sp,
+                            fontFamily = fontFamily
+                        ),
+                        colors = TextFieldDefaults.colors()
                     )
+                } else {
+                    SelectionContainer {
+                        Text(
+                            text = uiState.content,
+                            fontSize = fontSize.sp,
+                            lineHeight = lineHeightSp.sp,
+                            fontFamily = fontFamily
+                        )
+                    }
                 }
             }
         }
@@ -289,21 +460,30 @@ fun ReaderScreen(
 
     if (showUnsavedDialog) {
         AlertDialog(
-            onDismissRequest = { showUnsavedDialog = false },
+            onDismissRequest = {
+                showUnsavedDialog = false
+                pendingAction = null
+            },
             title = { Text("Unsaved changes") },
-            text = { Text("Do you want to leave without saving your changes?") },
+            text = { Text("Do you want to discard your unsaved changes?") },
             confirmButton = {
                 TextButton(onClick = {
                     showUnsavedDialog = false
                     isEditing = false
                     editText = uiState.content
-                    onBack()
+                    pendingAction?.let { action ->
+                        runPendingAction(action)
+                    }
+                    pendingAction = null
                 }) {
-                    Text("Leave")
+                    Text("Discard")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showUnsavedDialog = false }) {
+                TextButton(onClick = {
+                    showUnsavedDialog = false
+                    pendingAction = null
+                }) {
                     Text("Cancel")
                 }
             }
@@ -379,5 +559,35 @@ fun ReaderScreen(
                 }
             }
         )
+    }
+}
+
+private fun formatOriginalModeCopyText(
+    segments: List<SubtitleSegment>,
+    showTimestamps: Boolean,
+    fallbackText: String
+): String {
+    if (segments.isEmpty()) {
+        return fallbackText
+    }
+    return segments.joinToString("\n\n") { segment ->
+        if (showTimestamps) {
+            "[${formatTime(segment.startTime)}] ${segment.text}"
+        } else {
+            segment.text
+        }
+    }
+}
+
+private fun formatTime(millis: Long): String {
+    val seconds = millis / 1000
+    val m = seconds / 60
+    val s = seconds % 60
+    val h = m / 60
+    val mm = m % 60
+    return if (h > 0) {
+        String.format("%d:%02d:%02d", h, mm, s)
+    } else {
+        String.format("%d:%02d", mm, s)
     }
 }

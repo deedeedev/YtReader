@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 data class ReaderUiState(
     val subtitle: SubtitleEntity? = null,
     val content: String = "",
+    val originalParsedText: String = "",
     val fontSize: Float = 16f,
     val fontFamily: String = "Default",
     val lineHeightMultiplier: Float = 1.5f,
@@ -48,11 +49,13 @@ class ReaderViewModel(
         viewModelScope.launch {
             val subtitle = subtitleDao.getById(subtitleId)
             if (subtitle != null) {
-                val content = SubtitleParser.parse(subtitle.content)
+                val originalParsedText = SubtitleParser.parse(subtitle.content)
+                val content = subtitle.studyContent ?: originalParsedText
                 
                 _uiState.update { it.copy(
                     subtitle = subtitle,
                     content = content,
+                    originalParsedText = originalParsedText,
                     fontSize = subtitle.fontSize,
                     fontFamily = subtitle.fontFamily,
                     isLoading = false
@@ -87,11 +90,11 @@ class ReaderViewModel(
         _uiState.update { state ->
             state.copy(
                 content = content,
-                subtitle = state.subtitle?.copy(content = content)
+                subtitle = state.subtitle?.copy(studyContent = content)
             )
         }
         viewModelScope.launch {
-            subtitleDao.updateContent(subtitleId, content)
+            subtitleDao.updateStudyContent(subtitleId, content)
         }
     }
 

@@ -119,11 +119,10 @@ class HomeViewModel(
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 val subtitleContent = subtitle.content
-                val plainText = if (subtitle.isUrl) {
-                    val content = youtubeRepository.downloadSubtitle(subtitleContent)
-                    SubtitleParser.parse(content)
+                val rawContent = if (subtitle.isUrl) {
+                    youtubeRepository.downloadSubtitle(subtitleContent)
                 } else {
-                    SubtitleParser.parse(subtitleContent)
+                    subtitleContent
                 }
                 
                 val entity = SubtitleEntity(
@@ -131,7 +130,7 @@ class HomeViewModel(
                     title = info.name,
                     channelName = info.uploaderName ?: "Unknown Channel",
                     languageCode = subtitle.languageTag ?: "unknown",
-                    content = plainText,
+                    content = rawContent,
                     fontSize = userPreferencesRepository.defaultFontSize.value,
                     fontFamily = userPreferencesRepository.fontFamily.value,
                     uploadDate = info.uploadDate?.instant?.toEpochMilli() ?: 0L
@@ -161,16 +160,15 @@ class HomeViewModel(
                     ?: throw IllegalStateException("Matching subtitle not found")
 
                 val subtitleContent = matchingSubtitle.content
-                val plainText = if (matchingSubtitle.isUrl) {
-                    val content = youtubeRepository.downloadSubtitle(subtitleContent)
-                    SubtitleParser.parse(content)
+                val rawContent = if (matchingSubtitle.isUrl) {
+                    youtubeRepository.downloadSubtitle(subtitleContent)
                 } else {
-                    SubtitleParser.parse(subtitleContent)
+                    subtitleContent
                 }
 
                 subtitleDao.updateContentAndCreatedAt(
                     id = subtitle.id,
-                    content = plainText,
+                    content = rawContent,
                     createdAt = System.currentTimeMillis()
                 )
                 _uiState.update { it.copy(isLoading = false, error = null) }
