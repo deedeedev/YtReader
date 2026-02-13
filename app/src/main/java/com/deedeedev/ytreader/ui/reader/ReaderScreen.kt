@@ -39,10 +39,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.clickable
 import androidx.activity.compose.BackHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.UserPreferencesRepository
@@ -105,7 +101,6 @@ fun ReaderScreen(
 
     var readerMode by rememberSaveable { mutableStateOf(ReaderMode.STUDY) }
     var showTimestamps by rememberSaveable { mutableStateOf(false) }
-    var isUiVisible by rememberSaveable { mutableStateOf(true) }
     var isEditing by rememberSaveable { mutableStateOf(false) }
     var editText by rememberSaveable(subtitle.id) { mutableStateOf(uiState.content) }
     var showEmptyDialog by remember { mutableStateOf(false) }
@@ -120,12 +115,6 @@ fun ReaderScreen(
     LaunchedEffect(uiState.content, isEditing) {
         if (!isEditing) {
             editText = uiState.content
-        }
-    }
-
-    LaunchedEffect(isEditing) {
-        if (isEditing) {
-            isUiVisible = true
         }
     }
 
@@ -203,55 +192,38 @@ fun ReaderScreen(
 
     Scaffold(
         topBar = {
-            AnimatedVisibility(
-                visible = isUiVisible,
-                enter = slideInVertically(initialOffsetY = { -it }),
-                exit = slideOutVertically(targetOffsetY = { -it })
+            TopAppBar(
+                title = { Text(subtitle.title) },
+                navigationIcon = {
+                    IconButton(onClick = { requestAction(PendingAction.ExitScreen) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    val targetMode = if (readerMode == ReaderMode.STUDY) {
+                        ReaderMode.ORIGINAL
+                    } else {
+                        ReaderMode.STUDY
+                    }
+                    requestAction(PendingAction.SwitchMode(targetMode))
+                }
             ) {
-                TopAppBar(
-                    title = { Text(subtitle.title) },
-                    navigationIcon = {
-                        IconButton(onClick = { requestAction(PendingAction.ExitScreen) }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
+                Icon(
+                    imageVector = if (readerMode == ReaderMode.STUDY) Icons.Filled.Timer else Icons.Filled.Edit,
+                    contentDescription = if (readerMode == ReaderMode.STUDY) {
+                        "Switch to original mode"
+                    } else {
+                        "Switch to study mode"
                     }
                 )
             }
         },
-        floatingActionButton = {
-            AnimatedVisibility(
-                visible = isUiVisible,
-                enter = slideInVertically(initialOffsetY = { it }),
-                exit = slideOutVertically(targetOffsetY = { it })
-            ) {
-                FloatingActionButton(
-                    onClick = {
-                        val targetMode = if (readerMode == ReaderMode.STUDY) {
-                            ReaderMode.ORIGINAL
-                        } else {
-                            ReaderMode.STUDY
-                        }
-                        requestAction(PendingAction.SwitchMode(targetMode))
-                    }
-                ) {
-                    Icon(
-                        imageVector = if (readerMode == ReaderMode.STUDY) Icons.Filled.Timer else Icons.Filled.Edit,
-                        contentDescription = if (readerMode == ReaderMode.STUDY) {
-                            "Switch to original mode"
-                        } else {
-                            "Switch to study mode"
-                        }
-                    )
-                }
-            }
-        },
         bottomBar = {
-            AnimatedVisibility(
-                visible = isUiVisible,
-                enter = slideInVertically(initialOffsetY = { it }),
-                exit = slideOutVertically(targetOffsetY = { it })
-            ) {
-                BottomAppBar {
+            BottomAppBar {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
@@ -343,8 +315,7 @@ fun ReaderScreen(
                                                 imageVector = Icons.Default.Check,
                                                 contentDescription = "Selected"
                                             )
-            }
-            }
+                                        }
                                     }
                                 )
                             }
@@ -411,7 +382,6 @@ fun ReaderScreen(
                         .fillMaxSize()
                         .padding(padding)
                         .padding(horizontal = 16.dp)
-                        .clickable { isUiVisible = !isUiVisible }
                         .verticalScroll(originalFallbackScrollState)
                 ) {
                     SelectionContainer {
@@ -433,7 +403,7 @@ fun ReaderScreen(
                 ) {
                     itemsIndexed(originalSegments) { _, segment ->
                         SelectionContainer {
-                            Column(modifier = Modifier.padding(vertical = 8.dp).clickable { isUiVisible = !isUiVisible }) {
+                            Column(modifier = Modifier.padding(vertical = 8.dp)) {
                                 if (showTimestamps) {
                                     Text(
                                         text = formatTime(segment.startTime),
@@ -460,7 +430,6 @@ fun ReaderScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .padding(horizontal = 16.dp)
-                    .then(if (!isEditing) Modifier.clickable { isUiVisible = !isUiVisible } else Modifier)
                     .verticalScroll(studyScrollState)
             ) {
                 if (isEditing) {
