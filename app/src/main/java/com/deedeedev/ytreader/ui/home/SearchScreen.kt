@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,8 +27,18 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.foundation.shape.RoundedCornerShape
+
+private fun isYouTubeUrl(text: String): Boolean {
+    val trimmed = text.trim().lowercase()
+    return trimmed.contains("youtube.com/watch") ||
+           trimmed.contains("youtu.be/") ||
+           trimmed.contains("youtube.com/shorts/") ||
+           trimmed.contains("youtube.com/playlist") ||
+           trimmed.contains("m.youtube.com")
+}
 
 @Composable
 fun SearchScreen(
@@ -37,6 +48,9 @@ fun SearchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
+    val clipboardManager = LocalClipboardManager.current
+    val clipboardText = clipboardManager.getText()?.text ?: ""
+    val hasYouTubeUrlInClipboard = isYouTubeUrl(clipboardText)
 
     Column(
         modifier = modifier
@@ -70,6 +84,13 @@ fun SearchScreen(
                             Icon(
                                 imageVector = Icons.Default.Clear,
                                 contentDescription = "Clear search"
+                            )
+                        }
+                    } else if (hasYouTubeUrlInClipboard) {
+                        IconButton(onClick = { viewModel.onUrlChange(clipboardText.trim()) }) {
+                            Icon(
+                                imageVector = Icons.Default.ContentPaste,
+                                contentDescription = "Paste YouTube link"
                             )
                         }
                     }
