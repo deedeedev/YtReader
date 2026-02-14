@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -338,14 +340,14 @@ fun ReaderScreen(
                                           viewModel.updateFontFamily(font)
                                           showFontMenu = false
                                       },
-                                      trailingIcon = {
-                                          if (uiState.fontFamily == font) {
-                                              Icon(
-                                                  imageVector = Icons.Default.Check,
-                                                  contentDescription = "Selected"
-                                              )
-                                          }
-                                      }
+                                       trailingIcon = {
+                                           if (uiState.fontFamily == font) {
+                                               Icon(
+                                                   imageVector = Icons.Default.Check,
+                                                   contentDescription = "Selected"
+                                               )
+                                           }
+                                       }
                                   )
                               }
                           }
@@ -403,14 +405,14 @@ fun ReaderScreen(
                 }
             }
         }
-        }
+        },
+
     ) { padding ->
         if (readerMode == ReaderMode.ORIGINAL) {
             if (originalSegments.isEmpty()) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
                         .padding(horizontal = 16.dp)
                         .clickable { isUiVisible = !isUiVisible }
                         .verticalScroll(originalFallbackScrollState)
@@ -429,7 +431,6 @@ fun ReaderScreen(
                     state = originalListState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
                         .padding(horizontal = 16.dp)
                 ) {
                     itemsIndexed(originalSegments) { _, segment ->
@@ -459,7 +460,6 @@ fun ReaderScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
                     .padding(horizontal = 16.dp)
                     .then(if (!isEditing) Modifier.clickable { isUiVisible = !isUiVisible } else Modifier)
                     .verticalScroll(studyScrollState)
