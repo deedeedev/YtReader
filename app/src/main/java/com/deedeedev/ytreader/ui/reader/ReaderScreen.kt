@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBarsPadding
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -108,7 +108,7 @@ fun ReaderScreen(
 
     var readerMode by rememberSaveable { mutableStateOf(ReaderMode.STUDY) }
     var showTimestamps by rememberSaveable { mutableStateOf(false) }
-    var isUiVisible by rememberSaveable { mutableStateOf(true) }
+    var isUiVisible by rememberSaveable { mutableStateOf(false) }
     var isEditing by rememberSaveable { mutableStateOf(false) }
     var editText by rememberSaveable(subtitle.id) { mutableStateOf(uiState.content) }
     var showEmptyDialog by remember { mutableStateOf(false) }
@@ -413,6 +413,7 @@ fun ReaderScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .systemBarsPadding()
                         .padding(horizontal = 16.dp)
                         .clickable { isUiVisible = !isUiVisible }
                         .verticalScroll(originalFallbackScrollState)
@@ -431,6 +432,7 @@ fun ReaderScreen(
                     state = originalListState,
                     modifier = Modifier
                         .fillMaxSize()
+                        .systemBarsPadding()
                         .padding(horizontal = 16.dp)
                 ) {
                     itemsIndexed(originalSegments) { _, segment ->
@@ -460,6 +462,7 @@ fun ReaderScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .systemBarsPadding()
                     .padding(horizontal = 16.dp)
                     .then(if (!isEditing) Modifier.clickable { isUiVisible = !isUiVisible } else Modifier)
                     .verticalScroll(studyScrollState)
