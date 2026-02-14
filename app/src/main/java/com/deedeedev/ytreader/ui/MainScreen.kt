@@ -22,6 +22,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+
+import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.deedeedev.ytreader.AppContainer
 import com.deedeedev.ytreader.ui.home.HomeViewModel
@@ -93,13 +95,25 @@ fun MainScreen(
             startDestination = Screen.Search.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Search.route) {
+            composable(
+                route = Screen.Search.route,
+                enterTransition = { null },
+                exitTransition = { null },
+                popEnterTransition = { null },
+                popExitTransition = { null }
+            ) {
                 SearchScreen(
                     viewModel = viewModel,
                     onSubtitleClick = { id -> navController.navigate("reader/$id") }
                 )
             }
-            composable(Screen.Library.route) {
+            composable(
+                route = Screen.Library.route,
+                enterTransition = { null },
+                exitTransition = { null },
+                popEnterTransition = { null },
+                popExitTransition = { null }
+            ) {
                 LibraryScreen(
                     viewModel = viewModel,
                     onSubtitleClick = { id -> navController.navigate("reader/$id") },
@@ -116,12 +130,22 @@ fun MainScreen(
                     }
                 )
             }
-            composable(Screen.Settings.route) {
+            composable(
+                route = Screen.Settings.route,
+                enterTransition = { null },
+                exitTransition = { null },
+                popEnterTransition = { null },
+                popExitTransition = { null }
+            ) {
                 SettingsScreen(appContainer = appContainer)
             }
             composable(
                 route = Screen.Reader.route,
-                arguments = listOf(navArgument("subtitleId") { type = NavType.LongType })
+                arguments = listOf(navArgument("subtitleId") { type = NavType.LongType }),
+                enterTransition = { null },
+                exitTransition = { null },
+                popEnterTransition = { null },
+                popExitTransition = { null }
             ) { backStackEntry ->
                 val subtitleId = backStackEntry.arguments?.getLong("subtitleId") ?: return@composable
                 
