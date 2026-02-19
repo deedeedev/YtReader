@@ -46,6 +46,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.activity.compose.BackHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.UserPreferencesRepository
@@ -415,7 +416,10 @@ fun ReaderScreen(
                         .fillMaxSize()
                         .systemBarsPadding()
                         .padding(horizontal = 16.dp)
-                        .clickable { isUiVisible = !isUiVisible }
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { isUiVisible = !isUiVisible }
                         .verticalScroll(originalFallbackScrollState)
                 ) {
                     SelectionContainer {
@@ -437,7 +441,14 @@ fun ReaderScreen(
                 ) {
                     itemsIndexed(originalSegments) { _, segment ->
                         SelectionContainer {
-                            Column(modifier = Modifier.padding(vertical = 8.dp).clickable { isUiVisible = !isUiVisible }) {
+                            Column(
+                                modifier = Modifier
+                                    .padding(vertical = 8.dp)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { isUiVisible = !isUiVisible }
+                            ) {
                                 if (showTimestamps) {
                                     Text(
                                         text = formatTime(segment.startTime),
@@ -464,7 +475,12 @@ fun ReaderScreen(
                     .fillMaxSize()
                     .systemBarsPadding()
                     .padding(horizontal = 16.dp)
-                    .then(if (!isEditing) Modifier.clickable { isUiVisible = !isUiVisible } else Modifier)
+                    .then(if (!isEditing) {
+                        Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { isUiVisible = !isUiVisible }
+                    } else Modifier)
                     .verticalScroll(studyScrollState)
             ) {
                 if (isEditing) {
