@@ -45,8 +45,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.activity.compose.BackHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.UserPreferencesRepository
@@ -54,6 +53,10 @@ import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.domain.SubtitleParser
 import com.deedeedev.ytreader.domain.SubtitleSegment
 import android.content.Intent
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.snapshotFlow
 
@@ -416,10 +419,7 @@ fun ReaderScreen(
                         .fillMaxSize()
                         .systemBarsPadding()
                         .padding(horizontal = 16.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { isUiVisible = !isUiVisible }
+                        .onUnconsumedTap { isUiVisible = !isUiVisible }
                         .verticalScroll(originalFallbackScrollState)
                 ) {
                     SelectionContainer {
@@ -438,16 +438,13 @@ fun ReaderScreen(
                         .fillMaxSize()
                         .systemBarsPadding()
                         .padding(horizontal = 16.dp)
+                        .onUnconsumedTap { isUiVisible = !isUiVisible }
                 ) {
                     itemsIndexed(originalSegments) { _, segment ->
                         SelectionContainer {
                             Column(
                                 modifier = Modifier
                                     .padding(vertical = 8.dp)
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null
-                                    ) { isUiVisible = !isUiVisible }
                             ) {
                                 if (showTimestamps) {
                                     Text(
@@ -476,10 +473,7 @@ fun ReaderScreen(
                     .systemBarsPadding()
                     .padding(horizontal = 16.dp)
                     .then(if (!isEditing) {
-                        Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { isUiVisible = !isUiVisible }
+                        Modifier.onUnconsumedTap { isUiVisible = !isUiVisible }
                     } else Modifier)
                     .verticalScroll(studyScrollState)
             ) {
@@ -629,6 +623,17 @@ private fun formatOriginalModeCopyText(
         }
     }
 }
+
+private fun Modifier.onUnconsumedTap(onTap: () -> Unit): Modifier =
+    pointerInput(onTap) {
+        awaitEachGesture {
+            val down = awaitFirstDown(pass = PointerEventPass.Final)
+            val up = waitForUpOrCancellation(pass = PointerEventPass.Final) ?: return@awaitEachGesture
+            if (!down.isConsumed && !up.isConsumed) {
+                onTap()
+            }
+        }
+    }
 
 private fun formatTime(millis: Long): String {
     val seconds = millis / 1000
