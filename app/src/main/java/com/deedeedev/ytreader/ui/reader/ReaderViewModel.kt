@@ -137,6 +137,33 @@ class ReaderViewModel(
         }
     }
 
+    fun updateHighlightColor(target: TextHighlight, newColor: HighlightColor) {
+        val state = _uiState.value
+        val updated = recolorHighlight(state.highlights, target, newColor)
+        if (updated == state.highlights) return
+        persistHighlights(updated)
+    }
+
+    fun deleteHighlight(target: TextHighlight) {
+        val state = _uiState.value
+        val updated = deleteHighlightFromList(state.highlights, target)
+        if (updated == state.highlights) return
+        persistHighlights(updated)
+    }
+
+    private fun persistHighlights(highlights: List<TextHighlight>) {
+        val serialized = serializeHighlights(highlights)
+        _uiState.update {
+            it.copy(
+                highlights = highlights,
+                subtitle = it.subtitle?.copy(highlights = serialized)
+            )
+        }
+        viewModelScope.launch {
+            subtitleDao.updateHighlights(subtitleId, serialized)
+        }
+    }
+
     companion object {
         fun provideFactory(
             dao: SubtitleDao,

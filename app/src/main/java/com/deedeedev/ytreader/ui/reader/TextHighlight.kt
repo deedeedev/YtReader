@@ -62,3 +62,32 @@ fun mergeHighlight(
     kept += TextHighlight(start = mergedStart, end = mergedEnd, color = color)
     return kept.sortedBy { it.start }
 }
+
+fun findHighlightAtOffset(
+    highlights: List<TextHighlight>,
+    offset: Int
+): TextHighlight? {
+    if (offset < 0) return null
+    return highlights.firstOrNull { offset in it.start until it.end }
+}
+
+fun recolorHighlight(
+    highlights: List<TextHighlight>,
+    target: TextHighlight,
+    newColor: HighlightColor
+): List<TextHighlight> {
+    return highlights.map { highlight ->
+        if (highlight == target) {
+            highlight.copy(color = newColor)
+        } else {
+            highlight
+        }
+    }
+}
+
+fun deleteHighlightFromList(
+    highlights: List<TextHighlight>,
+    target: TextHighlight
+): List<TextHighlight> {
+    return highlights.filterNot { it == target }
+}

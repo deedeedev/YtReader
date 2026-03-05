@@ -66,4 +66,56 @@ class TextHighlightTest {
             merged
         )
     }
+
+    @Test
+    fun findHighlightAtOffset_returnsHighlightWhenInsideRange() {
+        val highlights = listOf(
+            TextHighlight(start = 0, end = 4, color = HighlightColor.RED),
+            TextHighlight(start = 6, end = 10, color = HighlightColor.BLUE)
+        )
+
+        val found = findHighlightAtOffset(highlights, offset = 7)
+
+        assertEquals(TextHighlight(start = 6, end = 10, color = HighlightColor.BLUE), found)
+    }
+
+    @Test
+    fun recolorHighlight_updatesOnlyMatchingHighlight() {
+        val highlights = listOf(
+            TextHighlight(start = 0, end = 4, color = HighlightColor.RED),
+            TextHighlight(start = 6, end = 10, color = HighlightColor.BLUE)
+        )
+
+        val recolored = recolorHighlight(
+            highlights = highlights,
+            target = TextHighlight(start = 6, end = 10, color = HighlightColor.BLUE),
+            newColor = HighlightColor.GREEN
+        )
+
+        assertEquals(
+            listOf(
+                TextHighlight(start = 0, end = 4, color = HighlightColor.RED),
+                TextHighlight(start = 6, end = 10, color = HighlightColor.GREEN)
+            ),
+            recolored
+        )
+    }
+
+    @Test
+    fun deleteHighlightFromList_removesOnlyMatchingHighlight() {
+        val highlights = listOf(
+            TextHighlight(start = 0, end = 4, color = HighlightColor.RED),
+            TextHighlight(start = 6, end = 10, color = HighlightColor.BLUE)
+        )
+
+        val updated = deleteHighlightFromList(
+            highlights = highlights,
+            target = TextHighlight(start = 0, end = 4, color = HighlightColor.RED)
+        )
+
+        assertEquals(
+            listOf(TextHighlight(start = 6, end = 10, color = HighlightColor.BLUE)),
+            updated
+        )
+    }
 }

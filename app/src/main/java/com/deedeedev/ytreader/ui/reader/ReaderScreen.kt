@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Remove
@@ -138,6 +139,7 @@ fun ReaderScreen(
     var replaceText by rememberSaveable { mutableStateOf("") }
     var isCaseSensitive by rememberSaveable { mutableStateOf(false) }
     var selectionRange by remember { mutableStateOf<SelectionRange?>(null) }
+    var activeHighlight by remember { mutableStateOf<TextHighlight?>(null) }
     var studyTextView by remember { mutableStateOf<SelectableHighlightTextView?>(null) }
 
     LaunchedEffect(uiState.content, isEditing) {
@@ -148,6 +150,7 @@ fun ReaderScreen(
 
     LaunchedEffect(uiState.content) {
         selectionRange = null
+        activeHighlight = null
         studyTextView?.clearSelection()
     }
 
@@ -155,6 +158,7 @@ fun ReaderScreen(
         if (isEditing) {
             isUiVisible = true
             selectionRange = null
+            activeHighlight = null
             studyTextView?.clearSelection()
         }
     }
@@ -162,6 +166,7 @@ fun ReaderScreen(
     LaunchedEffect(readerMode) {
         if (readerMode != ReaderMode.STUDY) {
             selectionRange = null
+            activeHighlight = null
             studyTextView?.clearSelection()
         }
     }
@@ -240,7 +245,7 @@ fun ReaderScreen(
 
     val showSelectionToolbar = readerMode == ReaderMode.STUDY &&
         !isEditing &&
-        selectionRange != null
+        (selectionRange != null || activeHighlight != null)
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (readerMode == ReaderMode.ORIGINAL) {
@@ -337,16 +342,25 @@ fun ReaderScreen(
                                     textColor = readerTextColor,
                                     backgroundColor = readerBackgroundColor
                                 )
-                                setOnClickListener {
-                                    isUiVisible = !isUiVisible
-                                }
                                 onSelectionChangedListener = { start, end ->
                                     val normalizedStart = minOf(start, end)
                                     val normalizedEnd = maxOf(start, end)
                                     selectionRange = if (normalizedStart >= 0 && normalizedStart < normalizedEnd) {
+                                        activeHighlight = null
                                         SelectionRange(normalizedStart, normalizedEnd)
                                     } else {
                                         null
+                                    }
+                                }
+                                onHighlightTappedListener = { tappedHighlight ->
+                                    if (tappedHighlight != null) {
+                                        activeHighlight = tappedHighlight
+                                        selectionRange = null
+                                        clearSelection()
+                                    } else if (activeHighlight != null) {
+                                        activeHighlight = null
+                                    } else {
+                                        isUiVisible = !isUiVisible
                                     }
                                 }
                             }
@@ -360,16 +374,25 @@ fun ReaderScreen(
                                 textColor = readerTextColor,
                                 backgroundColor = readerBackgroundColor
                             )
-                            textView.setOnClickListener {
-                                isUiVisible = !isUiVisible
-                            }
                             textView.onSelectionChangedListener = { start, end ->
                                 val normalizedStart = minOf(start, end)
                                 val normalizedEnd = maxOf(start, end)
                                 selectionRange = if (normalizedStart >= 0 && normalizedStart < normalizedEnd) {
+                                    activeHighlight = null
                                     SelectionRange(normalizedStart, normalizedEnd)
                                 } else {
                                     null
+                                }
+                            }
+                            textView.onHighlightTappedListener = { tappedHighlight ->
+                                if (tappedHighlight != null) {
+                                    activeHighlight = tappedHighlight
+                                    selectionRange = null
+                                    textView.clearSelection()
+                                } else if (activeHighlight != null) {
+                                    activeHighlight = null
+                                } else {
+                                    isUiVisible = !isUiVisible
                                 }
                             }
                             textView.setContentWithHighlights(
@@ -610,8 +633,22 @@ fun ReaderScreen(
         ) {
             HighlightSelectionToolbar(
                 onColorSelected = { color ->
-                    val range = selectionRange ?: return@HighlightSelectionToolbar
-                    viewModel.applyHighlight(range.start, range.end, color)
+                    val selectedHighlight = activeHighlight
+                    if (selectedHighlight != null) {
+                        viewModel.updateHighlightColor(selectedHighlight, color)
+                        activeHighlight = selectedHighlight.copy(color = color)
+                    } else {
+                        val range = selectionRange ?: return@HighlightSelectionToolbar
+                        viewModel.applyHighlight(range.start, range.end, color)
+                        selectionRange = null
+                        studyTextView?.clearSelection()
+                    }
+                },
+                showDelete = activeHighlight != null,
+                onDeleteHighlight = {
+                    val selectedHighlight = activeHighlight ?: return@HighlightSelectionToolbar
+                    viewModel.deleteHighlight(selectedHighlight)
+                    activeHighlight = null
                     selectionRange = null
                     studyTextView?.clearSelection()
                 }
@@ -725,7 +762,9 @@ fun ReaderScreen(
 
 @Composable
 private fun HighlightSelectionToolbar(
-    onColorSelected: (HighlightColor) -> Unit
+    onColorSelected: (HighlightColor) -> Unit,
+    showDelete: Boolean,
+    onDeleteHighlight: () -> Unit
 ) {
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
@@ -739,6 +778,23 @@ private fun HighlightSelectionToolbar(
             HighlightColorButton(color = HighlightColor.RED, onClick = onColorSelected)
             HighlightColorButton(color = HighlightColor.BLUE, onClick = onColorSelected)
             HighlightColorButton(color = HighlightColor.GREEN, onClick = onColorSelected)
+            if (showDelete) {
+                FilledTonalButton(
+                    onClick = onDeleteHighlight,
+                    modifier = Modifier.size(44.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    ),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "Delete highlight"
+                    )
+                }
+            }
         }
     }
 }

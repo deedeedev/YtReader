@@ -7,6 +7,8 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.BackgroundColorSpan
 import android.util.AttributeSet
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.widget.TextView
 
 class SelectableHighlightTextView @JvmOverloads constructor(
@@ -16,6 +18,17 @@ class SelectableHighlightTextView @JvmOverloads constructor(
 ) : TextView(context, attrs, defStyleAttr) {
 
     var onSelectionChangedListener: ((start: Int, end: Int) -> Unit)? = null
+    var onHighlightTappedListener: ((TextHighlight?) -> Unit)? = null
+    private var highlightsForHitTest: List<TextHighlight> = emptyList()
+    private val gestureDetector = GestureDetector(
+        context,
+        object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                onHighlightTappedListener?.invoke(findHighlightAtTouch(e))
+                return false
+            }
+        }
+    )
 
     init {
         setTextIsSelectable(true)
@@ -28,6 +41,11 @@ class SelectableHighlightTextView @JvmOverloads constructor(
         onSelectionChangedListener?.invoke(selStart, selEnd)
     }
 
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        gestureDetector.onTouchEvent(event)
+        return super.onTouchEvent(event)
+    }
+
     fun setContentWithHighlights(
         content: String,
         highlights: List<TextHighlight>,
@@ -37,12 +55,19 @@ class SelectableHighlightTextView @JvmOverloads constructor(
     ) {
         val spannable = SpannableString(content)
         val contentLength = content.length
+        highlightsForHitTest = highlights
+            .mapNotNull { highlight ->
+                val start = highlight.start.coerceIn(0, contentLength)
+                val end = highlight.end.coerceIn(0, contentLength)
+                if (end <= start) {
+                    null
+                } else {
+                    highlight.copy(start = start, end = end)
+                }
+            }
 
-        highlights.forEach { highlight ->
+        highlightsForHitTest.forEach { highlight ->
             if (contentLength == 0) return@forEach
-            val start = highlight.start.coerceIn(0, contentLength)
-            val end = highlight.end.coerceIn(0, contentLength)
-            if (end <= start) return@forEach
 
             val spanColor = when (highlight.color) {
                 HighlightColor.RED -> redColor
@@ -51,8 +76,8 @@ class SelectableHighlightTextView @JvmOverloads constructor(
             }
             spannable.setSpan(
                 BackgroundColorSpan(spanColor),
-                start,
-                end,
+                highlight.start,
+                highlight.end,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
         }
@@ -79,5 +104,16 @@ class SelectableHighlightTextView @JvmOverloads constructor(
     fun setReadableColors(textColor: Int, backgroundColor: Int) {
         setTextColor(textColor)
         setBackgroundColor(backgroundColor)
+    }
+
+    private fun findHighlightAtTouch(event: MotionEvent): TextHighlight? {
+        val textLayout = layout ?: return null
+        val localX = (event.x - totalPaddingLeft + scrollX)
+            .coerceIn(0f, (textLayout.width - 1).coerceAtLeast(0).toFloat())
+        val localY = (event.y - totalPaddingTop + scrollY)
+            .coerceIn(0f, (textLayout.height - 1).coerceAtLeast(0).toFloat())
+        val line = textLayout.getLineForVertical(localY.toInt())
+        val offset = textLayout.getOffsetForHorizontal(line, localX)
+        return findHighlightAtOffset(highlightsForHitTest, offset)
     }
 }
