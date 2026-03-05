@@ -24,13 +24,17 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         database.execSQL("ALTER TABLE subtitles ADD COLUMN studyContent TEXT")
     }
 
+    private val MIGRATION_6_7 = Migration(6, 7) { database ->
+        database.execSQL("ALTER TABLE subtitles ADD COLUMN highlights TEXT NOT NULL DEFAULT ''")
+    }
+
     private val database: AppDatabase by lazy {
         Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
             "ytreader.db"
         )
-        .addMigrations(MIGRATION_5_6)
+        .addMigrations(MIGRATION_5_6, MIGRATION_6_7)
         .fallbackToDestructiveMigration(false)
         .build()
     }

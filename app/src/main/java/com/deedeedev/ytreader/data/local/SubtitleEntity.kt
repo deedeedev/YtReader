@@ -17,5 +17,6 @@ data class SubtitleEntity(
     val fontSize: Float = 16f,
     val createdAt: Long = System.currentTimeMillis(),
     val uploadDate: Long = 0L,
-    val fontFamily: String = "Default"
+    val fontFamily: String = "Default",
+    val highlights: String = ""
 )

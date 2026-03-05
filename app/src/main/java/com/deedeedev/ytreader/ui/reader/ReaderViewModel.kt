@@ -17,6 +17,7 @@ data class ReaderUiState(
     val subtitle: SubtitleEntity? = null,
     val content: String = "",
     val originalParsedText: String = "",
+    val highlights: List<TextHighlight> = emptyList(),
     val fontSize: Float = 16f,
     val fontFamily: String = "Default",
     val lineHeightMultiplier: Float = 1.5f,
@@ -51,11 +52,13 @@ class ReaderViewModel(
             if (subtitle != null) {
                 val originalParsedText = SubtitleParser.parse(subtitle.content)
                 val content = subtitle.studyContent ?: originalParsedText
+                val highlights = parseHighlights(subtitle.highlights)
                 
                 _uiState.update { it.copy(
                     subtitle = subtitle,
                     content = content,
                     originalParsedText = originalParsedText,
+                    highlights = highlights,
                     fontSize = subtitle.fontSize,
                     fontFamily = subtitle.fontFamily,
                     isLoading = false
@@ -90,11 +93,47 @@ class ReaderViewModel(
         _uiState.update { state ->
             state.copy(
                 content = content,
-                subtitle = state.subtitle?.copy(studyContent = content)
+                highlights = emptyList(),
+                subtitle = state.subtitle?.copy(
+                    studyContent = content,
+                    highlights = ""
+                )
             )
         }
         viewModelScope.launch {
             subtitleDao.updateStudyContent(subtitleId, content)
+            subtitleDao.updateHighlights(subtitleId, "")
+        }
+    }
+
+    fun applyHighlight(start: Int, end: Int, color: HighlightColor) {
+        val state = _uiState.value
+        val contentLength = state.content.length
+        if (contentLength == 0) return
+
+        val boundedStart = start.coerceIn(0, contentLength)
+        val boundedEnd = end.coerceIn(0, contentLength)
+        val normalizedStart = minOf(boundedStart, boundedEnd)
+        val normalizedEnd = maxOf(boundedStart, boundedEnd)
+        if (normalizedStart == normalizedEnd) return
+
+        val merged = mergeHighlight(
+            current = state.highlights,
+            start = normalizedStart,
+            end = normalizedEnd,
+            color = color
+        )
+        val serialized = serializeHighlights(merged)
+
+        _uiState.update {
+            it.copy(
+                highlights = merged,
+                subtitle = it.subtitle?.copy(highlights = serialized)
+            )
+        }
+
+        viewModelScope.launch {
+            subtitleDao.updateHighlights(subtitleId, serialized)
         }
     }
 

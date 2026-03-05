@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 
 import androidx.compose.foundation.layout.padding
@@ -34,6 +36,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -61,6 +65,8 @@ import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.snapshotFlow
 
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.ui.viewinterop.AndroidView
+import android.graphics.Color as AndroidColor
 
 private enum class ReaderMode {
     ORIGINAL,
@@ -71,6 +77,11 @@ private sealed interface PendingAction {
     data object ExitScreen : PendingAction
     data class SwitchMode(val targetMode: ReaderMode) : PendingAction
 }
+
+private data class SelectionRange(
+    val start: Int,
+    val end: Int
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,6 +120,8 @@ fun ReaderScreen(
     val studyScrollState = rememberScrollState()
     val originalFallbackScrollState = rememberScrollState()
     val lineHeightSp = fontSize * uiState.lineHeightMultiplier
+    val readerTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val readerBackgroundColor = Color.Transparent.toArgb()
 
     var readerMode by rememberSaveable { mutableStateOf(ReaderMode.STUDY) }
     var showTimestamps by rememberSaveable { mutableStateOf(false) }
@@ -123,6 +136,8 @@ fun ReaderScreen(
     var findText by rememberSaveable { mutableStateOf("") }
     var replaceText by rememberSaveable { mutableStateOf("") }
     var isCaseSensitive by rememberSaveable { mutableStateOf(false) }
+    var selectionRange by remember { mutableStateOf<SelectionRange?>(null) }
+    var studyTextView by remember { mutableStateOf<SelectableHighlightTextView?>(null) }
 
     LaunchedEffect(uiState.content, isEditing) {
         if (!isEditing) {
@@ -130,9 +145,23 @@ fun ReaderScreen(
         }
     }
 
+    LaunchedEffect(uiState.content) {
+        selectionRange = null
+        studyTextView?.clearSelection()
+    }
+
     LaunchedEffect(isEditing) {
         if (isEditing) {
             isUiVisible = true
+            selectionRange = null
+            studyTextView?.clearSelection()
+        }
+    }
+
+    LaunchedEffect(readerMode) {
+        if (readerMode != ReaderMode.STUDY) {
+            selectionRange = null
+            studyTextView?.clearSelection()
         }
     }
 
@@ -412,93 +441,178 @@ fun ReaderScreen(
         },
 
     ) { padding ->
-        if (readerMode == ReaderMode.ORIGINAL) {
-            if (originalSegments.isEmpty()) {
+        val showSelectionToolbar = readerMode == ReaderMode.STUDY &&
+            !isEditing &&
+            selectionRange != null
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            if (readerMode == ReaderMode.ORIGINAL) {
+                if (originalSegments.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .systemBarsPadding()
+                            .padding(horizontal = 16.dp)
+                            .onUnconsumedTap { isUiVisible = !isUiVisible }
+                            .verticalScroll(originalFallbackScrollState)
+                    ) {
+                        SelectionContainer {
+                            Text(
+                                text = uiState.content,
+                                fontSize = fontSize.sp,
+                                lineHeight = lineHeightSp.sp,
+                                fontFamily = fontFamily
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        state = originalListState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .systemBarsPadding()
+                            .padding(horizontal = 16.dp)
+                            .onUnconsumedTap { isUiVisible = !isUiVisible }
+                    ) {
+                        itemsIndexed(originalSegments) { _, segment ->
+                            SelectionContainer {
+                                Column(
+                                    modifier = Modifier
+                                        .padding(vertical = 8.dp)
+                                ) {
+                                    if (showTimestamps) {
+                                        Text(
+                                            text = formatTime(segment.startTime),
+                                            fontSize = (fontSize * 0.8f).sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.secondary,
+                                            fontFamily = fontFamily
+                                        )
+                                    }
+                                    Text(
+                                        text = segment.text,
+                                        fontSize = fontSize.sp,
+                                        lineHeight = lineHeightSp.sp,
+                                        fontFamily = fontFamily
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .systemBarsPadding()
                         .padding(horizontal = 16.dp)
-                        .onUnconsumedTap { isUiVisible = !isUiVisible }
-                        .verticalScroll(originalFallbackScrollState)
-                ) {
-                    SelectionContainer {
-                        Text(
-                            text = uiState.content,
-                            fontSize = fontSize.sp,
-                            lineHeight = lineHeightSp.sp,
-                            fontFamily = fontFamily
-                        )
-                    }
-                }
-            } else {
-                LazyColumn(
-                    state = originalListState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .systemBarsPadding()
-                        .padding(horizontal = 16.dp)
-                        .onUnconsumedTap { isUiVisible = !isUiVisible }
-                ) {
-                    itemsIndexed(originalSegments) { _, segment ->
-                        SelectionContainer {
-                            Column(
-                                modifier = Modifier
-                                    .padding(vertical = 8.dp)
-                            ) {
-                                if (showTimestamps) {
-                                    Text(
-                                        text = formatTime(segment.startTime),
-                                        fontSize = (fontSize * 0.8f).sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.secondary,
-                                        fontFamily = fontFamily
-                                    )
-                                }
-                        Text(
-                            text = segment.text,
-                            fontSize = fontSize.sp,
-                            lineHeight = lineHeightSp.sp,
-                            fontFamily = fontFamily
-                        )
+                        .then(
+                            if (!isEditing) {
+                                Modifier.onUnconsumedTap { isUiVisible = !isUiVisible }
+                            } else {
+                                Modifier
                             }
-                        }
+                        )
+                        .verticalScroll(studyScrollState)
+                ) {
+                    if (isEditing) {
+                        TextField(
+                            value = editText,
+                            onValueChange = { editText = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = TextStyle(
+                                fontSize = fontSize.sp,
+                                lineHeight = lineHeightSp.sp,
+                                fontFamily = fontFamily
+                            ),
+                            colors = TextFieldDefaults.colors()
+                        )
+                    } else {
+                        AndroidView<SelectableHighlightTextView>(
+                            modifier = Modifier.fillMaxWidth(),
+                            factory = { context: android.content.Context ->
+                                SelectableHighlightTextView(context).apply {
+                                    studyTextView = this
+                                    textSize = fontSize
+                                    setLineSpacing(0f, uiState.lineHeightMultiplier)
+                                    applyTypeface(uiState.fontFamily)
+                                    setReadableColors(
+                                        textColor = readerTextColor,
+                                        backgroundColor = readerBackgroundColor
+                                    )
+                                    setOnClickListener {
+                                        isUiVisible = !isUiVisible
+                                    }
+                                    onSelectionChangedListener = { start, end ->
+                                        val normalizedStart = minOf(start, end)
+                                        val normalizedEnd = maxOf(start, end)
+                                        selectionRange = if (normalizedStart >= 0 && normalizedStart < normalizedEnd) {
+                                            SelectionRange(normalizedStart, normalizedEnd)
+                                        } else {
+                                            null
+                                        }
+                                    }
+                                }
+                            },
+                            update = { textView: SelectableHighlightTextView ->
+                                studyTextView = textView
+                                textView.textSize = fontSize
+                                textView.setLineSpacing(0f, uiState.lineHeightMultiplier)
+                                textView.applyTypeface(uiState.fontFamily)
+                                textView.setReadableColors(
+                                    textColor = readerTextColor,
+                                    backgroundColor = readerBackgroundColor
+                                )
+                                textView.setOnClickListener {
+                                    isUiVisible = !isUiVisible
+                                }
+                                textView.onSelectionChangedListener = { start, end ->
+                                    val normalizedStart = minOf(start, end)
+                                    val normalizedEnd = maxOf(start, end)
+                                    selectionRange = if (normalizedStart >= 0 && normalizedStart < normalizedEnd) {
+                                        SelectionRange(normalizedStart, normalizedEnd)
+                                    } else {
+                                        null
+                                    }
+                                }
+                                textView.setContentWithHighlights(
+                                    content = uiState.content,
+                                    highlights = uiState.highlights,
+                                    redColor = highlightSpanColor(HighlightColor.RED),
+                                    blueColor = highlightSpanColor(HighlightColor.BLUE),
+                                    greenColor = highlightSpanColor(HighlightColor.GREEN)
+                                )
+                            }
+                        )
                     }
                 }
             }
-        } else {
-            Column(
+
+            AnimatedVisibility(
+                visible = showSelectionToolbar,
+                enter = slideInVertically(initialOffsetY = { it }),
+                exit = slideOutVertically(targetOffsetY = { it }),
                 modifier = Modifier
-                    .fillMaxSize()
-                    .systemBarsPadding()
-                    .padding(horizontal = 16.dp)
-                    .then(if (!isEditing) {
-                        Modifier.onUnconsumedTap { isUiVisible = !isUiVisible }
-                    } else Modifier)
-                    .verticalScroll(studyScrollState)
-            ) {
-                if (isEditing) {
-                    TextField(
-                        value = editText,
-                        onValueChange = { editText = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = TextStyle(
-                            fontSize = fontSize.sp,
-                            lineHeight = lineHeightSp.sp,
-                            fontFamily = fontFamily
-                        ),
-                        colors = TextFieldDefaults.colors()
+                    .align(Alignment.BottomCenter)
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = if (isUiVisible) 84.dp else 16.dp
                     )
-                } else {
-                    SelectionContainer {
-                        Text(
-                            text = uiState.content,
-                            fontSize = fontSize.sp,
-                            lineHeight = lineHeightSp.sp,
-                            fontFamily = fontFamily
-                        )
+                    .navigationBarsPadding()
+            ) {
+                HighlightSelectionToolbar(
+                    onColorSelected = { color ->
+                        val range = selectionRange ?: return@HighlightSelectionToolbar
+                        viewModel.applyHighlight(range.start, range.end, color)
+                        selectionRange = null
+                        studyTextView?.clearSelection()
                     }
-                }
+                )
             }
         }
     }
@@ -605,6 +719,56 @@ fun ReaderScreen(
             }
         )
     }
+}
+
+@Composable
+private fun HighlightSelectionToolbar(
+    onColorSelected: (HighlightColor) -> Unit
+) {
+    Surface(
+        shape = MaterialTheme.shapes.extraLarge,
+        tonalElevation = 4.dp,
+        shadowElevation = 6.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            HighlightColorButton(color = HighlightColor.RED, onClick = onColorSelected)
+            HighlightColorButton(color = HighlightColor.BLUE, onClick = onColorSelected)
+            HighlightColorButton(color = HighlightColor.GREEN, onClick = onColorSelected)
+        }
+    }
+}
+
+@Composable
+private fun HighlightColorButton(
+    color: HighlightColor,
+    onClick: (HighlightColor) -> Unit
+) {
+    Button(
+        onClick = { onClick(color) },
+        modifier = Modifier.size(44.dp),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = highlightButtonColor(color)
+        ),
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        Spacer(modifier = Modifier.size(1.dp))
+    }
+}
+
+private fun highlightButtonColor(color: HighlightColor): Color = when (color) {
+    HighlightColor.RED -> Color(0xFFE57373)
+    HighlightColor.BLUE -> Color(0xFF64B5F6)
+    HighlightColor.GREEN -> Color(0xFF81C784)
+}
+
+private fun highlightSpanColor(color: HighlightColor): Int = when (color) {
+    HighlightColor.RED -> AndroidColor.parseColor("#66E57373")
+    HighlightColor.BLUE -> AndroidColor.parseColor("#6664B5F6")
+    HighlightColor.GREEN -> AndroidColor.parseColor("#6681C784")
 }
 
 private fun formatOriginalModeCopyText(

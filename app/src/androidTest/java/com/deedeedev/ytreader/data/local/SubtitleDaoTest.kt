@@ -53,4 +53,23 @@ class SubtitleDaoTest {
         val fetched = subtitleDao.getById(insertedId)
         assertEquals("Hello World", fetched?.content)
     }
+
+    @Test
+    @Throws(Exception::class)
+    fun updateHighlights_persistsValue() = runBlocking {
+        val subtitle = SubtitleEntity(
+            videoId = "highlight-123",
+            title = "Highlight Test",
+            languageCode = "en",
+            content = "Hello World"
+        )
+        subtitleDao.insert(subtitle)
+
+        val inserted = subtitleDao.getAll().first().first()
+        val highlights = "0,5,RED|6,11,BLUE"
+        subtitleDao.updateHighlights(inserted.id, highlights)
+
+        val fetched = subtitleDao.getById(inserted.id)
+        assertEquals(highlights, fetched?.highlights)
+    }
 }
