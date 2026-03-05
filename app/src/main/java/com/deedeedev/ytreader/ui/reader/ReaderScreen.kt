@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBarsPadding
 
 import androidx.compose.foundation.layout.padding
@@ -237,12 +238,163 @@ fun ReaderScreen(
         requestAction(PendingAction.ExitScreen)
     }
 
-    Scaffold(
-        topBar = {
-            AnimatedVisibility(
-                visible = isUiVisible,
-                enter = slideInVertically(initialOffsetY = { -it }),
-                exit = slideOutVertically(targetOffsetY = { -it })
+    val showSelectionToolbar = readerMode == ReaderMode.STUDY &&
+        !isEditing &&
+        selectionRange != null
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (readerMode == ReaderMode.ORIGINAL) {
+            if (originalSegments.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .systemBarsPadding()
+                        .padding(horizontal = 16.dp)
+                        .onUnconsumedTap { isUiVisible = !isUiVisible }
+                        .verticalScroll(originalFallbackScrollState)
+                ) {
+                    SelectionContainer {
+                        Text(
+                            text = uiState.content,
+                            fontSize = fontSize.sp,
+                            lineHeight = lineHeightSp.sp,
+                            fontFamily = fontFamily
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    state = originalListState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .systemBarsPadding()
+                        .padding(horizontal = 16.dp)
+                        .onUnconsumedTap { isUiVisible = !isUiVisible }
+                ) {
+                    itemsIndexed(originalSegments) { _, segment ->
+                        SelectionContainer {
+                            Column(
+                                modifier = Modifier
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                if (showTimestamps) {
+                                    Text(
+                                        text = formatTime(segment.startTime),
+                                        fontSize = (fontSize * 0.8f).sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                        fontFamily = fontFamily
+                                    )
+                                }
+                                Text(
+                                    text = segment.text,
+                                    fontSize = fontSize.sp,
+                                    lineHeight = lineHeightSp.sp,
+                                    fontFamily = fontFamily
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .systemBarsPadding()
+                    .padding(horizontal = 16.dp)
+                    .then(
+                        if (!isEditing) {
+                            Modifier.onUnconsumedTap { isUiVisible = !isUiVisible }
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .verticalScroll(studyScrollState)
+            ) {
+                if (isEditing) {
+                    TextField(
+                        value = editText,
+                        onValueChange = { editText = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = TextStyle(
+                            fontSize = fontSize.sp,
+                            lineHeight = lineHeightSp.sp,
+                            fontFamily = fontFamily
+                        ),
+                        colors = TextFieldDefaults.colors()
+                    )
+                } else {
+                    AndroidView<SelectableHighlightTextView>(
+                        modifier = Modifier.fillMaxWidth(),
+                        factory = { context: android.content.Context ->
+                            SelectableHighlightTextView(context).apply {
+                                studyTextView = this
+                                textSize = fontSize
+                                setLineSpacing(0f, uiState.lineHeightMultiplier)
+                                applyTypeface(uiState.fontFamily)
+                                setReadableColors(
+                                    textColor = readerTextColor,
+                                    backgroundColor = readerBackgroundColor
+                                )
+                                setOnClickListener {
+                                    isUiVisible = !isUiVisible
+                                }
+                                onSelectionChangedListener = { start, end ->
+                                    val normalizedStart = minOf(start, end)
+                                    val normalizedEnd = maxOf(start, end)
+                                    selectionRange = if (normalizedStart >= 0 && normalizedStart < normalizedEnd) {
+                                        SelectionRange(normalizedStart, normalizedEnd)
+                                    } else {
+                                        null
+                                    }
+                                }
+                            }
+                        },
+                        update = { textView: SelectableHighlightTextView ->
+                            studyTextView = textView
+                            textView.textSize = fontSize
+                            textView.setLineSpacing(0f, uiState.lineHeightMultiplier)
+                            textView.applyTypeface(uiState.fontFamily)
+                            textView.setReadableColors(
+                                textColor = readerTextColor,
+                                backgroundColor = readerBackgroundColor
+                            )
+                            textView.setOnClickListener {
+                                isUiVisible = !isUiVisible
+                            }
+                            textView.onSelectionChangedListener = { start, end ->
+                                val normalizedStart = minOf(start, end)
+                                val normalizedEnd = maxOf(start, end)
+                                selectionRange = if (normalizedStart >= 0 && normalizedStart < normalizedEnd) {
+                                    SelectionRange(normalizedStart, normalizedEnd)
+                                } else {
+                                    null
+                                }
+                            }
+                            textView.setContentWithHighlights(
+                                content = uiState.content,
+                                highlights = uiState.highlights,
+                                redColor = highlightSpanColor(HighlightColor.RED),
+                                blueColor = highlightSpanColor(HighlightColor.BLUE),
+                                greenColor = highlightSpanColor(HighlightColor.GREEN)
+                            )
+                        }
+                    )
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = isUiVisible,
+            enter = slideInVertically(initialOffsetY = { -it }),
+            exit = slideOutVertically(targetOffsetY = { -it }),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
             ) {
                 TopAppBar(
                     title = { Text(subtitle.title) },
@@ -253,367 +405,217 @@ fun ReaderScreen(
                     }
                 )
             }
-        },
-        floatingActionButton = {
-            AnimatedVisibility(
-                visible = isUiVisible,
-                enter = slideInVertically(initialOffsetY = { it }),
-                exit = slideOutVertically(targetOffsetY = { it })
-            ) {
-                FloatingActionButton(
-                    onClick = {
-                        val targetMode = if (readerMode == ReaderMode.STUDY) {
-                            ReaderMode.ORIGINAL
-                        } else {
-                            ReaderMode.STUDY
-                        }
-                        requestAction(PendingAction.SwitchMode(targetMode))
-                    }
-                ) {
-                    Icon(
-                        imageVector = if (readerMode == ReaderMode.STUDY) Icons.Filled.Timer else Icons.Filled.Edit,
-                        contentDescription = if (readerMode == ReaderMode.STUDY) {
-                            "Switch to original mode"
-                        } else {
-                            "Switch to study mode"
-                        }
-                    )
-                }
-            }
-        },
-        bottomBar = {
-            AnimatedVisibility(
-                visible = isUiVisible,
-                enter = slideInVertically(initialOffsetY = { it }),
-                exit = slideOutVertically(targetOffsetY = { it })
+        }
+
+        AnimatedVisibility(
+            visible = isUiVisible,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
             ) {
                 BottomAppBar {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    // Copy
-                    IconButton(onClick = {
-                        clipboardManager.setText(AnnotatedString(currentText()))
-                    }) {
-                        Icon(Icons.Filled.ContentCopy, contentDescription = "Copy text")
-                    }
-
-                    when (readerMode) {
-                        ReaderMode.ORIGINAL -> {
-                            IconButton(
-                                onClick = { showTimestamps = !showTimestamps },
-                                enabled = originalSegments.isNotEmpty()
-                            ) {
-                                Icon(
-                                    imageVector = if (showTimestamps) {
-                                        Icons.Filled.TimerOff
-                                    } else {
-                                        Icons.Filled.Timer
-                                    },
-                                    contentDescription = if (showTimestamps) {
-                                        "Hide timestamps"
-                                    } else {
-                                        "Show timestamps"
-                                    }
-                                )
-                            }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        IconButton(onClick = {
+                            clipboardManager.setText(AnnotatedString(currentText()))
+                        }) {
+                            Icon(Icons.Filled.ContentCopy, contentDescription = "Copy text")
                         }
-                        ReaderMode.STUDY -> {
-                            // Edit / Save
-                            IconButton(onClick = {
-                                if (isEditing) {
-                                    if (editText.isBlank()) {
-                                        showEmptyDialog = true
-                                    } else {
-                                        viewModel.updateContent(editText.trimEnd())
-                                        isEditing = false
-                                    }
-                                } else {
-                                    isEditing = true
-                                }
-                            }) {
-                                Icon(
-                                    imageVector = if (isEditing) Icons.Filled.Save else Icons.Filled.Edit,
-                                    contentDescription = if (isEditing) "Save" else "Edit"
-                                )
-                            }
-                        }
-                    }
 
-                    // Decrease Font Size
-                    IconButton(onClick = {
-                        if (fontSize > 12f) viewModel.updateFontSize(fontSize - 2f)
-                    }) {
-                        Icon(Icons.Filled.Remove, contentDescription = "Decrease Font Size")
-                    }
-
-                    // Increase Font Size
-                    IconButton(onClick = {
-                        if (fontSize < 42f) viewModel.updateFontSize(fontSize + 2f)
-                    }) {
-                        Icon(Icons.Filled.Add, contentDescription = "Increase Font Size")
-                    }
-
-                      // Font Family
-                      var showFontMenu by remember { mutableStateOf(false) }
-                      Box {
-                          IconButton(onClick = { showFontMenu = true }) {
-                              Icon(Icons.Filled.FormatSize, contentDescription = "Font Family")
-                          }
-                          DropdownMenu(
-                              expanded = showFontMenu,
-                              onDismissRequest = { showFontMenu = false }
-                          ) {
-                              val fonts = listOf("Default", "Serif", "SansSerif", "Monospace")
-                              fonts.forEach { font ->
-                                  DropdownMenuItem(
-                                      text = { Text(font) },
-                                      onClick = {
-                                          viewModel.updateFontFamily(font)
-                                          showFontMenu = false
-                                      },
-                                       trailingIcon = {
-                                           if (uiState.fontFamily == font) {
-                                               Icon(
-                                                   imageVector = Icons.Default.Check,
-                                                   contentDescription = "Selected"
-                                               )
-                                           }
-                                       }
-                                  )
-                              }
-                          }
-                      }
-
-                    // More
-                    Box {
-                        IconButton(onClick = { showOverflowMenu = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "More options")
-                        }
-                        DropdownMenu(
-                            expanded = showOverflowMenu,
-                            onDismissRequest = { showOverflowMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Share text") },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, currentText())
-                                    }
-                                    context.startActivity(
-                                        Intent.createChooser(shareIntent, "Share text")
+                        when (readerMode) {
+                            ReaderMode.ORIGINAL -> {
+                                IconButton(
+                                    onClick = { showTimestamps = !showTimestamps },
+                                    enabled = originalSegments.isNotEmpty()
+                                ) {
+                                    Icon(
+                                        imageVector = if (showTimestamps) {
+                                            Icons.Filled.TimerOff
+                                        } else {
+                                            Icons.Filled.Timer
+                                        },
+                                        contentDescription = if (showTimestamps) {
+                                            "Hide timestamps"
+                                        } else {
+                                            "Show timestamps"
+                                        }
                                     )
                                 }
-                            )
-                            if (readerMode == ReaderMode.STUDY) {
+                            }
+                            ReaderMode.STUDY -> {
+                                IconButton(onClick = {
+                                    if (isEditing) {
+                                        if (editText.isBlank()) {
+                                            showEmptyDialog = true
+                                        } else {
+                                            viewModel.updateContent(editText.trimEnd())
+                                            isEditing = false
+                                        }
+                                    } else {
+                                        isEditing = true
+                                    }
+                                }) {
+                                    Icon(
+                                        imageVector = if (isEditing) Icons.Filled.Save else Icons.Filled.Edit,
+                                        contentDescription = if (isEditing) "Save" else "Edit"
+                                    )
+                                }
+                            }
+                        }
+
+                        IconButton(onClick = {
+                            if (fontSize > 12f) viewModel.updateFontSize(fontSize - 2f)
+                        }) {
+                            Icon(Icons.Filled.Remove, contentDescription = "Decrease Font Size")
+                        }
+
+                        IconButton(onClick = {
+                            if (fontSize < 42f) viewModel.updateFontSize(fontSize + 2f)
+                        }) {
+                            Icon(Icons.Filled.Add, contentDescription = "Increase Font Size")
+                        }
+
+                        var showFontMenu by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { showFontMenu = true }) {
+                                Icon(Icons.Filled.FormatSize, contentDescription = "Font Family")
+                            }
+                            DropdownMenu(
+                                expanded = showFontMenu,
+                                onDismissRequest = { showFontMenu = false }
+                            ) {
+                                val fonts = listOf("Default", "Serif", "SansSerif", "Monospace")
+                                fonts.forEach { font ->
+                                    DropdownMenuItem(
+                                        text = { Text(font) },
+                                        onClick = {
+                                            viewModel.updateFontFamily(font)
+                                            showFontMenu = false
+                                        },
+                                        trailingIcon = {
+                                            if (uiState.fontFamily == font) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = "Selected"
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Box {
+                            IconButton(onClick = { showOverflowMenu = true }) {
+                                Icon(Icons.Filled.MoreVert, contentDescription = "More options")
+                            }
+                            DropdownMenu(
+                                expanded = showOverflowMenu,
+                                onDismissRequest = { showOverflowMenu = false }
+                            ) {
                                 DropdownMenuItem(
-                                    text = { Text("Remove empty lines") },
+                                    text = { Text("Share text") },
                                     onClick = {
                                         showOverflowMenu = false
-                                        val cleaned = currentText()
-                                            .lines()
-                                            .filter { it.isNotBlank() }
-                                            .joinToString("\n")
-                                        applyTextUpdate(cleaned)
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, currentText())
+                                        }
+                                        context.startActivity(
+                                            Intent.createChooser(shareIntent, "Share text")
+                                        )
                                     }
                                 )
+                                if (readerMode == ReaderMode.STUDY) {
+                                    DropdownMenuItem(
+                                        text = { Text("Remove empty lines") },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            val cleaned = currentText()
+                                                .lines()
+                                                .filter { it.isNotBlank() }
+                                                .joinToString("\n")
+                                            applyTextUpdate(cleaned)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Find and replace") },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            showFindReplaceDialog = true
+                                        }
+                                    )
+                                }
                                 DropdownMenuItem(
-                                    text = { Text("Find and replace") },
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        showFindReplaceDialog = true
-                                    }
+                                    text = { Text("AI cleaning") },
+                                    onClick = { showOverflowMenu = false },
+                                    enabled = false
                                 )
                             }
-                            DropdownMenuItem(
-                                text = { Text("AI cleaning") },
-                                onClick = { showOverflowMenu = false },
-                                enabled = false
-                            )
                         }
                     }
                 }
             }
         }
-        },
 
-    ) { padding ->
-        val showSelectionToolbar = readerMode == ReaderMode.STUDY &&
-            !isEditing &&
-            selectionRange != null
-
-        Box(
+        AnimatedVisibility(
+            visible = isUiVisible,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = if (isUiVisible) 88.dp else 16.dp)
+                .navigationBarsPadding()
         ) {
-            if (readerMode == ReaderMode.ORIGINAL) {
-                if (originalSegments.isEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .systemBarsPadding()
-                            .padding(horizontal = 16.dp)
-                            .onUnconsumedTap { isUiVisible = !isUiVisible }
-                            .verticalScroll(originalFallbackScrollState)
-                    ) {
-                        SelectionContainer {
-                            Text(
-                                text = uiState.content,
-                                fontSize = fontSize.sp,
-                                lineHeight = lineHeightSp.sp,
-                                fontFamily = fontFamily
-                            )
-                        }
-                    }
-                } else {
-                    LazyColumn(
-                        state = originalListState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .systemBarsPadding()
-                            .padding(horizontal = 16.dp)
-                            .onUnconsumedTap { isUiVisible = !isUiVisible }
-                    ) {
-                        itemsIndexed(originalSegments) { _, segment ->
-                            SelectionContainer {
-                                Column(
-                                    modifier = Modifier
-                                        .padding(vertical = 8.dp)
-                                ) {
-                                    if (showTimestamps) {
-                                        Text(
-                                            text = formatTime(segment.startTime),
-                                            fontSize = (fontSize * 0.8f).sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.secondary,
-                                            fontFamily = fontFamily
-                                        )
-                                    }
-                                    Text(
-                                        text = segment.text,
-                                        fontSize = fontSize.sp,
-                                        lineHeight = lineHeightSp.sp,
-                                        fontFamily = fontFamily
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .systemBarsPadding()
-                        .padding(horizontal = 16.dp)
-                        .then(
-                            if (!isEditing) {
-                                Modifier.onUnconsumedTap { isUiVisible = !isUiVisible }
-                            } else {
-                                Modifier
-                            }
-                        )
-                        .verticalScroll(studyScrollState)
-                ) {
-                    if (isEditing) {
-                        TextField(
-                            value = editText,
-                            onValueChange = { editText = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            textStyle = TextStyle(
-                                fontSize = fontSize.sp,
-                                lineHeight = lineHeightSp.sp,
-                                fontFamily = fontFamily
-                            ),
-                            colors = TextFieldDefaults.colors()
-                        )
+            FloatingActionButton(
+                onClick = {
+                    val targetMode = if (readerMode == ReaderMode.STUDY) {
+                        ReaderMode.ORIGINAL
                     } else {
-                        AndroidView<SelectableHighlightTextView>(
-                            modifier = Modifier.fillMaxWidth(),
-                            factory = { context: android.content.Context ->
-                                SelectableHighlightTextView(context).apply {
-                                    studyTextView = this
-                                    textSize = fontSize
-                                    setLineSpacing(0f, uiState.lineHeightMultiplier)
-                                    applyTypeface(uiState.fontFamily)
-                                    setReadableColors(
-                                        textColor = readerTextColor,
-                                        backgroundColor = readerBackgroundColor
-                                    )
-                                    setOnClickListener {
-                                        isUiVisible = !isUiVisible
-                                    }
-                                    onSelectionChangedListener = { start, end ->
-                                        val normalizedStart = minOf(start, end)
-                                        val normalizedEnd = maxOf(start, end)
-                                        selectionRange = if (normalizedStart >= 0 && normalizedStart < normalizedEnd) {
-                                            SelectionRange(normalizedStart, normalizedEnd)
-                                        } else {
-                                            null
-                                        }
-                                    }
-                                }
-                            },
-                            update = { textView: SelectableHighlightTextView ->
-                                studyTextView = textView
-                                textView.textSize = fontSize
-                                textView.setLineSpacing(0f, uiState.lineHeightMultiplier)
-                                textView.applyTypeface(uiState.fontFamily)
-                                textView.setReadableColors(
-                                    textColor = readerTextColor,
-                                    backgroundColor = readerBackgroundColor
-                                )
-                                textView.setOnClickListener {
-                                    isUiVisible = !isUiVisible
-                                }
-                                textView.onSelectionChangedListener = { start, end ->
-                                    val normalizedStart = minOf(start, end)
-                                    val normalizedEnd = maxOf(start, end)
-                                    selectionRange = if (normalizedStart >= 0 && normalizedStart < normalizedEnd) {
-                                        SelectionRange(normalizedStart, normalizedEnd)
-                                    } else {
-                                        null
-                                    }
-                                }
-                                textView.setContentWithHighlights(
-                                    content = uiState.content,
-                                    highlights = uiState.highlights,
-                                    redColor = highlightSpanColor(HighlightColor.RED),
-                                    blueColor = highlightSpanColor(HighlightColor.BLUE),
-                                    greenColor = highlightSpanColor(HighlightColor.GREEN)
-                                )
-                            }
-                        )
+                        ReaderMode.STUDY
                     }
+                    requestAction(PendingAction.SwitchMode(targetMode))
                 }
-            }
-
-            AnimatedVisibility(
-                visible = showSelectionToolbar,
-                enter = slideInVertically(initialOffsetY = { it }),
-                exit = slideOutVertically(targetOffsetY = { it }),
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(
-                        start = 16.dp,
-                        end = 16.dp,
-                        bottom = if (isUiVisible) 84.dp else 16.dp
-                    )
-                    .navigationBarsPadding()
             ) {
-                HighlightSelectionToolbar(
-                    onColorSelected = { color ->
-                        val range = selectionRange ?: return@HighlightSelectionToolbar
-                        viewModel.applyHighlight(range.start, range.end, color)
-                        selectionRange = null
-                        studyTextView?.clearSelection()
+                Icon(
+                    imageVector = if (readerMode == ReaderMode.STUDY) Icons.Filled.Timer else Icons.Filled.Edit,
+                    contentDescription = if (readerMode == ReaderMode.STUDY) {
+                        "Switch to original mode"
+                    } else {
+                        "Switch to study mode"
                     }
                 )
             }
+        }
+
+        AnimatedVisibility(
+            visible = showSelectionToolbar,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    bottom = if (isUiVisible) 84.dp else 16.dp
+                )
+                .navigationBarsPadding()
+        ) {
+            HighlightSelectionToolbar(
+                onColorSelected = { color ->
+                    val range = selectionRange ?: return@HighlightSelectionToolbar
+                    viewModel.applyHighlight(range.start, range.end, color)
+                    selectionRange = null
+                    studyTextView?.clearSelection()
+                }
+            )
         }
     }
 
