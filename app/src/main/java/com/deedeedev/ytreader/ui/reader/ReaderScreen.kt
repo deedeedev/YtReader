@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -28,8 +27,10 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TimerOff
@@ -258,14 +259,52 @@ fun ReaderScreen(
                         .onUnconsumedTap { isUiVisible = !isUiVisible }
                         .verticalScroll(originalFallbackScrollState)
                 ) {
-                    SelectionContainer {
-                        Text(
-                            text = uiState.content,
-                            fontSize = fontSize.sp,
-                            lineHeight = lineHeightSp.sp,
-                            fontFamily = fontFamily
-                        )
-                    }
+                    AndroidView<SelectableHighlightTextView>(
+                        modifier = Modifier.fillMaxWidth(),
+                        factory = { context: android.content.Context ->
+                            SelectableHighlightTextView(context).apply {
+                                textSize = fontSize
+                                setLineSpacing(0f, uiState.lineHeightMultiplier)
+                                applyTypeface(uiState.fontFamily)
+                                setReadableColors(
+                                    textColor = readerTextColor,
+                                    backgroundColor = readerBackgroundColor
+                                )
+                                onHighlightTappedListener = null
+                                onSingleTapListener = {
+                                    if (hasActiveSelection()) {
+                                        clearSelection()
+                                    } else {
+                                        isUiVisible = !isUiVisible
+                                    }
+                                }
+                            }
+                        },
+                        update = { textView: SelectableHighlightTextView ->
+                            textView.textSize = fontSize
+                            textView.setLineSpacing(0f, uiState.lineHeightMultiplier)
+                            textView.applyTypeface(uiState.fontFamily)
+                            textView.setReadableColors(
+                                textColor = readerTextColor,
+                                backgroundColor = readerBackgroundColor
+                            )
+                            textView.onHighlightTappedListener = null
+                            textView.onSingleTapListener = {
+                                if (textView.hasActiveSelection()) {
+                                    textView.clearSelection()
+                                } else {
+                                    isUiVisible = !isUiVisible
+                                }
+                            }
+                            textView.setContentWithHighlights(
+                                content = uiState.content,
+                                highlights = emptyList(),
+                                redColor = 0,
+                                blueColor = 0,
+                                greenColor = 0
+                            )
+                        }
+                    )
                 }
             } else {
                 LazyColumn(
@@ -277,27 +316,65 @@ fun ReaderScreen(
                         .onUnconsumedTap { isUiVisible = !isUiVisible }
                 ) {
                     itemsIndexed(originalSegments) { _, segment ->
-                        SelectionContainer {
-                            Column(
-                                modifier = Modifier
-                                    .padding(vertical = 8.dp)
-                            ) {
-                                if (showTimestamps) {
-                                    Text(
-                                        text = formatTime(segment.startTime),
-                                        fontSize = (fontSize * 0.8f).sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.secondary,
-                                        fontFamily = fontFamily
-                                    )
-                                }
+                        Column(
+                            modifier = Modifier
+                                .padding(vertical = 8.dp)
+                        ) {
+                            if (showTimestamps) {
                                 Text(
-                                    text = segment.text,
-                                    fontSize = fontSize.sp,
-                                    lineHeight = lineHeightSp.sp,
+                                    text = formatTime(segment.startTime),
+                                    fontSize = (fontSize * 0.8f).sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary,
                                     fontFamily = fontFamily
                                 )
                             }
+                            AndroidView<SelectableHighlightTextView>(
+                                modifier = Modifier.fillMaxWidth(),
+                                factory = { context: android.content.Context ->
+                                    SelectableHighlightTextView(context).apply {
+                                        textSize = fontSize
+                                        setLineSpacing(0f, uiState.lineHeightMultiplier)
+                                        applyTypeface(uiState.fontFamily)
+                                        setReadableColors(
+                                            textColor = readerTextColor,
+                                            backgroundColor = readerBackgroundColor
+                                        )
+                                        onHighlightTappedListener = null
+                                        onSingleTapListener = {
+                                            if (hasActiveSelection()) {
+                                                clearSelection()
+                                            } else {
+                                                isUiVisible = !isUiVisible
+                                            }
+                                        }
+                                    }
+                                },
+                                update = { textView: SelectableHighlightTextView ->
+                                    textView.textSize = fontSize
+                                    textView.setLineSpacing(0f, uiState.lineHeightMultiplier)
+                                    textView.applyTypeface(uiState.fontFamily)
+                                    textView.setReadableColors(
+                                        textColor = readerTextColor,
+                                        backgroundColor = readerBackgroundColor
+                                    )
+                                    textView.onHighlightTappedListener = null
+                                    textView.onSingleTapListener = {
+                                        if (textView.hasActiveSelection()) {
+                                            textView.clearSelection()
+                                        } else {
+                                            isUiVisible = !isUiVisible
+                                        }
+                                    }
+                                    textView.setContentWithHighlights(
+                                        content = segment.text,
+                                        highlights = emptyList(),
+                                        redColor = 0,
+                                        blueColor = 0,
+                                        greenColor = 0
+                                    )
+                                }
+                            )
                         }
                     }
                 }
@@ -342,6 +419,7 @@ fun ReaderScreen(
                                     textColor = readerTextColor,
                                     backgroundColor = readerBackgroundColor
                                 )
+                                onSingleTapListener = null
                                 onSelectionChangedListener = { start, end ->
                                     val normalizedStart = minOf(start, end)
                                     val normalizedEnd = maxOf(start, end)
@@ -374,6 +452,7 @@ fun ReaderScreen(
                                 textColor = readerTextColor,
                                 backgroundColor = readerBackgroundColor
                             )
+                            textView.onSingleTapListener = null
                             textView.onSelectionChangedListener = { start, end ->
                                 val normalizedStart = minOf(start, end)
                                 val normalizedEnd = maxOf(start, end)
@@ -608,7 +687,11 @@ fun ReaderScreen(
                 }
             ) {
                 Icon(
-                    imageVector = if (readerMode == ReaderMode.STUDY) Icons.Filled.Timer else Icons.Filled.Edit,
+                    imageVector = if (readerMode == ReaderMode.STUDY) {
+                        Icons.Filled.Subtitles
+                    } else {
+                        Icons.Filled.MenuBook
+                    },
                     contentDescription = if (readerMode == ReaderMode.STUDY) {
                         "Switch to original mode"
                     } else {

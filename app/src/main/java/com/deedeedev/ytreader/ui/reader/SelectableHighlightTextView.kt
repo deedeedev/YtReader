@@ -19,11 +19,13 @@ class SelectableHighlightTextView @JvmOverloads constructor(
 
     var onSelectionChangedListener: ((start: Int, end: Int) -> Unit)? = null
     var onHighlightTappedListener: ((TextHighlight?) -> Unit)? = null
+    var onSingleTapListener: (() -> Unit)? = null
     private var highlightsForHitTest: List<TextHighlight> = emptyList()
     private val gestureDetector = GestureDetector(
         context,
         object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapUp(e: MotionEvent): Boolean {
+                onSingleTapListener?.invoke()
                 onHighlightTappedListener?.invoke(findHighlightAtTouch(e))
                 return false
             }
@@ -104,6 +106,10 @@ class SelectableHighlightTextView @JvmOverloads constructor(
     fun setReadableColors(textColor: Int, backgroundColor: Int) {
         setTextColor(textColor)
         setBackgroundColor(backgroundColor)
+    }
+
+    fun hasActiveSelection(): Boolean {
+        return selectionStart >= 0 && selectionEnd > selectionStart
     }
 
     private fun findHighlightAtTouch(event: MotionEvent): TextHighlight? {
