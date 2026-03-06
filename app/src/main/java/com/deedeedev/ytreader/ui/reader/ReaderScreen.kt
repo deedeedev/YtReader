@@ -21,13 +21,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Subtitles
@@ -92,6 +92,7 @@ fun ReaderScreen(
     subtitleId: Long,
     subtitleDao: SubtitleDao,
     userPreferencesRepository: UserPreferencesRepository,
+    onChromeReady: () -> Unit,
     onBack: () -> Unit
 ) {
     val viewModel: ReaderViewModel = viewModel(
@@ -106,6 +107,9 @@ fun ReaderScreen(
             CircularProgressIndicator()
         }
         return
+    }
+    LaunchedEffect(subtitle.id) {
+        onChromeReady()
     }
 
     val fontSize = uiState.fontSize
@@ -690,7 +694,7 @@ fun ReaderScreen(
                     imageVector = if (readerMode == ReaderMode.STUDY) {
                         Icons.Filled.Subtitles
                     } else {
-                        Icons.Filled.MenuBook
+                        Icons.AutoMirrored.Filled.MenuBook
                     },
                     contentDescription = if (readerMode == ReaderMode.STUDY) {
                         "Switch to original mode"
