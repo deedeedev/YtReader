@@ -252,6 +252,49 @@ fun ReaderScreen(
         !isEditing &&
         (selectionRange != null || activeHighlight != null)
 
+    val fullscreenProgressPercent by remember(
+        readerMode,
+        originalSegments,
+        originalListState.firstVisibleItemIndex,
+        originalListState.canScrollForward,
+        originalListState.canScrollBackward,
+        studyScrollState.value,
+        studyScrollState.maxValue,
+        originalFallbackScrollState.value,
+        originalFallbackScrollState.maxValue
+    ) {
+        derivedStateOf {
+            when (readerMode) {
+                ReaderMode.ORIGINAL -> {
+                    if (originalSegments.isEmpty()) {
+                        scrollPercent(
+                            value = originalFallbackScrollState.value,
+                            maxValue = originalFallbackScrollState.maxValue,
+                            canScrollForward = originalFallbackScrollState.canScrollForward,
+                            canScrollBackward = originalFallbackScrollState.canScrollBackward
+                        )
+                    } else {
+                        lazyListScrollPercent(
+                            firstVisibleItemIndex = originalListState.firstVisibleItemIndex,
+                            totalItems = originalSegments.size,
+                            canScrollForward = originalListState.canScrollForward,
+                            canScrollBackward = originalListState.canScrollBackward
+                        )
+                    }
+                }
+
+                ReaderMode.STUDY -> {
+                    scrollPercent(
+                        value = studyScrollState.value,
+                        maxValue = studyScrollState.maxValue,
+                        canScrollForward = studyScrollState.canScrollForward,
+                        canScrollBackward = studyScrollState.canScrollBackward
+                    )
+                }
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         if (readerMode == ReaderMode.ORIGINAL) {
             if (originalSegments.isEmpty()) {
@@ -741,6 +784,16 @@ fun ReaderScreen(
                 }
             )
         }
+
+        if (!isUiVisible && !isEditing) {
+            TinyProgressIndicator(
+                percent = fullscreenProgressPercent,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 8.dp, bottom = 8.dp)
+            )
+        }
     }
 
     if (showUnsavedDialog) {
@@ -930,6 +983,69 @@ private fun formatOriginalModeCopyText(
         } else {
             segment.text
         }
+    }
+}
+
+private fun scrollPercent(
+    value: Int,
+    maxValue: Int,
+    canScrollForward: Boolean,
+    canScrollBackward: Boolean
+): Int {
+    if (maxValue <= 0 || (!canScrollForward && !canScrollBackward)) {
+        return 100
+    }
+    if (!canScrollBackward || value <= 0) {
+        return 0
+    }
+    if (!canScrollForward || value >= maxValue) {
+        return 100
+    }
+    return ((value.toFloat() / maxValue.toFloat()) * 100f)
+        .toInt()
+        .coerceIn(0, 99)
+}
+
+private fun lazyListScrollPercent(
+    firstVisibleItemIndex: Int,
+    totalItems: Int,
+    canScrollForward: Boolean,
+    canScrollBackward: Boolean
+): Int {
+    if (totalItems <= 0 || (!canScrollForward && !canScrollBackward)) {
+        return 100
+    }
+    if (!canScrollBackward || firstVisibleItemIndex <= 0) {
+        return 0
+    }
+    if (!canScrollForward) {
+        return 100
+    }
+    val maxIndex = (totalItems - 1).coerceAtLeast(1)
+    return ((firstVisibleItemIndex.toFloat() / maxIndex.toFloat()) * 100f)
+        .toInt()
+        .coerceIn(0, 99)
+}
+
+@Composable
+private fun TinyProgressIndicator(
+    percent: Int,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.extraSmall,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.68f),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Text(
+            text = "$percent%",
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelSmall
+        )
     }
 }
 
