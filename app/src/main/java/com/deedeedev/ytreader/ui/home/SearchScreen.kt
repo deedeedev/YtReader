@@ -157,8 +157,8 @@ fun SearchScreen(
                 val otherSubtitles = allSubtitles.filter { it.languageTag !in uiState.favoriteLanguages }
                 
                 items(favoriteSubtitles) { subtitle ->
-                    val savedSubtitle = uiState.savedSubtitles.find { 
-                        it.videoId == info.url && it.languageCode == subtitle.languageTag 
+                    val savedSubtitle = uiState.savedSubtitles.find {
+                        SubtitleIdentityMatcher.matchesSavedSubtitle(it, info.url, subtitle)
                     }
                     
                     SubtitleItem(
@@ -178,8 +178,8 @@ fun SearchScreen(
                 }
 
                 items(otherSubtitles) { subtitle ->
-                    val savedSubtitle = uiState.savedSubtitles.find { 
-                        it.videoId == info.url && it.languageCode == subtitle.languageTag 
+                    val savedSubtitle = uiState.savedSubtitles.find {
+                        SubtitleIdentityMatcher.matchesSavedSubtitle(it, info.url, subtitle)
                     }
                     
                     SubtitleItem(
