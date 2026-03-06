@@ -21,6 +21,9 @@ class UserPreferencesRepository(context: Context) {
     private val _lineHeightMultiplier = MutableStateFlow(1.5f)
     val lineHeightMultiplier: StateFlow<Float> = _lineHeightMultiplier.asStateFlow()
 
+    private val _aiEndpoint = MutableStateFlow("")
+    val aiEndpoint: StateFlow<String> = _aiEndpoint.asStateFlow()
+
     private val _aiApiKey = MutableStateFlow("")
     val aiApiKey: StateFlow<String> = _aiApiKey.asStateFlow()
     init {
@@ -37,6 +40,7 @@ class UserPreferencesRepository(context: Context) {
         _defaultFontSize.value = prefs.getFloat(KEY_DEFAULT_FONT_SIZE, 16f)
         _fontFamily.value = prefs.getString(KEY_FONT_FAMILY, "Default") ?: "Default"
         _lineHeightMultiplier.value = prefs.getFloat(KEY_LINE_HEIGHT_MULTIPLIER, 1.5f)
+        _aiEndpoint.value = prefs.getString(KEY_AI_ENDPOINT, "") ?: ""
         _aiApiKey.value = prefs.getString(KEY_AI_API_KEY, "") ?: ""
     }
 
@@ -67,6 +71,11 @@ class UserPreferencesRepository(context: Context) {
         _lineHeightMultiplier.value = multiplier
     }
 
+    fun setAiEndpoint(endpoint: String) {
+        prefs.edit().putString(KEY_AI_ENDPOINT, endpoint).apply()
+        _aiEndpoint.value = endpoint
+    }
+
     fun setAiApiKey(key: String) {
         prefs.edit().putString(KEY_AI_API_KEY, key).apply()
         _aiApiKey.value = key
@@ -78,6 +87,7 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_DEFAULT_FONT_SIZE = "default_font_size"
         private const val KEY_FONT_FAMILY = "font_family"
         private const val KEY_LINE_HEIGHT_MULTIPLIER = "line_height_multiplier"
+        private const val KEY_AI_ENDPOINT = "ai_endpoint"
         private const val KEY_AI_API_KEY = "ai_api_key"
     }
 }

@@ -119,6 +119,17 @@ fun SettingsScreen(
 
             item {
                 OutlinedTextField(
+                    value = uiState.aiEndpoint,
+                    onValueChange = { viewModel.setAiEndpoint(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("AI Endpoint") },
+                    placeholder = { Text("https://api.example.com/v1") },
+                    singleLine = true
+                )
+            }
+
+            item {
+                OutlinedTextField(
                     value = uiState.aiApiKey,
                     onValueChange = { viewModel.setAiApiKey(it) },
                     modifier = Modifier.fillMaxWidth(),

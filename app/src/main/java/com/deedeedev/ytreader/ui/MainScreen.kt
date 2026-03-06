@@ -10,8 +10,12 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -53,18 +57,25 @@ fun MainScreen(
 ) {
     val navController = rememberNavController()
     val uiState by viewModel.uiState.collectAsState()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val isReaderRoute = currentRoute?.startsWith("reader") == true
+    var isReaderChromeReady by remember { mutableStateOf(false) }
+
+    LaunchedEffect(navBackStackEntry) {
+        if (isReaderRoute) {
+            isReaderChromeReady = false
+        }
+    }
 
     Scaffold(
         topBar = {
-            // ReaderScreen has its own Scaffold/TopBar
-            if (navController.currentBackStackEntryAsState().value?.destination?.route?.startsWith("reader") != true) {
+            if (!isReaderRoute || !isReaderChromeReady) {
                 CenterAlignedTopAppBar(title = { Text("YtReader") })
             }
         },
         bottomBar = {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
-            val currentRoute = currentDestination?.route
 
             // Hide bottom bar on Reader screen
             if (currentRoute?.startsWith("reader") != true) {
@@ -104,7 +115,10 @@ fun MainScreen(
             ) {
                 SearchScreen(
                     viewModel = viewModel,
-                    onSubtitleClick = { id -> navController.navigate("reader/$id") }
+                    onSubtitleClick = { id ->
+                        isReaderChromeReady = false
+                        navController.navigate("reader/$id")
+                    }
                 )
             }
             composable(
@@ -116,7 +130,10 @@ fun MainScreen(
             ) {
                 LibraryScreen(
                     viewModel = viewModel,
-                    onSubtitleClick = { id -> navController.navigate("reader/$id") },
+                    onSubtitleClick = { id ->
+                        isReaderChromeReady = false
+                        navController.navigate("reader/$id")
+                    },
                     onVideoClick = { url ->
                         viewModel.onUrlChange(url)
                         viewModel.searchVideo()
@@ -153,10 +170,10 @@ fun MainScreen(
                     subtitleId = subtitleId,
                     subtitleDao = appContainer.subtitleDao,
                     userPreferencesRepository = appContainer.userPreferencesRepository,
+                    onChromeReady = { isReaderChromeReady = true },
                     onBack = { navController.popBackStack() }
                 )
             }
         }
     }
 }
-

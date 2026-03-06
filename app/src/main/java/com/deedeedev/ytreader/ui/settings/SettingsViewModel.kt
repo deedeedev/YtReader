@@ -15,6 +15,7 @@ data class SettingsUiState(
     val fontFamily: String = "Default",
     val availableFonts: List<String> = listOf("Default", "Serif", "SansSerif", "Monospace", "Cursive"),
     val lineHeightMultiplier: Float = 1.5f,
+    val aiEndpoint: String = "",
     val aiApiKey: String = ""
 )
 
@@ -42,6 +43,11 @@ class SettingsViewModel(
             }
         }
         viewModelScope.launch {
+            userPreferencesRepository.aiEndpoint.collect { endpoint ->
+                _uiState.update { it.copy(aiEndpoint = endpoint) }
+            }
+        }
+        viewModelScope.launch {
             userPreferencesRepository.aiApiKey.collect { key ->
                 _uiState.update { it.copy(aiApiKey = key) }
             }
@@ -58,6 +64,10 @@ class SettingsViewModel(
 
     fun setLineHeightMultiplier(multiplier: Float) {
         userPreferencesRepository.setLineHeightMultiplier(multiplier)
+    }
+
+    fun setAiEndpoint(endpoint: String) {
+        userPreferencesRepository.setAiEndpoint(endpoint)
     }
 
     fun setAiApiKey(key: String) {
