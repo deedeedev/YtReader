@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.heightIn
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.background
@@ -156,6 +157,8 @@ fun ReaderScreen(
     var findText by rememberSaveable { mutableStateOf("") }
     var replaceText by rememberSaveable { mutableStateOf("") }
     var isCaseSensitive by rememberSaveable { mutableStateOf(false) }
+    var showAiPreviewDialog by remember { mutableStateOf(false) }
+    var pendingAiCleanedText by remember { mutableStateOf<String?>(null) }
     var selectionRange by remember { mutableStateOf<SelectionRange?>(null) }
     var activeHighlight by remember { mutableStateOf<TextHighlight?>(null) }
     var studyTextView by remember { mutableStateOf<SelectableHighlightTextView?>(null) }
@@ -170,6 +173,11 @@ fun ReaderScreen(
         selectionRange = null
         activeHighlight = null
         studyTextView?.clearSelection()
+    }
+
+    LaunchedEffect(subtitle.id) {
+        pendingAiCleanedText = null
+        showAiPreviewDialog = false
     }
 
     LaunchedEffect(isEditing) {
@@ -743,11 +751,8 @@ fun ReaderScreen(
                                             coroutineScope.launch {
                                                 val result = viewModel.cleanTextWithAi(sourceText)
                                                 result.onSuccess { cleaned ->
-                                                    if (isEditing) {
-                                                        editText = cleaned
-                                                    } else {
-                                                        applyTextUpdate(cleaned)
-                                                    }
+                                                    pendingAiCleanedText = cleaned
+                                                    showAiPreviewDialog = true
                                                 }.onFailure { error ->
                                                     val message = error.message
                                                         ?.takeIf { it.isNotBlank() }
@@ -972,6 +977,50 @@ fun ReaderScreen(
                 }
             }
         )
+    }
+
+    if (showAiPreviewDialog) {
+        val previewText = pendingAiCleanedText
+        if (previewText != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    showAiPreviewDialog = false
+                    pendingAiCleanedText = null
+                },
+                title = { Text("AI cleaned text") },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 360.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text(previewText)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        if (isEditing) {
+                            editText = previewText
+                        } else {
+                            applyTextUpdate(previewText)
+                        }
+                        showAiPreviewDialog = false
+                        pendingAiCleanedText = null
+                    }) {
+                        Text("Apply")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showAiPreviewDialog = false
+                        pendingAiCleanedText = null
+                    }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
     }
 
     if (showEmptyDialog) {
