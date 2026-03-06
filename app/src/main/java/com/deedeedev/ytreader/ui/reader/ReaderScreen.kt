@@ -84,6 +84,7 @@ private enum class ReaderMode {
 
 private sealed interface PendingAction {
     data object ExitScreen : PendingAction
+    data object ExitEditing : PendingAction
     data class SwitchMode(val targetMode: ReaderMode) : PendingAction
 }
 
@@ -222,6 +223,13 @@ fun ReaderScreen(
     fun runPendingAction(action: PendingAction) {
         when (action) {
             PendingAction.ExitScreen -> onBack()
+            PendingAction.ExitEditing -> {
+                isEditing = false
+                editText = uiState.content
+                selectionRange = null
+                activeHighlight = null
+                studyTextView?.clearSelection()
+            }
             is PendingAction.SwitchMode -> {
                 if (action.targetMode == ReaderMode.ORIGINAL) {
                     isEditing = false
@@ -573,6 +581,13 @@ fun ReaderScreen(
                     navigationIcon = {
                         IconButton(onClick = { requestAction(PendingAction.ExitScreen) }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        if (readerMode == ReaderMode.STUDY && isEditing) {
+                            TextButton(onClick = { requestAction(PendingAction.ExitEditing) }) {
+                                Text("Cancel")
+                            }
                         }
                     }
                 )
