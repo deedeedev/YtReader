@@ -702,11 +702,13 @@ fun ReaderScreen(
                                         }
                                     )
                                 }
-                                DropdownMenuItem(
-                                    text = { Text("AI cleaning") },
-                                    onClick = { showOverflowMenu = false },
-                                    enabled = false
-                                )
+                                if (readerMode != ReaderMode.ORIGINAL) {
+                                    DropdownMenuItem(
+                                        text = { Text("AI cleaning") },
+                                        onClick = { showOverflowMenu = false },
+                                        enabled = false
+                                    )
+                                }
                             }
                         }
                     }
