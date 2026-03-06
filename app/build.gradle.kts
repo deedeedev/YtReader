@@ -78,6 +78,7 @@ dependencies {
 
     // Networking & Parsing
     implementation(libs.okhttp)
+    implementation(libs.google.gson)
     implementation(libs.jsoup)
 
     // Local DB

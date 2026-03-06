@@ -6,6 +6,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.YoutubeRepository
+import com.deedeedev.ytreader.data.AiCleaningRepository
 import com.deedeedev.ytreader.data.local.AppDatabase
 import com.deedeedev.ytreader.data.local.SubtitleDao
 
@@ -17,6 +18,7 @@ interface AppContainer {
     val subtitleDao: SubtitleDao
     val youtubeRepository: YoutubeRepository
     val userPreferencesRepository: UserPreferencesRepository
+    val aiCleaningRepository: AiCleaningRepository
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -64,5 +66,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val userPreferencesRepository: UserPreferencesRepository by lazy {
         UserPreferencesRepository(context)
+    }
+
+    override val aiCleaningRepository: AiCleaningRepository by lazy {
+        AiCleaningRepository(okHttpClient)
     }
 }

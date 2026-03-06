@@ -16,7 +16,9 @@ data class SettingsUiState(
     val availableFonts: List<String> = listOf("Default", "Serif", "SansSerif", "Monospace", "Cursive"),
     val lineHeightMultiplier: Float = 1.5f,
     val aiEndpoint: String = "",
-    val aiApiKey: String = ""
+    val aiApiKey: String = "",
+    val aiModel: String = "",
+    val aiPrompt: String = ""
 )
 
 class SettingsViewModel(
@@ -52,6 +54,16 @@ class SettingsViewModel(
                 _uiState.update { it.copy(aiApiKey = key) }
             }
         }
+        viewModelScope.launch {
+            userPreferencesRepository.aiModel.collect { model ->
+                _uiState.update { it.copy(aiModel = model) }
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.aiPrompt.collect { prompt ->
+                _uiState.update { it.copy(aiPrompt = prompt) }
+            }
+        }
     }
 
     fun setDefaultFontSize(size: Float) {
@@ -72,6 +84,14 @@ class SettingsViewModel(
 
     fun setAiApiKey(key: String) {
         userPreferencesRepository.setAiApiKey(key)
+    }
+
+    fun setAiModel(model: String) {
+        userPreferencesRepository.setAiModel(model)
+    }
+
+    fun setAiPrompt(prompt: String) {
+        userPreferencesRepository.setAiPrompt(prompt)
     }
 
     companion object {

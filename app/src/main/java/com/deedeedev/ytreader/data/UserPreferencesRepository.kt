@@ -26,6 +26,13 @@ class UserPreferencesRepository(context: Context) {
 
     private val _aiApiKey = MutableStateFlow("")
     val aiApiKey: StateFlow<String> = _aiApiKey.asStateFlow()
+
+    private val _aiModel = MutableStateFlow(DEFAULT_AI_MODEL)
+    val aiModel: StateFlow<String> = _aiModel.asStateFlow()
+
+    private val _aiPrompt = MutableStateFlow(DEFAULT_AI_CLEANING_PROMPT)
+    val aiPrompt: StateFlow<String> = _aiPrompt.asStateFlow()
+
     init {
         loadFavorites()
         loadDisplaySettings()
@@ -42,6 +49,9 @@ class UserPreferencesRepository(context: Context) {
         _lineHeightMultiplier.value = prefs.getFloat(KEY_LINE_HEIGHT_MULTIPLIER, 1.5f)
         _aiEndpoint.value = prefs.getString(KEY_AI_ENDPOINT, "") ?: ""
         _aiApiKey.value = prefs.getString(KEY_AI_API_KEY, "") ?: ""
+        _aiModel.value = prefs.getString(KEY_AI_MODEL, DEFAULT_AI_MODEL) ?: DEFAULT_AI_MODEL
+        _aiPrompt.value = prefs.getString(KEY_AI_PROMPT, DEFAULT_AI_CLEANING_PROMPT)
+            ?: DEFAULT_AI_CLEANING_PROMPT
     }
 
     fun toggleFavoriteLanguage(languageCode: String) {
@@ -81,6 +91,16 @@ class UserPreferencesRepository(context: Context) {
         _aiApiKey.value = key
     }
 
+    fun setAiModel(model: String) {
+        prefs.edit().putString(KEY_AI_MODEL, model).apply()
+        _aiModel.value = model
+    }
+
+    fun setAiPrompt(prompt: String) {
+        prefs.edit().putString(KEY_AI_PROMPT, prompt).apply()
+        _aiPrompt.value = prompt
+    }
+
     companion object {
         private const val PREFS_NAME = "user_preferences"
         private const val KEY_FAVORITE_LANGUAGES = "favorite_languages"
@@ -89,5 +109,7 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_LINE_HEIGHT_MULTIPLIER = "line_height_multiplier"
         private const val KEY_AI_ENDPOINT = "ai_endpoint"
         private const val KEY_AI_API_KEY = "ai_api_key"
+        private const val KEY_AI_MODEL = "ai_model"
+        private const val KEY_AI_PROMPT = "ai_prompt"
     }
 }

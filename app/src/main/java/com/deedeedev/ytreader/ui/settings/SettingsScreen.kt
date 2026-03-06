@@ -138,6 +138,29 @@ fun SettingsScreen(
                     singleLine = true
                 )
             }
+
+            item {
+                OutlinedTextField(
+                    value = uiState.aiModel,
+                    onValueChange = { viewModel.setAiModel(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("AI Model") },
+                    placeholder = { Text("gpt-4o-mini") },
+                    singleLine = true
+                )
+            }
+
+            item {
+                OutlinedTextField(
+                    value = uiState.aiPrompt,
+                    onValueChange = { viewModel.setAiPrompt(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("AI Cleaning Prompt") },
+                    placeholder = { Text("Describe how subtitle text should be cleaned") },
+                    minLines = 6,
+                    maxLines = 12
+                )
+            }
         }
     }
 }

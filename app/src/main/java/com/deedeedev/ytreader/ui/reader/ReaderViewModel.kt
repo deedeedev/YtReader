@@ -3,6 +3,9 @@ package com.deedeedev.ytreader.ui.reader
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.deedeedev.ytreader.data.AiCleaningRepository
+import com.deedeedev.ytreader.data.AiCleaningRequest
+import com.deedeedev.ytreader.data.DEFAULT_AI_CLEANING_PROMPT
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
@@ -21,17 +24,24 @@ data class ReaderUiState(
     val fontSize: Float = 16f,
     val fontFamily: String = "Default",
     val lineHeightMultiplier: Float = 1.5f,
+    val isAiCleaning: Boolean = false,
     val isLoading: Boolean = false
 )
 
 class ReaderViewModel(
     private val subtitleDao: SubtitleDao,
     private val userPreferencesRepository: UserPreferencesRepository,
+    private val aiCleaningRepository: AiCleaningRepository,
     private val subtitleId: Long
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReaderUiState(isLoading = true))
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
+
+    private var aiEndpoint: String = ""
+    private var aiApiKey: String = ""
+    private var aiModel: String = ""
+    private var aiPrompt: String = DEFAULT_AI_CLEANING_PROMPT
 
     init {
         loadSubtitle()
@@ -42,6 +52,26 @@ class ReaderViewModel(
         viewModelScope.launch {
             userPreferencesRepository.lineHeightMultiplier.collect { multiplier ->
                 _uiState.update { it.copy(lineHeightMultiplier = multiplier) }
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.aiEndpoint.collect { endpoint ->
+                aiEndpoint = endpoint
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.aiApiKey.collect { key ->
+                aiApiKey = key
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.aiModel.collect { model ->
+                aiModel = model
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.aiPrompt.collect { prompt ->
+                aiPrompt = prompt
             }
         }
     }
@@ -151,6 +181,39 @@ class ReaderViewModel(
         persistHighlights(updated)
     }
 
+    suspend fun cleanTextWithAi(inputText: String): Result<String> {
+        val endpoint = aiEndpoint.trim()
+        val key = aiApiKey.trim()
+        val model = aiModel.trim()
+        if (endpoint.isBlank() || key.isBlank() || model.isBlank()) {
+            return Result.failure(
+                IllegalStateException("Set AI endpoint, API key, and model in Settings.")
+            )
+        }
+
+        _uiState.update { it.copy(isAiCleaning = true) }
+        return try {
+            val cleaned = aiCleaningRepository.cleanText(
+                AiCleaningRequest(
+                    endpointBaseUrl = endpoint,
+                    apiKey = key,
+                    model = model,
+                    userInstructions = aiPrompt,
+                    subtitleText = inputText
+                )
+            )
+            if (cleaned.isBlank()) {
+                Result.failure(IllegalStateException("AI returned empty cleaned text."))
+            } else {
+                Result.success(cleaned)
+            }
+        } catch (error: Exception) {
+            Result.failure(error)
+        } finally {
+            _uiState.update { it.copy(isAiCleaning = false) }
+        }
+    }
+
     private fun persistHighlights(highlights: List<TextHighlight>) {
         val serialized = serializeHighlights(highlights)
         _uiState.update {
@@ -168,11 +231,17 @@ class ReaderViewModel(
         fun provideFactory(
             dao: SubtitleDao,
             userPreferencesRepository: UserPreferencesRepository,
+            aiCleaningRepository: AiCleaningRepository,
             subtitleId: Long
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return ReaderViewModel(dao, userPreferencesRepository, subtitleId) as T
+                return ReaderViewModel(
+                    dao,
+                    userPreferencesRepository,
+                    aiCleaningRepository,
+                    subtitleId
+                ) as T
             }
         }
     }

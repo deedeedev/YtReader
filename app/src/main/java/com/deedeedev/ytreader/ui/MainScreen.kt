@@ -170,6 +170,7 @@ fun MainScreen(
                     subtitleId = subtitleId,
                     subtitleDao = appContainer.subtitleDao,
                     userPreferencesRepository = appContainer.userPreferencesRepository,
+                    aiCleaningRepository = appContainer.aiCleaningRepository,
                     onChromeReady = { isReaderChromeReady = true },
                     onBack = { navController.popBackStack() }
                 )

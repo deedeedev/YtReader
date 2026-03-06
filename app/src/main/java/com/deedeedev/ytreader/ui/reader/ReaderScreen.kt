@@ -55,6 +55,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.activity.compose.BackHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deedeedev.ytreader.data.AiCleaningRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.domain.SubtitleParser
@@ -66,6 +67,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.launch
 
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.ui.viewinterop.AndroidView
@@ -92,12 +94,18 @@ fun ReaderScreen(
     subtitleId: Long,
     subtitleDao: SubtitleDao,
     userPreferencesRepository: UserPreferencesRepository,
+    aiCleaningRepository: AiCleaningRepository,
     onChromeReady: () -> Unit,
     onBack: () -> Unit
 ) {
     val viewModel: ReaderViewModel = viewModel(
         key = "Reader_$subtitleId",
-        factory = ReaderViewModel.provideFactory(subtitleDao, userPreferencesRepository, subtitleId)
+        factory = ReaderViewModel.provideFactory(
+            subtitleDao,
+            userPreferencesRepository,
+            aiCleaningRepository,
+            subtitleId
+        )
     )
     val uiState by viewModel.uiState.collectAsState()
     val subtitle = uiState.subtitle
@@ -123,6 +131,8 @@ fun ReaderScreen(
 
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     val originalListState = rememberLazyListState()
     val studyScrollState = rememberScrollState()
     val originalFallbackScrollState = rememberScrollState()
@@ -704,9 +714,44 @@ fun ReaderScreen(
                                 }
                                 if (readerMode != ReaderMode.ORIGINAL) {
                                     DropdownMenuItem(
-                                        text = { Text("AI cleaning") },
-                                        onClick = { showOverflowMenu = false },
-                                        enabled = false
+                                        text = {
+                                            Text(
+                                                if (uiState.isAiCleaning) {
+                                                    "AI cleaning..."
+                                                } else {
+                                                    "AI cleaning"
+                                                }
+                                            )
+                                        },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            val sourceText = currentText()
+                                            if (sourceText.isBlank()) {
+                                                coroutineScope.launch {
+                                                    snackbarHostState.showSnackbar(
+                                                        "Nothing to clean."
+                                                    )
+                                                }
+                                                return@DropdownMenuItem
+                                            }
+
+                                            coroutineScope.launch {
+                                                val result = viewModel.cleanTextWithAi(sourceText)
+                                                result.onSuccess { cleaned ->
+                                                    if (isEditing) {
+                                                        editText = cleaned
+                                                    } else {
+                                                        applyTextUpdate(cleaned)
+                                                    }
+                                                }.onFailure { error ->
+                                                    val message = error.message
+                                                        ?.takeIf { it.isNotBlank() }
+                                                        ?: "AI cleaning failed."
+                                                    snackbarHostState.showSnackbar(message)
+                                                }
+                                            }
+                                        },
+                                        enabled = !uiState.isAiCleaning
                                     )
                                 }
                             }
@@ -796,6 +841,14 @@ fun ReaderScreen(
                     .padding(end = 8.dp, bottom = 8.dp)
             )
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 16.dp)
+        )
     }
 
     if (showUnsavedDialog) {
