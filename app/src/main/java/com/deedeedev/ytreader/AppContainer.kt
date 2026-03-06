@@ -13,6 +13,7 @@ import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.remote.NewPipeDownloader
 import okhttp3.OkHttpClient
 import org.schabi.newpipe.extractor.NewPipe
+import java.util.concurrent.TimeUnit
 
 interface AppContainer {
     val subtitleDao: SubtitleDao
@@ -52,6 +53,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         OkHttpClient.Builder().build()
     }
 
+    private val aiOkHttpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .callTimeout(150, TimeUnit.SECONDS)
+            .build()
+    }
+
     init {
         NewPipe.init(NewPipeDownloader(okHttpClient))
     }
@@ -69,6 +78,6 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val aiCleaningRepository: AiCleaningRepository by lazy {
-        AiCleaningRepository(okHttpClient)
+        AiCleaningRepository(aiOkHttpClient)
     }
 }

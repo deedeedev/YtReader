@@ -47,4 +47,18 @@ class AiCleaningRepositoryTest {
         val cleaned = repository.parseCleanedText("not-json")
         assertNull(cleaned)
     }
+
+    @Test
+    fun buildEndpoint_appendsChatCompletionsForBaseUrl() {
+        val endpoint = repository.buildEndpoint("https://api.example.com/v1")
+
+        assertEquals("https://api.example.com/v1/chat/completions", endpoint)
+    }
+
+    @Test
+    fun buildEndpoint_keepsFullChatCompletionsUrl() {
+        val endpoint = repository.buildEndpoint("https://api.example.com/v1/chat/completions")
+
+        assertEquals("https://api.example.com/v1/chat/completions", endpoint)
+    }
 }

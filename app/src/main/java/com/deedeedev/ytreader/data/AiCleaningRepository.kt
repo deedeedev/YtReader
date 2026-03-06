@@ -24,7 +24,7 @@ class AiCleaningRepository(
 ) {
 
     suspend fun cleanText(request: AiCleaningRequest): String = withContext(Dispatchers.IO) {
-        val endpoint = request.endpointBaseUrl.trim().trimEnd('/') + CHAT_COMPLETIONS_PATH
+        val endpoint = buildEndpoint(request.endpointBaseUrl)
         val effectiveInstructions = request.userInstructions.ifBlank { DEFAULT_AI_CLEANING_PROMPT }
 
         val payload = ChatCompletionsRequest(
@@ -87,6 +87,15 @@ class AiCleaningRepository(
                 ?.content
         } catch (_: JsonSyntaxException) {
             null
+        }
+    }
+
+    internal fun buildEndpoint(baseOrFullUrl: String): String {
+        val normalized = baseOrFullUrl.trim().trimEnd('/')
+        return if (normalized.endsWith(CHAT_COMPLETIONS_PATH)) {
+            normalized
+        } else {
+            normalized + CHAT_COMPLETIONS_PATH
         }
     }
 

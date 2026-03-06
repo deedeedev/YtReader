@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.InterruptedIOException
+import java.net.SocketTimeoutException
 
 data class ReaderUiState(
     val subtitle: SubtitleEntity? = null,
@@ -208,9 +210,17 @@ class ReaderViewModel(
                 Result.success(cleaned)
             }
         } catch (error: Exception) {
-            Result.failure(error)
+            Result.failure(IllegalStateException(mapAiError(error)))
         } finally {
             _uiState.update { it.copy(isAiCleaning = false) }
+        }
+    }
+
+    private fun mapAiError(error: Exception): String {
+        return when (error) {
+            is SocketTimeoutException, is InterruptedIOException ->
+                "AI cleaning timed out. Try shorter text or check endpoint/model."
+            else -> error.message?.takeIf { it.isNotBlank() } ?: "AI cleaning failed."
         }
     }
 

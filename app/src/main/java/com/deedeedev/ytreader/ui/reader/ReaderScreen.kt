@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBarsPadding
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -255,7 +258,9 @@ fun ReaderScreen(
     }
 
     BackHandler {
-        requestAction(PendingAction.ExitScreen)
+        if (!uiState.isAiCleaning) {
+            requestAction(PendingAction.ExitScreen)
+        }
     }
 
     val showSelectionToolbar = readerMode == ReaderMode.STUDY &&
@@ -849,6 +854,34 @@ fun ReaderScreen(
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 16.dp)
         )
+
+        if (uiState.isAiCleaning) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {}
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    shape = MaterialTheme.shapes.large,
+                    tonalElevation = 8.dp
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator()
+                        Text("Cleaning text...")
+                    }
+                }
+            }
+        }
     }
 
     if (showUnsavedDialog) {
