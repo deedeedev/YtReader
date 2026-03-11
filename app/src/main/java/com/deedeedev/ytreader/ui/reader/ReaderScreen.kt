@@ -731,6 +731,9 @@ fun ReaderScreen(
             ) {
                 TopAppBar(
                     title = { Text(subtitle.title) },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = BottomAppBarDefaults.containerColor
+                    ),
                     navigationIcon = {
                         IconButton(onClick = { requestAction(PendingAction.ExitScreen) }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
