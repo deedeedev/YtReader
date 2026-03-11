@@ -24,6 +24,9 @@ interface SubtitleDao {
     @Query("UPDATE subtitles SET lastTimestamp = :timestamp WHERE id = :id")
     suspend fun updateLastTimestamp(id: Long, timestamp: Long)
 
+    @Query("UPDATE subtitles SET lastStudyScroll = :scroll WHERE id = :id")
+    suspend fun updateLastStudyScroll(id: Long, scroll: Int)
+
     @Query("UPDATE subtitles SET fontSize = :fontSize WHERE id = :id")
     suspend fun updateFontSize(id: Long, fontSize: Float)
 

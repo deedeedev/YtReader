@@ -38,13 +38,17 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
 
+    private val MIGRATION_8_9 = Migration(8, 9) { database ->
+        database.execSQL("ALTER TABLE subtitles ADD COLUMN lastStudyScroll INTEGER NOT NULL DEFAULT 0")
+    }
+
     private val database: AppDatabase by lazy {
         Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
             "ytreader.db"
         )
-        .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+        .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
         .fallbackToDestructiveMigration(false)
         .build()
     }

@@ -70,6 +70,7 @@ import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.launch
 
@@ -163,6 +164,10 @@ fun ReaderScreen(
     var selectionRange by remember { mutableStateOf<SelectionRange?>(null) }
     var activeHighlight by remember { mutableStateOf<TextHighlight?>(null) }
     var studyTextView by remember { mutableStateOf<SelectableHighlightTextView?>(null) }
+    var lastKnownStudyScroll by rememberSaveable(subtitle.id) {
+        mutableStateOf(subtitle.lastStudyScroll)
+    }
+    var hasRestoredStudyScroll by rememberSaveable(subtitle.id) { mutableStateOf(false) }
 
     LaunchedEffect(uiState.content, isEditing) {
         if (!isEditing) {
@@ -179,6 +184,35 @@ fun ReaderScreen(
     LaunchedEffect(subtitle.id) {
         pendingAiCleanedText = null
         showAiPreviewDialog = false
+    }
+
+    LaunchedEffect(subtitle.id) {
+        lastKnownStudyScroll = subtitle.lastStudyScroll
+        hasRestoredStudyScroll = false
+    }
+
+    LaunchedEffect(subtitle.id, studyScrollState.maxValue, hasRestoredStudyScroll) {
+        if (hasRestoredStudyScroll) return@LaunchedEffect
+        val targetScroll = subtitle.lastStudyScroll.coerceAtLeast(0)
+        val maxValue = studyScrollState.maxValue
+        if (targetScroll == 0 || maxValue > 0) {
+            studyScrollState.scrollTo(targetScroll.coerceIn(0, maxValue))
+            hasRestoredStudyScroll = true
+        }
+    }
+
+    LaunchedEffect(studyScrollState, subtitle.id) {
+        snapshotFlow { studyScrollState.value }
+            .distinctUntilChanged()
+            .collectLatest { scroll ->
+                lastKnownStudyScroll = scroll
+            }
+    }
+
+    DisposableEffect(subtitle.id) {
+        onDispose {
+            viewModel.updateLastStudyScroll(lastKnownStudyScroll)
+        }
     }
 
     LaunchedEffect(isEditing) {
@@ -222,7 +256,15 @@ fun ReaderScreen(
 
     fun runPendingAction(action: PendingAction) {
         when (action) {
-            PendingAction.ExitScreen -> onBack()
+            PendingAction.ExitScreen -> {
+                val scrollToSave = if (readerMode == ReaderMode.STUDY) {
+                    studyScrollState.value
+                } else {
+                    lastKnownStudyScroll
+                }
+                viewModel.updateLastStudyScroll(scrollToSave)
+                onBack()
+            }
             PendingAction.ExitEditing -> {
                 isEditing = false
                 editText = uiState.content

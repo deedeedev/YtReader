@@ -16,6 +16,7 @@ data class SubtitleEntity(
     val content: String,
     val studyContent: String? = null,
     val lastTimestamp: Long = 0L,
+    val lastStudyScroll: Int = 0,
     val fontSize: Float = 16f,
     val createdAt: Long = System.currentTimeMillis(),
     val uploadDate: Long = 0L,

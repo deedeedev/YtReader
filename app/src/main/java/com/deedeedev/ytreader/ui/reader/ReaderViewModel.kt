@@ -107,6 +107,12 @@ class ReaderViewModel(
         }
     }
 
+    fun updateLastStudyScroll(scroll: Int) {
+        viewModelScope.launch {
+            subtitleDao.updateLastStudyScroll(subtitleId, scroll.coerceAtLeast(0))
+        }
+    }
+
     fun updateFontSize(fontSize: Float) {
         _uiState.update { it.copy(fontSize = fontSize) }
         viewModelScope.launch {
