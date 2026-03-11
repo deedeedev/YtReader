@@ -292,6 +292,12 @@ fun ReaderScreen(
         }
     }
 
+    fun resetFindReplaceDialogState() {
+        findText = ""
+        replaceText = ""
+        isCaseSensitive = false
+    }
+
     fun runPendingAction(action: PendingAction) {
         when (action) {
             PendingAction.ExitScreen -> {
@@ -928,6 +934,7 @@ fun ReaderScreen(
                                         text = { Text("Find and replace") },
                                         onClick = {
                                             showOverflowMenu = false
+                                            resetFindReplaceDialogState()
                                             showFindReplaceDialog = true
                                         }
                                     )
@@ -1131,7 +1138,10 @@ fun ReaderScreen(
 
     if (showFindReplaceDialog) {
         AlertDialog(
-            onDismissRequest = { showFindReplaceDialog = false },
+            onDismissRequest = {
+                resetFindReplaceDialogState()
+                showFindReplaceDialog = false
+            },
             title = { Text("Find and replace") },
             text = {
                 Column {
@@ -1174,13 +1184,17 @@ fun ReaderScreen(
                         val updated = currentText().replace(regex, replaceText)
                         applyTextUpdate(updated)
                     }
+                    resetFindReplaceDialogState()
                     showFindReplaceDialog = false
                 }) {
                     Text("Replace")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showFindReplaceDialog = false }) {
+                TextButton(onClick = {
+                    resetFindReplaceDialogState()
+                    showFindReplaceDialog = false
+                }) {
                     Text("Cancel")
                 }
             }
