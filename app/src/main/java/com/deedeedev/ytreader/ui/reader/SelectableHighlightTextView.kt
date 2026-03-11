@@ -11,6 +11,11 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.widget.TextView
 
+internal enum class TextTapOutcome {
+    DISMISSED_SELECTION,
+    PLAIN_TEXT
+}
+
 class SelectableHighlightTextView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -19,15 +24,18 @@ class SelectableHighlightTextView @JvmOverloads constructor(
 
     var onSelectionChangedListener: ((start: Int, end: Int) -> Unit)? = null
     var onHighlightTappedListener: ((TextHighlight?) -> Unit)? = null
-    var onSingleTapListener: (() -> Unit)? = null
+    internal var onTextTapListener: ((TextTapOutcome) -> Unit)? = null
     private var highlightsForHitTest: List<TextHighlight> = emptyList()
+    private var hadActiveSelectionOnDown = false
+    private var shouldDispatchSingleTap = false
     private val gestureDetector = GestureDetector(
         context,
         object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean = true
+
             override fun onSingleTapUp(e: MotionEvent): Boolean {
-                onSingleTapListener?.invoke()
-                onHighlightTappedListener?.invoke(findHighlightAtTouch(e))
-                return false
+                shouldDispatchSingleTap = true
+                return true
             }
         }
     )
@@ -44,8 +52,24 @@ class SelectableHighlightTextView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            hadActiveSelectionOnDown = hasActiveSelection()
+        }
+
         gestureDetector.onTouchEvent(event)
-        return super.onTouchEvent(event)
+        val handled = super.onTouchEvent(event)
+
+        when (event.actionMasked) {
+            MotionEvent.ACTION_UP -> {
+                if (shouldDispatchSingleTap) {
+                    dispatchTextTap(event)
+                }
+                resetTapTracking()
+            }
+            MotionEvent.ACTION_CANCEL -> resetTapTracking()
+        }
+
+        return handled
     }
 
     fun setContentWithHighlights(
@@ -94,6 +118,15 @@ class SelectableHighlightTextView @JvmOverloads constructor(
         onSelectionChangedListener?.invoke(0, 0)
     }
 
+    fun setSelectionRange(start: Int, end: Int) {
+        val spannable = text as? Spannable ?: return
+        val textLength = spannable.length
+        val normalizedStart = start.coerceIn(0, textLength)
+        val normalizedEnd = end.coerceIn(0, textLength)
+        Selection.setSelection(spannable, normalizedStart, normalizedEnd)
+        onSelectionChangedListener?.invoke(normalizedStart, normalizedEnd)
+    }
+
     fun applyTypeface(fontFamilyName: String) {
         typeface = when (fontFamilyName) {
             "Serif" -> Typeface.SERIF
@@ -110,6 +143,29 @@ class SelectableHighlightTextView @JvmOverloads constructor(
 
     fun hasActiveSelection(): Boolean {
         return selectionStart >= 0 && selectionEnd > selectionStart
+    }
+
+    private fun dispatchTextTap(event: MotionEvent) {
+        val tappedHighlight = findHighlightAtTouch(event)
+        if (tappedHighlight != null) {
+            onHighlightTappedListener?.invoke(tappedHighlight)
+            return
+        }
+
+        val tapOutcome = if (hadActiveSelectionOnDown && !hasActiveSelection()) {
+            TextTapOutcome.DISMISSED_SELECTION
+        } else {
+            TextTapOutcome.PLAIN_TEXT
+        }
+        onTextTapListener?.invoke(tapOutcome)
+        if (tapOutcome == TextTapOutcome.PLAIN_TEXT) {
+            onHighlightTappedListener?.invoke(null)
+        }
+    }
+
+    private fun resetTapTracking() {
+        hadActiveSelectionOnDown = false
+        shouldDispatchSingleTap = false
     }
 
     private fun findHighlightAtTouch(event: MotionEvent): TextHighlight? {

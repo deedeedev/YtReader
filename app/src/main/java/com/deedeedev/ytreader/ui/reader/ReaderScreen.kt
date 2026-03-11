@@ -96,8 +96,19 @@ private data class SelectionRange(
     val end: Int
 )
 
+private class OriginalSelectionCoordinator {
+    val textViews = mutableMapOf<Int, SelectableHighlightTextView>()
+    var activeOwner: Int? = null
+
+    fun clearAllSelections() {
+        textViews.values.forEach { it.clearSelection() }
+        activeOwner = null
+    }
+}
+
 private const val READER_TOP_BAR_TAG = "reader_top_bar"
 private const val READER_EDIT_TEXT_FIELD_TAG = "reader_edit_text_field"
+private const val READER_SELECTION_TOOLBAR_TAG = "reader_selection_toolbar"
 private val READER_BOTTOM_BAR_HEIGHT = 80.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -170,6 +181,7 @@ fun ReaderScreen(
     var selectionRange by remember { mutableStateOf<SelectionRange?>(null) }
     var activeHighlight by remember { mutableStateOf<TextHighlight?>(null) }
     var studyTextView by remember { mutableStateOf<SelectableHighlightTextView?>(null) }
+    val originalSelectionCoordinator = remember { OriginalSelectionCoordinator() }
     var lastKnownStudyScroll by rememberSaveable(subtitle.id) {
         mutableStateOf(subtitle.lastStudyScroll)
     }
@@ -185,6 +197,7 @@ fun ReaderScreen(
         selectionRange = null
         activeHighlight = null
         studyTextView?.clearSelection()
+        originalSelectionCoordinator.clearAllSelections()
     }
 
     LaunchedEffect(subtitle.id) {
@@ -227,6 +240,7 @@ fun ReaderScreen(
             selectionRange = null
             activeHighlight = null
             studyTextView?.clearSelection()
+            originalSelectionCoordinator.clearAllSelections()
         }
     }
 
@@ -235,6 +249,8 @@ fun ReaderScreen(
             selectionRange = null
             activeHighlight = null
             studyTextView?.clearSelection()
+        } else {
+            originalSelectionCoordinator.clearAllSelections()
         }
     }
 
@@ -402,6 +418,7 @@ fun ReaderScreen(
                         modifier = Modifier.fillMaxWidth(),
                         factory = { context: android.content.Context ->
                             SelectableHighlightTextView(context).apply {
+                                originalSelectionCoordinator.textViews[-1] = this
                                 textSize = fontSize
                                 setLineSpacing(0f, uiState.lineHeightMultiplier)
                                 applyTypeface(uiState.fontFamily)
@@ -410,16 +427,27 @@ fun ReaderScreen(
                                     backgroundColor = readerBackgroundColor
                                 )
                                 onHighlightTappedListener = null
-                                onSingleTapListener = {
-                                    if (hasActiveSelection()) {
-                                        clearSelection()
-                                    } else {
+                                onTextTapListener = { tapOutcome ->
+                                    if (tapOutcome == TextTapOutcome.PLAIN_TEXT &&
+                                        originalSelectionCoordinator.activeOwner == null
+                                    ) {
                                         isUiVisible = !isUiVisible
+                                    }
+                                }
+                                onSelectionChangedListener = { start, end ->
+                                    val hasSelection = minOf(start, end) >= 0 && maxOf(start, end) > minOf(start, end)
+                                    originalSelectionCoordinator.activeOwner = if (hasSelection) {
+                                        -1
+                                    } else if (originalSelectionCoordinator.activeOwner == -1) {
+                                        null
+                                    } else {
+                                        originalSelectionCoordinator.activeOwner
                                     }
                                 }
                             }
                         },
                         update = { textView: SelectableHighlightTextView ->
+                            originalSelectionCoordinator.textViews[-1] = textView
                             textView.textSize = fontSize
                             textView.setLineSpacing(0f, uiState.lineHeightMultiplier)
                             textView.applyTypeface(uiState.fontFamily)
@@ -428,11 +456,21 @@ fun ReaderScreen(
                                 backgroundColor = readerBackgroundColor
                             )
                             textView.onHighlightTappedListener = null
-                            textView.onSingleTapListener = {
-                                if (textView.hasActiveSelection()) {
-                                    textView.clearSelection()
-                                } else {
+                            textView.onTextTapListener = { tapOutcome ->
+                                if (tapOutcome == TextTapOutcome.PLAIN_TEXT &&
+                                    originalSelectionCoordinator.activeOwner == null
+                                ) {
                                     isUiVisible = !isUiVisible
+                                }
+                            }
+                            textView.onSelectionChangedListener = { start, end ->
+                                val hasSelection = minOf(start, end) >= 0 && maxOf(start, end) > minOf(start, end)
+                                originalSelectionCoordinator.activeOwner = if (hasSelection) {
+                                    -1
+                                } else if (originalSelectionCoordinator.activeOwner == -1) {
+                                    null
+                                } else {
+                                    originalSelectionCoordinator.activeOwner
                                 }
                             }
                             textView.setContentWithHighlights(
@@ -458,7 +496,7 @@ fun ReaderScreen(
                         bottom = bottomContentPadding
                     )
                 ) {
-                    itemsIndexed(originalSegments) { _, segment ->
+                    itemsIndexed(originalSegments) { index, segment ->
                         Column(
                             modifier = Modifier
                                 .padding(vertical = 8.dp)
@@ -476,6 +514,7 @@ fun ReaderScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 factory = { context: android.content.Context ->
                                     SelectableHighlightTextView(context).apply {
+                                        originalSelectionCoordinator.textViews[index] = this
                                         textSize = fontSize
                                         setLineSpacing(0f, uiState.lineHeightMultiplier)
                                         applyTypeface(uiState.fontFamily)
@@ -484,16 +523,33 @@ fun ReaderScreen(
                                             backgroundColor = readerBackgroundColor
                                         )
                                         onHighlightTappedListener = null
-                                        onSingleTapListener = {
-                                            if (hasActiveSelection()) {
-                                                clearSelection()
-                                            } else {
+                                        onTextTapListener = { tapOutcome ->
+                                            val selectionOwner = originalSelectionCoordinator.activeOwner
+                                            if (tapOutcome == TextTapOutcome.PLAIN_TEXT && selectionOwner != null) {
+                                                if (selectionOwner != index) {
+                                                    originalSelectionCoordinator.textViews[selectionOwner]?.clearSelection()
+                                                    originalSelectionCoordinator.activeOwner = null
+                                                }
+                                            } else if (tapOutcome == TextTapOutcome.PLAIN_TEXT) {
                                                 isUiVisible = !isUiVisible
+                                            }
+                                        }
+                                        onSelectionChangedListener = { start, end ->
+                                            val normalizedStart = minOf(start, end)
+                                            val normalizedEnd = maxOf(start, end)
+                                            val hasSelection = normalizedStart >= 0 && normalizedEnd > normalizedStart
+                                            originalSelectionCoordinator.activeOwner = if (hasSelection) {
+                                                index
+                                            } else if (originalSelectionCoordinator.activeOwner == index) {
+                                                null
+                                            } else {
+                                                originalSelectionCoordinator.activeOwner
                                             }
                                         }
                                     }
                                 },
                                 update = { textView: SelectableHighlightTextView ->
+                                    originalSelectionCoordinator.textViews[index] = textView
                                     textView.textSize = fontSize
                                     textView.setLineSpacing(0f, uiState.lineHeightMultiplier)
                                     textView.applyTypeface(uiState.fontFamily)
@@ -502,11 +558,27 @@ fun ReaderScreen(
                                         backgroundColor = readerBackgroundColor
                                     )
                                     textView.onHighlightTappedListener = null
-                                    textView.onSingleTapListener = {
-                                        if (textView.hasActiveSelection()) {
-                                            textView.clearSelection()
-                                        } else {
+                                    textView.onTextTapListener = { tapOutcome ->
+                                        val selectionOwner = originalSelectionCoordinator.activeOwner
+                                        if (tapOutcome == TextTapOutcome.PLAIN_TEXT && selectionOwner != null) {
+                                            if (selectionOwner != index) {
+                                                originalSelectionCoordinator.textViews[selectionOwner]?.clearSelection()
+                                                originalSelectionCoordinator.activeOwner = null
+                                            }
+                                        } else if (tapOutcome == TextTapOutcome.PLAIN_TEXT) {
                                             isUiVisible = !isUiVisible
+                                        }
+                                    }
+                                    textView.onSelectionChangedListener = { start, end ->
+                                        val normalizedStart = minOf(start, end)
+                                        val normalizedEnd = maxOf(start, end)
+                                        val hasSelection = normalizedStart >= 0 && normalizedEnd > normalizedStart
+                                        originalSelectionCoordinator.activeOwner = if (hasSelection) {
+                                            index
+                                        } else if (originalSelectionCoordinator.activeOwner == index) {
+                                            null
+                                        } else {
+                                            originalSelectionCoordinator.activeOwner
                                         }
                                     }
                                     textView.setContentWithHighlights(
@@ -569,7 +641,11 @@ fun ReaderScreen(
                                     textColor = readerTextColor,
                                     backgroundColor = readerBackgroundColor
                                 )
-                                onSingleTapListener = null
+                                onTextTapListener = { tapOutcome ->
+                                    if (tapOutcome == TextTapOutcome.DISMISSED_SELECTION) {
+                                        Unit
+                                    }
+                                }
                                 onSelectionChangedListener = { start, end ->
                                     val normalizedStart = minOf(start, end)
                                     val normalizedEnd = maxOf(start, end)
@@ -602,7 +678,11 @@ fun ReaderScreen(
                                 textColor = readerTextColor,
                                 backgroundColor = readerBackgroundColor
                             )
-                            textView.onSingleTapListener = null
+                            textView.onTextTapListener = { tapOutcome ->
+                                if (tapOutcome == TextTapOutcome.DISMISSED_SELECTION) {
+                                    Unit
+                                }
+                            }
                             textView.onSelectionChangedListener = { start, end ->
                                 val normalizedStart = minOf(start, end)
                                 val normalizedEnd = maxOf(start, end)
@@ -907,6 +987,7 @@ fun ReaderScreen(
                 .navigationBarsPadding()
         ) {
             HighlightSelectionToolbar(
+                modifier = Modifier.testTag(READER_SELECTION_TOOLBAR_TAG),
                 onColorSelected = { color ->
                     val selectedHighlight = activeHighlight
                     if (selectedHighlight != null) {
@@ -1127,11 +1208,13 @@ fun ReaderScreen(
 
 @Composable
 private fun HighlightSelectionToolbar(
+    modifier: Modifier = Modifier,
     onColorSelected: (HighlightColor) -> Unit,
     showDelete: Boolean,
     onDeleteHighlight: () -> Unit
 ) {
     Surface(
+        modifier = modifier,
         shape = MaterialTheme.shapes.extraLarge,
         tonalElevation = 4.dp,
         shadowElevation = 6.dp
