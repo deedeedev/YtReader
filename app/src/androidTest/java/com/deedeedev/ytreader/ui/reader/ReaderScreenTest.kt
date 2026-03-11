@@ -4,6 +4,8 @@ import android.content.Context
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -16,6 +18,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.room.Room
+import androidx.core.view.WindowCompat
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.deedeedev.ytreader.data.AiCleaningRepository
@@ -50,6 +53,7 @@ class ReaderScreenTest {
     private lateinit var db: AppDatabase
     private lateinit var preferencesRepository: UserPreferencesRepository
     private lateinit var aiCleaningRepository: AiCleaningRepository
+    private val showReaderContent = mutableStateOf(true)
     private var subtitleId: Long = 0L
 
     @Before
@@ -128,17 +132,54 @@ class ReaderScreenTest {
         composeTestRule.onNodeWithTag(READER_TOP_BAR_TAG).assertIsDisplayed()
     }
 
+    @Test
+    fun fullscreenMode_hidesAndShowsSystemBarsWithReaderChrome() {
+        setReaderContent()
+
+        assertSystemBarsVisible(visible = false)
+
+        showChrome()
+        assertSystemBarsVisible(visible = true)
+
+        composeTestRule.onNodeWithContentDescription("Edit").assertIsDisplayed().performClick()
+        composeTestRule.waitForIdle()
+
+        assertSystemBarsVisible(visible = true)
+    }
+
+    @Test
+    fun disposingReader_restoresSystemBarsVisible() {
+        setReaderContent()
+
+        assertSystemBarsVisible(visible = false)
+
+        composeTestRule.runOnUiThread {
+            showReaderContent.value = false
+        }
+        composeTestRule.waitForIdle()
+
+        assertSystemBarsVisible(visible = true)
+    }
+
     private fun setReaderContent() {
+        showReaderContent.value = true
+        composeTestRule.runOnUiThread {
+            WindowCompat.setDecorFitsSystemWindows(composeTestRule.activity.window, false)
+        }
         composeTestRule.setContent {
             YtReaderTheme(appTheme = AppTheme.LIGHT) {
-                ReaderScreen(
-                    subtitleId = subtitleId,
-                    subtitleDao = db.subtitleDao(),
-                    userPreferencesRepository = preferencesRepository,
-                    aiCleaningRepository = aiCleaningRepository,
-                    onChromeReady = {},
-                    onBack = {}
-                )
+                if (showReaderContent.value) {
+                    ReaderScreen(
+                        subtitleId = subtitleId,
+                        subtitleDao = db.subtitleDao(),
+                        userPreferencesRepository = preferencesRepository,
+                        aiCleaningRepository = aiCleaningRepository,
+                        onChromeReady = {},
+                        onBack = {}
+                    )
+                } else {
+                    Box {}
+                }
             }
         }
 
@@ -216,5 +257,26 @@ class ReaderScreenTest {
 
     private fun assertTagMissing(tag: String) {
         composeTestRule.onAllNodesWithTag(tag).assertCountEquals(0)
+    }
+
+    private fun assertSystemBarsVisible(visible: Boolean) {
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            currentSystemBarsVisibility() == visible
+        }
+        assertTrue(
+            "Expected system bars visible=$visible but was ${currentSystemBarsVisibility()}",
+            currentSystemBarsVisibility() == visible
+        )
+    }
+
+    private fun currentSystemBarsVisibility(): Boolean {
+        var visible = true
+        composeTestRule.runOnUiThread {
+            val systemUiVisibility = composeTestRule.activity.window.decorView.systemUiVisibility
+            val statusBarHidden = systemUiVisibility and View.SYSTEM_UI_FLAG_FULLSCREEN != 0
+            val navigationBarHidden = systemUiVisibility and View.SYSTEM_UI_FLAG_HIDE_NAVIGATION != 0
+            visible = !statusBarHidden && !navigationBarHidden
+        }
+        return visible
     }
 }

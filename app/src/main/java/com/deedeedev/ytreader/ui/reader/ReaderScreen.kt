@@ -1,5 +1,6 @@
 package com.deedeedev.ytreader.ui.reader
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,15 +68,21 @@ import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.domain.SubtitleParser
 import com.deedeedev.ytreader.domain.SubtitleSegment
 import android.content.Intent
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalView
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.launch
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.ui.viewinterop.AndroidView
@@ -111,6 +118,12 @@ private const val READER_TOP_BAR_TAG = "reader_top_bar"
 private const val READER_EDIT_TEXT_FIELD_TAG = "reader_edit_text_field"
 private const val READER_SELECTION_TOOLBAR_TAG = "reader_selection_toolbar"
 private val READER_BOTTOM_BAR_HEIGHT = 80.dp
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -155,6 +168,7 @@ fun ReaderScreen(
 
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+    val view = LocalView.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val originalListState = rememberLazyListState()
@@ -163,6 +177,7 @@ fun ReaderScreen(
     val lineHeightSp = fontSize * uiState.lineHeightMultiplier
     val readerTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val readerBackgroundColor = Color.Transparent.toArgb()
+    val activity = remember(context) { context.findActivity() }
 
     var readerMode by rememberSaveable { mutableStateOf(ReaderMode.STUDY) }
     var showTimestamps by rememberSaveable { mutableStateOf(false) }
@@ -396,6 +411,24 @@ fun ReaderScreen(
                     )
                 }
             }
+        }
+    }
+
+    DisposableEffect(activity, view, isUiVisible, isEditing) {
+        val window = activity?.window
+        val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
+        if (insetsController != null) {
+            insetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            if (isUiVisible || isEditing) {
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            } else {
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+
+        onDispose {
+            insetsController?.show(WindowInsetsCompat.Type.systemBars())
         }
     }
 
@@ -727,6 +760,8 @@ fun ReaderScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(BottomAppBarDefaults.containerColor)
+                    .statusBarsPadding()
                     .testTag(READER_TOP_BAR_TAG)
             ) {
                 TopAppBar(
