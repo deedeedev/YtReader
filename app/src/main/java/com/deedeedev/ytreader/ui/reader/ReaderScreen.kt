@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.PaddingValues
@@ -726,7 +727,6 @@ fun ReaderScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
                     .testTag(READER_TOP_BAR_TAG)
             ) {
                 TopAppBar(
@@ -734,6 +734,7 @@ fun ReaderScreen(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = BottomAppBarDefaults.containerColor
                     ),
+                    windowInsets = WindowInsets(0, 0, 0, 0),
                     navigationIcon = {
                         IconButton(onClick = { requestAction(PendingAction.ExitScreen) }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
