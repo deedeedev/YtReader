@@ -1,16 +1,13 @@
 package com.deedeedev.ytreader.ui.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.AppContainer
-
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
 
@@ -23,9 +20,6 @@ fun SettingsScreen(
     )
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
-    // Convert to proper types for DropdownMenuItem
-    val availableFonts = listOf("Default", "Serif", "SansSerif", "Monospace", "Cursive")
 
     val selectedFontFamily = when (uiState.fontFamily) {
         "Serif" -> FontFamily.Serif
@@ -47,6 +41,40 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item {
+                var expanded by remember { mutableStateOf(false) }
+
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    TextField(
+                        value = uiState.appTheme.label,
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                            .fillMaxWidth(),
+                        label = { Text("App Theme") }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        uiState.availableThemes.forEach { appTheme ->
+                            DropdownMenuItem(
+                                text = { Text(appTheme.label) },
+                                onClick = {
+                                    viewModel.setAppTheme(appTheme)
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
                 Text(
                     text = "Reader Defaults",
@@ -92,7 +120,7 @@ fun SettingsScreen(
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
-                        availableFonts.forEach { font ->
+                        uiState.availableFonts.forEach { font ->
                             DropdownMenuItem(
                                 text = { Text(font) },
                                 onClick = {

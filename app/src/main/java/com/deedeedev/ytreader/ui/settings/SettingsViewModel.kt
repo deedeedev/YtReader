@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +16,8 @@ data class SettingsUiState(
     val fontFamily: String = "Default",
     val availableFonts: List<String> = listOf("Default", "Serif", "SansSerif", "Monospace", "Cursive"),
     val lineHeightMultiplier: Float = 1.5f,
+    val appTheme: AppTheme = AppTheme.SYSTEM,
+    val availableThemes: List<AppTheme> = AppTheme.entries,
     val aiEndpoint: String = "",
     val aiApiKey: String = "",
     val aiModel: String = "",
@@ -42,6 +45,11 @@ class SettingsViewModel(
         viewModelScope.launch {
             userPreferencesRepository.lineHeightMultiplier.collect { multiplier ->
                 _uiState.update { it.copy(lineHeightMultiplier = multiplier) }
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.appTheme.collect { appTheme ->
+                _uiState.update { it.copy(appTheme = appTheme) }
             }
         }
         viewModelScope.launch {
@@ -76,6 +84,10 @@ class SettingsViewModel(
 
     fun setLineHeightMultiplier(multiplier: Float) {
         userPreferencesRepository.setLineHeightMultiplier(multiplier)
+    }
+
+    fun setAppTheme(appTheme: AppTheme) {
+        userPreferencesRepository.setAppTheme(appTheme)
     }
 
     fun setAiEndpoint(endpoint: String) {

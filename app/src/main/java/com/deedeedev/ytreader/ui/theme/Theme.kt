@@ -1,20 +1,24 @@
 package com.deedeedev.ytreader.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,
     tertiary = Pink80
+)
+
+private val DarkAmoledColorScheme = DarkColorScheme.copy(
+    background = Color.Black,
+    surface = Color.Black,
+    surfaceVariant = Color.Black,
+    inverseSurface = Color.Black
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -33,22 +37,30 @@ private val LightColorScheme = lightColorScheme(
     */
 )
 
+internal fun resolveDarkTheme(appTheme: AppTheme, systemIsDarkTheme: Boolean): Boolean {
+    return when (appTheme) {
+        AppTheme.SYSTEM -> systemIsDarkTheme
+        AppTheme.LIGHT -> false
+        AppTheme.DARK, AppTheme.DARK_AMOLED -> true
+    }
+}
+
+internal fun appColorScheme(appTheme: AppTheme, systemIsDarkTheme: Boolean): ColorScheme {
+    return when (appTheme) {
+        AppTheme.SYSTEM -> if (systemIsDarkTheme) DarkColorScheme else LightColorScheme
+        AppTheme.LIGHT -> LightColorScheme
+        AppTheme.DARK -> DarkColorScheme
+        AppTheme.DARK_AMOLED -> DarkAmoledColorScheme
+    }
+}
+
 @Composable
 fun YtReaderTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    appTheme: AppTheme = AppTheme.SYSTEM,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
+    val systemIsDarkTheme = isSystemInDarkTheme()
+    val colorScheme = appColorScheme(appTheme = appTheme, systemIsDarkTheme = systemIsDarkTheme)
 
     MaterialTheme(
         colorScheme = colorScheme,

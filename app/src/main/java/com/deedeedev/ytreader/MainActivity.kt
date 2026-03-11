@@ -6,12 +6,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.ui.MainScreen
 import com.deedeedev.ytreader.ui.home.HomeViewModel
-import com.deedeedev.ytreader.ui.reader.ReaderScreen
 import com.deedeedev.ytreader.ui.theme.YtReaderTheme
 
 class MainActivity : ComponentActivity() {
@@ -21,7 +20,9 @@ class MainActivity : ComponentActivity() {
         val appContainer = (application as YtReaderApplication).container
         
         setContent {
-            YtReaderTheme {
+            val appTheme by appContainer.userPreferencesRepository.appTheme.collectAsState()
+
+            YtReaderTheme(appTheme = appTheme) {
                 val viewModel: HomeViewModel = viewModel(
                     factory = HomeViewModel.provideFactory(
                         appContainer.youtubeRepository,
@@ -29,9 +30,7 @@ class MainActivity : ComponentActivity() {
                         appContainer.userPreferencesRepository
                     )
                 )
-                
-                val uiState by viewModel.uiState.collectAsState()
-                
+
                 // Handle Intent
                 LaunchedEffect(intent) {
                     if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {

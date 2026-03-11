@@ -22,6 +22,7 @@ import com.deedeedev.ytreader.data.AiCleaningRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.AppDatabase
 import com.deedeedev.ytreader.data.local.SubtitleEntity
+import com.deedeedev.ytreader.ui.theme.AppTheme
 import com.deedeedev.ytreader.ui.theme.YtReaderTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -129,7 +130,7 @@ class ReaderScreenTest {
 
     private fun setReaderContent() {
         composeTestRule.setContent {
-            YtReaderTheme(dynamicColor = false) {
+            YtReaderTheme(appTheme = AppTheme.LIGHT) {
                 ReaderScreen(
                     subtitleId = subtitleId,
                     subtitleDao = db.subtitleDao(),
