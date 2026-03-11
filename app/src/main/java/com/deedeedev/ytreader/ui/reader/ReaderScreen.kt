@@ -61,6 +61,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.AiCleaningRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
@@ -74,6 +75,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalView
 import kotlinx.coroutines.flow.collectLatest
@@ -1149,6 +1151,9 @@ fun ReaderScreen(
                         value = findText,
                         onValueChange = { findText = it },
                         modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None
+                        ),
                         label = { Text("Find") }
                     )
                     Spacer(modifier = Modifier.padding(top = 12.dp))
@@ -1156,6 +1161,9 @@ fun ReaderScreen(
                         value = replaceText,
                         onValueChange = { replaceText = it },
                         modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None
+                        ),
                         label = { Text("Replace with") }
                     )
                     Row(
