@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -69,6 +70,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.testTag
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.runtime.snapshotFlow
@@ -93,6 +95,10 @@ private data class SelectionRange(
     val start: Int,
     val end: Int
 )
+
+private const val READER_TOP_BAR_TAG = "reader_top_bar"
+private const val READER_EDIT_TEXT_FIELD_TAG = "reader_edit_text_field"
+private val READER_BOTTOM_BAR_HEIGHT = 80.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -324,6 +330,14 @@ fun ReaderScreen(
     val showSelectionToolbar = readerMode == ReaderMode.STUDY &&
         !isEditing &&
         (selectionRange != null || activeHighlight != null)
+    val topContentPadding by animateDpAsState(
+        targetValue = if (isUiVisible) TopAppBarDefaults.TopAppBarExpandedHeight else 0.dp,
+        label = "readerTopContentPadding"
+    )
+    val bottomContentPadding by animateDpAsState(
+        targetValue = if (isUiVisible) READER_BOTTOM_BAR_HEIGHT else 0.dp,
+        label = "readerBottomContentPadding"
+    )
 
     val fullscreenProgressPercent by remember(
         readerMode,
@@ -375,7 +389,12 @@ fun ReaderScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .systemBarsPadding()
-                        .padding(horizontal = 16.dp)
+                        .padding(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = topContentPadding,
+                            bottom = bottomContentPadding
+                        )
                         .onUnconsumedTap { isUiVisible = !isUiVisible }
                         .verticalScroll(originalFallbackScrollState)
                 ) {
@@ -432,8 +451,12 @@ fun ReaderScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .systemBarsPadding()
-                        .padding(horizontal = 16.dp)
                         .onUnconsumedTap { isUiVisible = !isUiVisible }
+                        .padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(
+                        top = topContentPadding,
+                        bottom = bottomContentPadding
+                    )
                 ) {
                     itemsIndexed(originalSegments) { _, segment ->
                         Column(
@@ -504,7 +527,12 @@ fun ReaderScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .systemBarsPadding()
-                    .padding(horizontal = 16.dp)
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = topContentPadding,
+                        bottom = bottomContentPadding
+                    )
                     .then(
                         if (!isEditing) {
                             Modifier.onUnconsumedTap { isUiVisible = !isUiVisible }
@@ -518,7 +546,9 @@ fun ReaderScreen(
                     TextField(
                         value = editText,
                         onValueChange = { editText = it },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag(READER_EDIT_TEXT_FIELD_TAG),
                         textStyle = TextStyle(
                             fontSize = fontSize.sp,
                             lineHeight = lineHeightSp.sp,
@@ -617,6 +647,7 @@ fun ReaderScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
+                    .testTag(READER_TOP_BAR_TAG)
             ) {
                 TopAppBar(
                     title = { Text(subtitle.title) },
