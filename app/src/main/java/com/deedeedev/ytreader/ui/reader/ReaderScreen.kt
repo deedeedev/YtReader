@@ -199,7 +199,7 @@ fun ReaderScreen(
     var pendingAiCleanedText by remember { mutableStateOf<String?>(null) }
     var selectionRange by remember { mutableStateOf<SelectionRange?>(null) }
     var activeHighlight by remember { mutableStateOf<TextHighlight?>(null) }
-    var studyTextView by remember { mutableStateOf<SelectableHighlightTextView?>(null) }
+    var studyTextView by remember { mutableStateOf<JustifiedStudyTextView?>(null) }
     val originalSelectionCoordinator = remember { OriginalSelectionCoordinator() }
     var lastKnownStudyScroll by rememberSaveable(subtitle.id) {
         mutableStateOf(subtitle.lastStudyScroll)
@@ -680,15 +680,14 @@ fun ReaderScreen(
                         .onUnconsumedTap { isUiVisible = !isUiVisible }
                         .verticalScroll(studyScrollState)
                 ) {
-                    AndroidView<SelectableHighlightTextView>(
+                    AndroidView<JustifiedStudyTextView>(
                         modifier = Modifier.fillMaxWidth(),
                         factory = { context: android.content.Context ->
-                            SelectableHighlightTextView(context).apply {
+                            JustifiedStudyTextView(context).apply {
                                 studyTextView = this
-                                textSize = fontSize
-                                setLineSpacing(0f, uiState.lineHeightMultiplier)
+                                setTextSizeSp(fontSize)
+                                setLineHeightMultiplier(uiState.lineHeightMultiplier)
                                 applyTypeface(uiState.fontFamily)
-                                setJustificationEnabled(true)
                                 setReadableColors(
                                     textColor = readerTextColor,
                                     backgroundColor = readerBackgroundColor
@@ -721,12 +720,11 @@ fun ReaderScreen(
                                 }
                             }
                         },
-                        update = { textView: SelectableHighlightTextView ->
+                        update = { textView: JustifiedStudyTextView ->
                             studyTextView = textView
-                            textView.textSize = fontSize
-                            textView.setLineSpacing(0f, uiState.lineHeightMultiplier)
+                            textView.setTextSizeSp(fontSize)
+                            textView.setLineHeightMultiplier(uiState.lineHeightMultiplier)
                             textView.applyTypeface(uiState.fontFamily)
-                            textView.setJustificationEnabled(true)
                             textView.setReadableColors(
                                 textColor = readerTextColor,
                                 backgroundColor = readerBackgroundColor
