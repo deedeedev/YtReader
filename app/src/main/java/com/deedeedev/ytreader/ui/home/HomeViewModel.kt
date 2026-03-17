@@ -166,7 +166,7 @@ class HomeViewModel(
                     subtitleContent
                 }
 
-                subtitleDao.updateContentAndCreatedAt(
+                subtitleDao.replaceContentForRedownload(
                     id = subtitle.id,
                     content = rawContent,
                     createdAt = System.currentTimeMillis()

@@ -99,4 +99,37 @@ class SubtitleDaoTest {
         val saved = subtitleDao.getAll().first().filter { it.videoId == "video-123" && it.languageCode == "it" }
         assertEquals(2, saved.size)
     }
+
+    @Test
+    @Throws(Exception::class)
+    fun replaceContentForRedownload_resetsDerivedReaderState() = runBlocking {
+        val subtitle = SubtitleEntity(
+            videoId = "redownload-123",
+            title = "Redownload Test",
+            languageCode = "en",
+            content = "old raw content",
+            studyContent = "edited study content",
+            lastTimestamp = 42L,
+            lastStudyScroll = 7,
+            highlights = "0,4,YELLOW"
+        )
+        subtitleDao.insert(subtitle)
+
+        val inserted = subtitleDao.getAll().first().first()
+        val newCreatedAt = inserted.createdAt + 1_000L
+
+        subtitleDao.replaceContentForRedownload(
+            id = inserted.id,
+            content = "new raw content",
+            createdAt = newCreatedAt
+        )
+
+        val fetched = subtitleDao.getById(inserted.id)
+        assertEquals("new raw content", fetched?.content)
+        assertEquals(newCreatedAt, fetched?.createdAt)
+        assertEquals(null, fetched?.studyContent)
+        assertEquals("", fetched?.highlights)
+        assertEquals(0L, fetched?.lastTimestamp)
+        assertEquals(0, fetched?.lastStudyScroll)
+    }
 }
