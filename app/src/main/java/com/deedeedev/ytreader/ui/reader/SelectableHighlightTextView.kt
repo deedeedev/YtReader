@@ -2,11 +2,15 @@ package com.deedeedev.ytreader.ui.reader
 
 import android.content.Context
 import android.graphics.Typeface
+import android.text.Layout
+import android.text.Layout.BREAK_STRATEGY_HIGH_QUALITY
+import android.text.Layout.HYPHENATION_FREQUENCY_NORMAL
 import android.text.Selection
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.BackgroundColorSpan
 import android.util.AttributeSet
+import android.view.Gravity
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.widget.TextView
@@ -139,6 +143,18 @@ class SelectableHighlightTextView @JvmOverloads constructor(
     fun setReadableColors(textColor: Int, backgroundColor: Int) {
         setTextColor(textColor)
         setBackgroundColor(backgroundColor)
+    }
+
+    fun setJustificationEnabled(enabled: Boolean) {
+        justificationMode = if (enabled) {
+            Layout.JUSTIFICATION_MODE_INTER_WORD
+        } else {
+            Layout.JUSTIFICATION_MODE_NONE
+        }
+        breakStrategy = if (enabled) BREAK_STRATEGY_HIGH_QUALITY else breakStrategy
+        hyphenationFrequency = if (enabled) HYPHENATION_FREQUENCY_NORMAL else hyphenationFrequency
+        gravity = if (enabled) Gravity.START else Gravity.NO_GRAVITY
+        textAlignment = TEXT_ALIGNMENT_VIEW_START
     }
 
     fun hasActiveSelection(): Boolean {

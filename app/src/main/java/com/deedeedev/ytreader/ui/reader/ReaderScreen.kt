@@ -185,7 +185,8 @@ fun ReaderScreen(
     var showTimestamps by rememberSaveable { mutableStateOf(false) }
     var isUiVisible by rememberSaveable { mutableStateOf(false) }
     var isEditing by rememberSaveable { mutableStateOf(false) }
-    var editText by rememberSaveable(subtitle.id) { mutableStateOf(uiState.content) }
+    // Large transcripts can exceed the saved-instance-state Binder limit if persisted via rememberSaveable.
+    var editText by remember(subtitle.id) { mutableStateOf(uiState.content) }
     var showEmptyDialog by remember { mutableStateOf(false) }
     var showUnsavedDialog by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<PendingAction?>(null) }
@@ -560,6 +561,7 @@ fun ReaderScreen(
                                         textSize = fontSize
                                         setLineSpacing(0f, uiState.lineHeightMultiplier)
                                         applyTypeface(uiState.fontFamily)
+                                        setJustificationEnabled(false)
                                         setReadableColors(
                                             textColor = readerTextColor,
                                             backgroundColor = readerBackgroundColor
@@ -595,6 +597,7 @@ fun ReaderScreen(
                                     textView.textSize = fontSize
                                     textView.setLineSpacing(0f, uiState.lineHeightMultiplier)
                                     textView.applyTypeface(uiState.fontFamily)
+                                    textView.setJustificationEnabled(false)
                                     textView.setReadableColors(
                                         textColor = readerTextColor,
                                         backgroundColor = readerBackgroundColor
@@ -637,31 +640,23 @@ fun ReaderScreen(
                 }
             }
         } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .systemBarsPadding()
-                    .padding(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = topContentPadding,
-                        bottom = bottomContentPadding
-                    )
-                    .then(
-                        if (!isEditing) {
-                            Modifier.onUnconsumedTap { isUiVisible = !isUiVisible }
-                        } else {
-                            Modifier
-                        }
-                    )
-                    .verticalScroll(studyScrollState)
-            ) {
-                if (isEditing) {
+            if (isEditing) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .systemBarsPadding()
+                        .padding(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = topContentPadding,
+                            bottom = bottomContentPadding
+                        )
+                ) {
                     TextField(
                         value = editText,
                         onValueChange = { editText = it },
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxSize()
                             .testTag(READER_EDIT_TEXT_FIELD_TAG),
                         textStyle = TextStyle(
                             fontSize = fontSize.sp,
@@ -670,7 +665,21 @@ fun ReaderScreen(
                         ),
                         colors = TextFieldDefaults.colors()
                     )
-                } else {
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .systemBarsPadding()
+                        .padding(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = topContentPadding,
+                            bottom = bottomContentPadding
+                        )
+                        .onUnconsumedTap { isUiVisible = !isUiVisible }
+                        .verticalScroll(studyScrollState)
+                ) {
                     AndroidView<SelectableHighlightTextView>(
                         modifier = Modifier.fillMaxWidth(),
                         factory = { context: android.content.Context ->
@@ -679,6 +688,7 @@ fun ReaderScreen(
                                 textSize = fontSize
                                 setLineSpacing(0f, uiState.lineHeightMultiplier)
                                 applyTypeface(uiState.fontFamily)
+                                setJustificationEnabled(true)
                                 setReadableColors(
                                     textColor = readerTextColor,
                                     backgroundColor = readerBackgroundColor
@@ -716,6 +726,7 @@ fun ReaderScreen(
                             textView.textSize = fontSize
                             textView.setLineSpacing(0f, uiState.lineHeightMultiplier)
                             textView.applyTypeface(uiState.fontFamily)
+                            textView.setJustificationEnabled(true)
                             textView.setReadableColors(
                                 textColor = readerTextColor,
                                 backgroundColor = readerBackgroundColor

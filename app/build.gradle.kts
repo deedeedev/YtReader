@@ -14,7 +14,7 @@ configure<ApplicationExtension> {
 
     defaultConfig {
         applicationId = "com.deedeedev.ytreader"
-        minSdk = 24
+        minSdk = 28
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
