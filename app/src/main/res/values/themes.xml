@@ -2,4 +2,8 @@
 <resources>
 
     <style name="Theme.YtReader" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.YtReader.Launch" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@drawable/launch_screen_background</item>
+    </style>
 </resources>
