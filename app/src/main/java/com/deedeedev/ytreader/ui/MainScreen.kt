@@ -47,6 +47,8 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
 @Composable
 fun MainScreen(
     appContainer: AppContainer,
+    requestedReaderSubtitleId: Long? = null,
+    onReaderSubtitleHandled: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(
         factory = HomeViewModel.provideFactory(
             appContainer.youtubeRepository,
@@ -66,6 +68,15 @@ fun MainScreen(
         if (isReaderRoute) {
             isReaderChromeReady = false
         }
+    }
+
+    LaunchedEffect(requestedReaderSubtitleId) {
+        val subtitleId = requestedReaderSubtitleId ?: return@LaunchedEffect
+        isReaderChromeReady = false
+        navController.navigate("reader/$subtitleId") {
+            launchSingleTop = true
+        }
+        onReaderSubtitleHandled()
     }
 
     Scaffold(
@@ -170,7 +181,6 @@ fun MainScreen(
                     subtitleId = subtitleId,
                     subtitleDao = appContainer.subtitleDao,
                     userPreferencesRepository = appContainer.userPreferencesRepository,
-                    aiCleaningRepository = appContainer.aiCleaningRepository,
                     onChromeReady = { isReaderChromeReady = true },
                     onBack = { navController.popBackStack() }
                 )

@@ -42,13 +42,26 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         database.execSQL("ALTER TABLE subtitles ADD COLUMN lastStudyScroll INTEGER NOT NULL DEFAULT 0")
     }
 
+    private val MIGRATION_9_10 = Migration(9, 10) { database ->
+        database.execSQL(
+            "ALTER TABLE subtitles ADD COLUMN aiCleaningInProgress INTEGER NOT NULL DEFAULT 0"
+        )
+        database.execSQL("ALTER TABLE subtitles ADD COLUMN aiCleaningSourceText TEXT")
+        database.execSQL("ALTER TABLE subtitles ADD COLUMN aiCleaningPendingResult TEXT")
+        database.execSQL("ALTER TABLE subtitles ADD COLUMN aiCleaningErrorSummary TEXT")
+        database.execSQL("ALTER TABLE subtitles ADD COLUMN aiCleaningErrorLog TEXT")
+        database.execSQL(
+            "ALTER TABLE subtitles ADD COLUMN aiCleaningUpdatedAt INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+
     private val database: AppDatabase by lazy {
         Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
             "ytreader.db"
         )
-        .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+        .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
         .fallbackToDestructiveMigration(false)
         .build()
     }

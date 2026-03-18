@@ -21,7 +21,6 @@ import androidx.room.Room
 import androidx.core.view.WindowCompat
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.deedeedev.ytreader.data.AiCleaningRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.AppDatabase
 import com.deedeedev.ytreader.data.local.SubtitleEntity
@@ -29,7 +28,6 @@ import com.deedeedev.ytreader.ui.theme.AppTheme
 import com.deedeedev.ytreader.ui.theme.YtReaderTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -52,7 +50,6 @@ class ReaderScreenTest {
 
     private lateinit var db: AppDatabase
     private lateinit var preferencesRepository: UserPreferencesRepository
-    private lateinit var aiCleaningRepository: AiCleaningRepository
     private val showReaderContent = mutableStateOf(true)
     private var subtitleId: Long = 0L
 
@@ -61,8 +58,6 @@ class ReaderScreenTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         preferencesRepository = UserPreferencesRepository(context)
-        aiCleaningRepository = AiCleaningRepository(OkHttpClient())
-
         db.subtitleDao().insert(
             SubtitleEntity(
                 videoId = "video-1",
@@ -173,7 +168,6 @@ class ReaderScreenTest {
                         subtitleId = subtitleId,
                         subtitleDao = db.subtitleDao(),
                         userPreferencesRepository = preferencesRepository,
-                        aiCleaningRepository = aiCleaningRepository,
                         onChromeReady = {},
                         onBack = {}
                     )

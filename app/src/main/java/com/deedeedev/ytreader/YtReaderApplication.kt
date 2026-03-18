@@ -1,6 +1,7 @@
 package com.deedeedev.ytreader
 
 import android.app.Application
+import com.deedeedev.ytreader.data.createAiCleaningNotificationChannel
 import com.jakewharton.threetenabp.AndroidThreeTen
 
 class YtReaderApplication : Application() {
@@ -11,5 +12,6 @@ class YtReaderApplication : Application() {
         AndroidThreeTen.init(this)
 
         container = DefaultAppContainer(this)
+        createAiCleaningNotificationChannel(this)
     }
 }

@@ -9,6 +9,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import java.net.SocketTimeoutException
 
 data class AiCleaningRequest(
     val endpointBaseUrl: String,
@@ -52,16 +53,51 @@ class AiCleaningRepository(
         client.newCall(httpRequest).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
-                val details = body.take(240)
-                throw IOException("AI request failed (${response.code}): $details")
+                throw AiCleaningException(
+                    AiCleaningFailureFactory.buildFailure(
+                        summary = "AI request failed (${response.code}).",
+                        lines = listOf(
+                            "Endpoint: $endpoint",
+                            "Model: ${request.model}",
+                            "HTTP status: ${response.code}",
+                            "Response body:",
+                            AiCleaningFailureFactory.sanitizeLog(body.ifBlank { "<empty>" })
+                        )
+                    )
+                )
             }
 
             val cleanedText = parseCleanedText(body)
             if (cleanedText.isNullOrBlank()) {
-                throw IOException("AI response does not contain cleaned text")
+                throw AiCleaningException(
+                    AiCleaningFailureFactory.buildFailure(
+                        summary = "AI response does not contain cleaned text.",
+                        lines = listOf(
+                            "Endpoint: $endpoint",
+                            "Model: ${request.model}",
+                            "Response body:",
+                            AiCleaningFailureFactory.sanitizeLog(body.ifBlank { "<empty>" })
+                        )
+                    )
+                )
             }
             cleanedText.trimEnd()
         }
+    }
+
+    fun toFailure(request: AiCleaningRequest, throwable: Throwable): AiCleaningFailure {
+        if (throwable is SocketTimeoutException) {
+            return AiCleaningFailureFactory.fromThrowable(
+                throwable = throwable,
+                endpoint = buildEndpoint(request.endpointBaseUrl),
+                model = request.model
+            )
+        }
+        return AiCleaningFailureFactory.fromThrowable(
+            throwable = throwable,
+            endpoint = runCatching { buildEndpoint(request.endpointBaseUrl) }.getOrNull(),
+            model = request.model
+        )
     }
 
     internal fun buildUserPrompt(userInstructions: String, subtitleText: String): String {

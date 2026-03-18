@@ -13,6 +13,9 @@ interface SubtitleDao {
     fun getAll(): Flow<List<SubtitleEntity>>
 
     @Query("SELECT * FROM subtitles WHERE id = :id")
+    fun observeById(id: Long): Flow<SubtitleEntity?>
+
+    @Query("SELECT * FROM subtitles WHERE id = :id")
     suspend fun getById(id: Long): SubtitleEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -41,6 +44,69 @@ interface SubtitleDao {
 
     @Query("UPDATE subtitles SET highlights = :highlights WHERE id = :id")
     suspend fun updateHighlights(id: Long, highlights: String)
+
+    @Query(
+        """
+        UPDATE subtitles
+        SET aiCleaningInProgress = 1,
+            aiCleaningSourceText = :sourceText,
+            aiCleaningPendingResult = NULL,
+            aiCleaningErrorSummary = NULL,
+            aiCleaningErrorLog = NULL,
+            aiCleaningUpdatedAt = :updatedAt
+        WHERE id = :id
+        """
+    )
+    suspend fun markAiCleaningQueued(id: Long, sourceText: String, updatedAt: Long)
+
+    @Query(
+        """
+        UPDATE subtitles
+        SET aiCleaningInProgress = 0,
+            aiCleaningSourceText = NULL,
+            aiCleaningPendingResult = :cleanedText,
+            aiCleaningErrorSummary = NULL,
+            aiCleaningErrorLog = NULL,
+            aiCleaningUpdatedAt = :updatedAt
+        WHERE id = :id
+        """
+    )
+    suspend fun storeAiCleaningResult(id: Long, cleanedText: String, updatedAt: Long)
+
+    @Query(
+        """
+        UPDATE subtitles
+        SET aiCleaningInProgress = 0,
+            aiCleaningSourceText = NULL,
+            aiCleaningPendingResult = NULL,
+            aiCleaningErrorSummary = :summary,
+            aiCleaningErrorLog = :log,
+            aiCleaningUpdatedAt = :updatedAt
+        WHERE id = :id
+        """
+    )
+    suspend fun storeAiCleaningFailure(id: Long, summary: String, log: String, updatedAt: Long)
+
+    @Query(
+        """
+        UPDATE subtitles
+        SET aiCleaningPendingResult = NULL,
+            aiCleaningUpdatedAt = :updatedAt
+        WHERE id = :id
+        """
+    )
+    suspend fun clearAiCleaningResult(id: Long, updatedAt: Long)
+
+    @Query(
+        """
+        UPDATE subtitles
+        SET aiCleaningErrorSummary = NULL,
+            aiCleaningErrorLog = NULL,
+            aiCleaningUpdatedAt = :updatedAt
+        WHERE id = :id
+        """
+    )
+    suspend fun clearAiCleaningError(id: Long, updatedAt: Long)
 
     @Query(
         """

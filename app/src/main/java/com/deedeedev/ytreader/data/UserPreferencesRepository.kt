@@ -110,6 +110,15 @@ class UserPreferencesRepository(context: Context) {
         _aiPrompt.value = prompt
     }
 
+    fun getAiEndpoint(): String = prefs.getString(KEY_AI_ENDPOINT, "") ?: ""
+
+    fun getAiApiKey(): String = prefs.getString(KEY_AI_API_KEY, "") ?: ""
+
+    fun getAiModel(): String = prefs.getString(KEY_AI_MODEL, DEFAULT_AI_MODEL) ?: DEFAULT_AI_MODEL
+
+    fun getAiPrompt(): String =
+        prefs.getString(KEY_AI_PROMPT, DEFAULT_AI_CLEANING_PROMPT) ?: DEFAULT_AI_CLEANING_PROMPT
+
     companion object {
         private const val PREFS_NAME = "user_preferences"
         private const val KEY_FAVORITE_LANGUAGES = "favorite_languages"

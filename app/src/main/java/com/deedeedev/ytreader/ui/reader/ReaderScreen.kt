@@ -133,16 +133,16 @@ fun ReaderScreen(
     subtitleId: Long,
     subtitleDao: SubtitleDao,
     userPreferencesRepository: UserPreferencesRepository,
-    aiCleaningRepository: AiCleaningRepository,
     onChromeReady: () -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
     val viewModel: ReaderViewModel = viewModel(
         key = "Reader_$subtitleId",
         factory = ReaderViewModel.provideFactory(
+            context.applicationContext,
             subtitleDao,
             userPreferencesRepository,
-            aiCleaningRepository,
             subtitleId
         )
     )
@@ -169,7 +169,6 @@ fun ReaderScreen(
     }
 
     val clipboardManager = LocalClipboardManager.current
-    val context = LocalContext.current
     val view = LocalView.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -196,7 +195,7 @@ fun ReaderScreen(
     var replaceText by rememberSaveable { mutableStateOf("") }
     var isCaseSensitive by rememberSaveable { mutableStateOf(false) }
     var showAiPreviewDialog by remember { mutableStateOf(false) }
-    var pendingAiCleanedText by remember { mutableStateOf<String?>(null) }
+    var showAiErrorDialog by remember { mutableStateOf(false) }
     var selectionRange by remember { mutableStateOf<SelectionRange?>(null) }
     var activeHighlight by remember { mutableStateOf<TextHighlight?>(null) }
     var studyTextView by remember { mutableStateOf<JustifiedStudyTextView?>(null) }
@@ -220,8 +219,8 @@ fun ReaderScreen(
     }
 
     LaunchedEffect(subtitle.id) {
-        pendingAiCleanedText = null
         showAiPreviewDialog = false
+        showAiErrorDialog = false
     }
 
     LaunchedEffect(subtitle.id) {
@@ -260,6 +259,18 @@ fun ReaderScreen(
             activeHighlight = null
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
+        }
+    }
+
+    LaunchedEffect(uiState.pendingAiCleanedText) {
+        if (!uiState.pendingAiCleanedText.isNullOrBlank()) {
+            showAiPreviewDialog = true
+        }
+    }
+
+    LaunchedEffect(uiState.aiCleaningErrorLog) {
+        if (!uiState.aiCleaningErrorLog.isNullOrBlank()) {
+            showAiErrorDialog = true
         }
     }
 
@@ -974,10 +985,11 @@ fun ReaderScreen(
                                             }
 
                                             coroutineScope.launch {
-                                                val result = viewModel.cleanTextWithAi(sourceText)
-                                                result.onSuccess { cleaned ->
-                                                    pendingAiCleanedText = cleaned
-                                                    showAiPreviewDialog = true
+                                                val result = viewModel.enqueueAiCleaning(sourceText)
+                                                result.onSuccess {
+                                                    snackbarHostState.showSnackbar(
+                                                        "AI cleaning started. Check notifications for progress."
+                                                    )
                                                 }.onFailure { error ->
                                                     val message = error.message
                                                         ?.takeIf { it.isNotBlank() }
@@ -1085,34 +1097,6 @@ fun ReaderScreen(
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 16.dp)
         )
-
-        if (uiState.isAiCleaning) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {}
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Surface(
-                    shape = MaterialTheme.shapes.large,
-                    tonalElevation = 8.dp
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CircularProgressIndicator()
-                        Text("Cleaning text...")
-                    }
-                }
-            }
-        }
     }
 
     if (showUnsavedDialog) {
@@ -1219,12 +1203,12 @@ fun ReaderScreen(
     }
 
     if (showAiPreviewDialog) {
-        val previewText = pendingAiCleanedText
+        val previewText = uiState.pendingAiCleanedText
         if (previewText != null) {
             AlertDialog(
                 onDismissRequest = {
                     showAiPreviewDialog = false
-                    pendingAiCleanedText = null
+                    viewModel.clearPendingAiCleaningResult()
                 },
                 title = { Text("AI cleaned text") },
                 text = {
@@ -1245,7 +1229,7 @@ fun ReaderScreen(
                             applyTextUpdate(previewText)
                         }
                         showAiPreviewDialog = false
-                        pendingAiCleanedText = null
+                        viewModel.clearPendingAiCleaningResult()
                     }) {
                         Text("Apply")
                     }
@@ -1253,9 +1237,64 @@ fun ReaderScreen(
                 dismissButton = {
                     TextButton(onClick = {
                         showAiPreviewDialog = false
-                        pendingAiCleanedText = null
+                        viewModel.clearPendingAiCleaningResult()
                     }) {
                         Text("Cancel")
+                    }
+                }
+            )
+        }
+    }
+
+    if (showAiErrorDialog) {
+        val errorSummary = uiState.aiCleaningErrorSummary
+        val errorLog = uiState.aiCleaningErrorLog
+        if (!errorLog.isNullOrBlank()) {
+            AlertDialog(
+                onDismissRequest = {
+                    showAiErrorDialog = false
+                    viewModel.clearAiCleaningError()
+                },
+                title = { Text("AI cleaning failed") },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 360.dp)
+                    ) {
+                        if (!errorSummary.isNullOrBlank()) {
+                            Text(
+                                text = errorSummary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.padding(top = 12.dp))
+                        }
+                        Column(
+                            modifier = Modifier.verticalScroll(rememberScrollState())
+                        ) {
+                            Text(errorLog)
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        clipboardManager.setText(AnnotatedString(errorLog))
+                        showAiErrorDialog = false
+                        viewModel.clearAiCleaningError()
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Error copied to clipboard.")
+                        }
+                    }) {
+                        Text("Copy error")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showAiErrorDialog = false
+                        viewModel.clearAiCleaningError()
+                    }) {
+                        Text("Dismiss")
                     }
                 }
             )

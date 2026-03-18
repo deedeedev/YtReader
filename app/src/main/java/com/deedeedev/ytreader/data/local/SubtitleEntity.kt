@@ -21,5 +21,11 @@ data class SubtitleEntity(
     val createdAt: Long = System.currentTimeMillis(),
     val uploadDate: Long = 0L,
     val fontFamily: String = "Default",
-    val highlights: String = ""
+    val highlights: String = "",
+    val aiCleaningInProgress: Boolean = false,
+    val aiCleaningSourceText: String? = null,
+    val aiCleaningPendingResult: String? = null,
+    val aiCleaningErrorSummary: String? = null,
+    val aiCleaningErrorLog: String? = null,
+    val aiCleaningUpdatedAt: Long = 0L
 )
