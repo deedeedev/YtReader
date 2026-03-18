@@ -12,8 +12,11 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -29,6 +32,7 @@ import com.deedeedev.ytreader.ui.theme.YtReaderTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -43,6 +47,9 @@ class ReaderScreenTest {
         private const val READER_TOP_BAR_TAG = "reader_top_bar"
         private const val READER_EDIT_TEXT_FIELD_TAG = "reader_edit_text_field"
         private const val READER_SELECTION_TOOLBAR_TAG = "reader_selection_toolbar"
+        private const val READER_FIND_DIALOG_TAG = "reader_find_dialog"
+        private const val READER_FIND_INPUT_TAG = "reader_find_input"
+        private const val READER_FIND_RESULTS_TAG = "reader_find_results"
     }
 
     @get:Rule
@@ -143,6 +150,102 @@ class ReaderScreenTest {
     }
 
     @Test
+    fun overflowMenu_showsFindAboveFindAndReplace_inStudyMode() {
+        setReaderContent()
+
+        showChrome()
+        openOverflowMenu()
+
+        val findTop = composeTestRule.onNodeWithText("Find").assertIsDisplayed()
+            .fetchSemanticsNode().boundsInRoot.top
+        val findAndReplaceTop = composeTestRule.onNodeWithText("Find and replace").assertIsDisplayed()
+            .fetchSemanticsNode().boundsInRoot.top
+
+        assertTrue(findTop < findAndReplaceTop)
+    }
+
+    @Test
+    fun originalMode_overflowMenuShowsFind() {
+        setReaderContent()
+
+        showChrome()
+        composeTestRule.onNodeWithContentDescription("Switch to original mode").performClick()
+        composeTestRule.waitForIdle()
+        openOverflowMenu()
+
+        composeTestRule.onNodeWithText("Find").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Find and replace").assertCountEquals(0)
+    }
+
+    @Test
+    fun studyEditMode_overflowMenuHidesFind() {
+        setReaderContent()
+
+        showChrome()
+        composeTestRule.onNodeWithContentDescription("Edit").performClick()
+        composeTestRule.waitForIdle()
+        openOverflowMenu()
+
+        composeTestRule.onAllNodesWithText("Find").assertCountEquals(0)
+        composeTestRule.onNodeWithText("Find and replace").assertIsDisplayed()
+    }
+
+    @Test
+    fun findDialog_invalidRegexShowsError() {
+        setReaderContent()
+
+        openFindDialog()
+        composeTestRule.onNodeWithTag(READER_FIND_INPUT_TAG).performTextInput("(")
+        composeTestRule.onNodeWithContentDescription("Search").performClick()
+
+        composeTestRule.onNodeWithText("Invalid regex.").assertIsDisplayed()
+        composeTestRule.onAllNodesWithTag(READER_FIND_RESULTS_TAG).assertCountEquals(0)
+    }
+
+    @Test
+    fun studyMode_findResultClosesDialogAndSelectsMatch() {
+        setReaderContent()
+
+        openFindDialog()
+        composeTestRule.onNodeWithTag(READER_FIND_INPUT_TAG).performTextInput("line")
+        composeTestRule.onNodeWithContentDescription("Search").performClick()
+        composeTestRule.onNodeWithText("1.").assertIsDisplayed().performClick()
+        composeTestRule.waitForIdle()
+
+        assertTagMissing(READER_FIND_DIALOG_TAG)
+
+        val studyTextView = waitForStudyTextView()
+        var selectedText: String? = null
+        composeTestRule.runOnUiThread {
+            selectedText = studyTextView.selectedText()
+        }
+        assertEquals("line", selectedText)
+    }
+
+    @Test
+    fun originalMode_findResultClosesDialogAndSelectsMatch() {
+        setReaderContent()
+
+        showChrome()
+        composeTestRule.onNodeWithContentDescription("Switch to original mode").performClick()
+        composeTestRule.waitForIdle()
+        openFindDialog()
+        composeTestRule.onNodeWithTag(READER_FIND_INPUT_TAG).performTextInput("Second")
+        composeTestRule.onNodeWithContentDescription("Search").performClick()
+        composeTestRule.onNodeWithText("1.").assertIsDisplayed().performClick()
+        composeTestRule.waitForIdle()
+
+        assertTagMissing(READER_FIND_DIALOG_TAG)
+
+        val textViews = waitForReaderTextViews(count = 2)
+        var selectedText: String? = null
+        composeTestRule.runOnUiThread {
+            selectedText = textViews.firstNotNullOfOrNull { it.selectedText() }
+        }
+        assertEquals("Second", selectedText)
+    }
+
+    @Test
     fun disposingReader_restoresSystemBarsVisible() {
         setReaderContent()
 
@@ -192,6 +295,25 @@ class ReaderScreenTest {
         assertTagMissing(READER_TOP_BAR_TAG)
     }
 
+    private fun ensureChromeVisible() {
+        if (composeTestRule.onAllNodesWithTag(READER_TOP_BAR_TAG).fetchSemanticsNodes().isEmpty()) {
+            showChrome()
+        }
+    }
+
+    private fun openOverflowMenu() {
+        ensureChromeVisible()
+        composeTestRule.onNodeWithContentDescription("More options").assertIsDisplayed().performClick()
+        composeTestRule.waitForIdle()
+    }
+
+    private fun openFindDialog() {
+        ensureChromeVisible()
+        openOverflowMenu()
+        composeTestRule.onNodeWithText("Find").assertIsDisplayed().performClick()
+        composeTestRule.onNodeWithTag(READER_FIND_DIALOG_TAG).assertIsDisplayed()
+    }
+
     private fun waitForReaderTextViews(count: Int): List<SelectableHighlightTextView> {
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
             findReaderTextViews().size >= count
@@ -199,11 +321,24 @@ class ReaderScreenTest {
         return findReaderTextViews().take(count)
     }
 
+    private fun waitForStudyTextView(): JustifiedStudyTextView {
+        lateinit var textView: JustifiedStudyTextView
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            findStudyTextView()?.also { textView = it } != null
+        }
+        return textView
+    }
+
     private fun findReaderTextViews(): List<SelectableHighlightTextView> {
         val rootView = composeTestRule.activity.window.decorView.rootView
         return buildList {
             findReaderTextViews(rootView, this)
         }
+    }
+
+    private fun findStudyTextView(): JustifiedStudyTextView? {
+        val rootView = composeTestRule.activity.window.decorView.rootView
+        return findStudyTextView(rootView)
     }
 
     private fun findReaderTextViews(view: View, results: MutableList<SelectableHighlightTextView>) {
@@ -217,6 +352,22 @@ class ReaderScreenTest {
         for (index in 0 until view.childCount) {
             findReaderTextViews(view.getChildAt(index), results)
         }
+    }
+
+    private fun findStudyTextView(view: View): JustifiedStudyTextView? {
+        if (view is JustifiedStudyTextView && view.isShown) {
+            return view
+        }
+        if (view !is ViewGroup) {
+            return null
+        }
+        for (index in 0 until view.childCount) {
+            val found = findStudyTextView(view.getChildAt(index))
+            if (found != null) {
+                return found
+            }
+        }
+        return null
     }
 
     private fun tapTextAtOffsetViaRoot(textView: SelectableHighlightTextView, offset: Int) {

@@ -131,6 +131,23 @@ class SelectableHighlightTextView @JvmOverloads constructor(
         onSelectionChangedListener?.invoke(normalizedStart, normalizedEnd)
     }
 
+    fun verticalOffsetForSelection(start: Int): Int {
+        val textLayout = layout ?: return 0
+        val textLength = text.length
+        if (textLength == 0) return 0
+        val safeStart = start.coerceIn(0, textLength - 1)
+        val line = textLayout.getLineForOffset(safeStart)
+        return totalPaddingTop + textLayout.getLineTop(line)
+    }
+
+    fun selectedText(): String? {
+        val spannable = text as? Spannable ?: return null
+        val start = selectionStart
+        val end = selectionEnd
+        if (start < 0 || end <= start) return null
+        return spannable.subSequence(start, end).toString()
+    }
+
     fun applyTypeface(fontFamilyName: String) {
         typeface = when (fontFamilyName) {
             "Serif" -> Typeface.SERIF

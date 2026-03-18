@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Timer
@@ -62,6 +63,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.AiCleaningRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
@@ -76,11 +78,13 @@ import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalView
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -106,6 +110,12 @@ private data class SelectionRange(
     val end: Int
 )
 
+private sealed interface PendingFindSelection {
+    data class Study(val start: Int, val end: Int) : PendingFindSelection
+    data class OriginalSegment(val segmentIndex: Int, val start: Int, val end: Int) : PendingFindSelection
+    data class OriginalFallback(val start: Int, val end: Int) : PendingFindSelection
+}
+
 private class OriginalSelectionCoordinator {
     val textViews = mutableMapOf<Int, SelectableHighlightTextView>()
     var activeOwner: Int? = null
@@ -119,6 +129,9 @@ private class OriginalSelectionCoordinator {
 private const val READER_TOP_BAR_TAG = "reader_top_bar"
 private const val READER_EDIT_TEXT_FIELD_TAG = "reader_edit_text_field"
 private const val READER_SELECTION_TOOLBAR_TAG = "reader_selection_toolbar"
+private const val READER_FIND_DIALOG_TAG = "reader_find_dialog"
+private const val READER_FIND_INPUT_TAG = "reader_find_input"
+private const val READER_FIND_RESULTS_TAG = "reader_find_results"
 private val READER_BOTTOM_BAR_HEIGHT = 80.dp
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
@@ -190,7 +203,14 @@ fun ReaderScreen(
     var showUnsavedDialog by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<PendingAction?>(null) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+    var showFindDialog by remember { mutableStateOf(false) }
     var showFindReplaceDialog by remember { mutableStateOf(false) }
+    var findQuery by rememberSaveable { mutableStateOf("") }
+    var findResults by remember { mutableStateOf<List<ReaderFindResult>>(emptyList()) }
+    var originalSegmentFindResults by remember { mutableStateOf<List<OriginalSegmentFindResult>>(emptyList()) }
+    var findErrorMessage by remember { mutableStateOf<String?>(null) }
+    var hasSearchedFind by remember { mutableStateOf(false) }
+    var pendingFindSelection by remember { mutableStateOf<PendingFindSelection?>(null) }
     var findText by rememberSaveable { mutableStateOf("") }
     var replaceText by rememberSaveable { mutableStateOf("") }
     var isCaseSensitive by rememberSaveable { mutableStateOf(false) }
@@ -216,6 +236,7 @@ fun ReaderScreen(
         activeHighlight = null
         studyTextView?.clearSelection()
         originalSelectionCoordinator.clearAllSelections()
+        pendingFindSelection = null
     }
 
     LaunchedEffect(subtitle.id) {
@@ -282,6 +303,7 @@ fun ReaderScreen(
         } else {
             originalSelectionCoordinator.clearAllSelections()
         }
+        pendingFindSelection = null
     }
 
     val hasUnsavedChanges = isEditing && editText != uiState.content
@@ -289,8 +311,9 @@ fun ReaderScreen(
     val originalSegments = remember(subtitle.content) {
         SubtitleParser.parseToSegments(subtitle.content)
     }
-    val originalModeText = remember(originalSegments, showTimestamps, uiState.originalParsedText) {
-        formatOriginalModeCopyText(originalSegments, showTimestamps, uiState.originalParsedText)
+    val originalFallbackText = uiState.originalParsedText.ifBlank { uiState.content }
+    val originalModeText = remember(originalSegments, showTimestamps, originalFallbackText) {
+        formatOriginalModeCopyText(originalSegments, showTimestamps, originalFallbackText)
     }
 
     fun currentText(): String = when (readerMode) {
@@ -310,6 +333,42 @@ fun ReaderScreen(
         findText = ""
         replaceText = ""
         isCaseSensitive = false
+    }
+
+    fun resetFindDialogState() {
+        findQuery = ""
+        findResults = emptyList()
+        originalSegmentFindResults = emptyList()
+        findErrorMessage = null
+        hasSearchedFind = false
+    }
+
+    fun runFindSearch() {
+        hasSearchedFind = true
+        val regex = compileFindRegex(findQuery).getOrElse { error ->
+            findErrorMessage = error.message ?: "Invalid regex."
+            findResults = emptyList()
+            originalSegmentFindResults = emptyList()
+            return
+        }
+
+        findErrorMessage = null
+        when (readerMode) {
+            ReaderMode.STUDY -> {
+                findResults = findRegexMatches(currentText(), regex)
+                originalSegmentFindResults = emptyList()
+            }
+
+            ReaderMode.ORIGINAL -> {
+                if (originalSegments.isEmpty()) {
+                    findResults = findRegexMatches(originalFallbackText, regex)
+                    originalSegmentFindResults = emptyList()
+                } else {
+                    originalSegmentFindResults = findRegexMatchesInSegments(originalSegments, regex)
+                    findResults = emptyList()
+                }
+            }
+        }
     }
 
     fun runPendingAction(action: PendingAction) {
@@ -376,6 +435,50 @@ fun ReaderScreen(
     BackHandler {
         if (!uiState.isAiCleaning) {
             requestAction(PendingAction.ExitScreen)
+        }
+    }
+
+    LaunchedEffect(pendingFindSelection, studyTextView, studyScrollState.maxValue) {
+        val selection = pendingFindSelection as? PendingFindSelection.Study ?: return@LaunchedEffect
+        val textView = studyTextView ?: return@LaunchedEffect
+        textView.setSelectionRange(selection.start, selection.end)
+        val targetScroll = textView.verticalOffsetForSelection(selection.start)
+            .coerceIn(0, studyScrollState.maxValue)
+        studyScrollState.animateScrollTo(targetScroll)
+        pendingFindSelection = null
+    }
+
+    LaunchedEffect(
+        pendingFindSelection,
+        originalSegments,
+        originalFallbackScrollState.maxValue
+    ) {
+        when (val selection = pendingFindSelection) {
+            is PendingFindSelection.OriginalFallback -> {
+                val textView = originalSelectionCoordinator.textViews[-1] ?: return@LaunchedEffect
+                textView.setSelectionRange(selection.start, selection.end)
+                val targetScroll = textView.verticalOffsetForSelection(selection.start)
+                    .coerceIn(0, originalFallbackScrollState.maxValue)
+                originalFallbackScrollState.animateScrollTo(targetScroll)
+                pendingFindSelection = null
+            }
+
+            is PendingFindSelection.OriginalSegment -> {
+                originalListState.animateScrollToItem(selection.segmentIndex)
+                repeat(10) {
+                    val textView = originalSelectionCoordinator.textViews[selection.segmentIndex]
+                    if (textView != null && textView.isShown) {
+                        textView.setSelectionRange(selection.start, selection.end)
+                        pendingFindSelection = null
+                        return@LaunchedEffect
+                    }
+                    delay(16)
+                }
+                pendingFindSelection = null
+            }
+
+            is PendingFindSelection.Study,
+            null -> Unit
         }
     }
 
@@ -528,7 +631,7 @@ fun ReaderScreen(
                                 }
                             }
                             textView.setContentWithHighlights(
-                                content = uiState.content,
+                                content = originalFallbackText,
                                 highlights = emptyList(),
                                 redColor = 0,
                                 blueColor = 0,
@@ -952,6 +1055,18 @@ fun ReaderScreen(
                                             applyTextUpdate(cleaned)
                                         }
                                     )
+                                }
+                                if (!(readerMode == ReaderMode.STUDY && isEditing)) {
+                                    DropdownMenuItem(
+                                        text = { Text("Find") },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            resetFindDialogState()
+                                            showFindDialog = true
+                                        }
+                                    )
+                                }
+                                if (readerMode == ReaderMode.STUDY) {
                                     DropdownMenuItem(
                                         text = { Text("Find and replace") },
                                         onClick = {
@@ -1126,6 +1241,144 @@ fun ReaderScreen(
                     pendingAction = null
                 }) {
                     Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showFindDialog) {
+        val noFindResults = hasSearchedFind &&
+            findErrorMessage == null &&
+            findResults.isEmpty() &&
+            originalSegmentFindResults.isEmpty()
+
+        AlertDialog(
+            modifier = Modifier.testTag(READER_FIND_DIALOG_TAG),
+            onDismissRequest = {
+                resetFindDialogState()
+                showFindDialog = false
+            },
+            title = { Text("Find") },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = findQuery,
+                            onValueChange = { findQuery = it },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag(READER_FIND_INPUT_TAG),
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.None,
+                                imeAction = ImeAction.Search
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onSearch = { runFindSearch() }
+                            ),
+                            label = { Text("Regex") },
+                            isError = findErrorMessage != null,
+                            supportingText = {
+                                val errorMessage = findErrorMessage
+                                if (errorMessage != null) {
+                                    Text(errorMessage)
+                                }
+                            }
+                        )
+                        IconButton(onClick = { runFindSearch() }) {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = "Search"
+                            )
+                        }
+                    }
+                    when {
+                        originalSegmentFindResults.isNotEmpty() -> {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 320.dp)
+                                    .padding(top = 12.dp)
+                                    .testTag(READER_FIND_RESULTS_TAG)
+                            ) {
+                                items(originalSegmentFindResults.size) { index ->
+                                    val result = originalSegmentFindResults[index]
+                                    FindResultRow(
+                                        number = result.number,
+                                        excerpt = result.excerpt,
+                                        progressPercent = result.progressPercent,
+                                        onClick = {
+                                            showFindDialog = false
+                                            selectionRange = null
+                                            activeHighlight = null
+                                            studyTextView?.clearSelection()
+                                            originalSelectionCoordinator.clearAllSelections()
+                                            pendingFindSelection = PendingFindSelection.OriginalSegment(
+                                                segmentIndex = result.segmentIndex,
+                                                start = result.start,
+                                                end = result.end
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        findResults.isNotEmpty() -> {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 320.dp)
+                                    .padding(top = 12.dp)
+                                    .testTag(READER_FIND_RESULTS_TAG)
+                            ) {
+                                items(findResults.size) { index ->
+                                    val result = findResults[index]
+                                    FindResultRow(
+                                        number = result.number,
+                                        excerpt = result.excerpt,
+                                        progressPercent = result.progressPercent,
+                                        onClick = {
+                                            showFindDialog = false
+                                            selectionRange = null
+                                            activeHighlight = null
+                                            studyTextView?.clearSelection()
+                                            originalSelectionCoordinator.clearAllSelections()
+                                            pendingFindSelection = when (readerMode) {
+                                                ReaderMode.STUDY -> PendingFindSelection.Study(
+                                                    start = result.start,
+                                                    end = result.end
+                                                )
+
+                                                ReaderMode.ORIGINAL -> PendingFindSelection.OriginalFallback(
+                                                    start = result.start,
+                                                    end = result.end
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        noFindResults -> {
+                            Text(
+                                text = "No results.",
+                                modifier = Modifier.padding(top = 16.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = {
+                    resetFindDialogState()
+                    showFindDialog = false
+                }) {
+                    Text("Close")
                 }
             }
         )
@@ -1352,6 +1605,42 @@ private fun HighlightSelectionToolbar(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun FindResultRow(
+    number: Int,
+    excerpt: String,
+    progressPercent: Int,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .clickable(onClick = onClick),
+        shape = MaterialTheme.shapes.medium,
+        tonalElevation = 2.dp
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Text(
+                text = "$number.",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = excerpt,
+                modifier = Modifier.padding(top = 4.dp),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = "$progressPercent%",
+                modifier = Modifier.padding(top = 6.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.secondary
+            )
         }
     }
 }

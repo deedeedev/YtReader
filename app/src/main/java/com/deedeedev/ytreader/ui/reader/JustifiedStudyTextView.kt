@@ -189,6 +189,38 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         onSelectionChangedListener?.invoke(0, 0)
     }
 
+    fun setSelectionRange(start: Int, end: Int) {
+        if (content.isEmpty()) {
+            clearSelection()
+            return
+        }
+        val boundedStart = start.coerceIn(0, content.length)
+        val boundedEnd = end.coerceIn(0, content.length)
+        val normalizedStart = minOf(boundedStart, boundedEnd)
+        val normalizedEnd = maxOf(boundedStart, boundedEnd)
+        if (normalizedEnd <= normalizedStart) {
+            clearSelection()
+            return
+        }
+        selectionAnchor = null
+        activeHandle = null
+        updateSelectionRange(TextRange(start = normalizedStart, end = normalizedEnd))
+    }
+
+    fun verticalOffsetForSelection(start: Int): Int {
+        val textLayout = layout ?: return 0
+        if (content.isEmpty()) return 0
+        val safeStart = start.coerceIn(0, content.length - 1)
+        val line = textLayout.getLineForOffset(safeStart)
+        return paddingTop + textLayout.getLineTop(line)
+    }
+
+    fun selectedText(): String? {
+        val range = selectionRange ?: return null
+        if (range.end <= range.start) return null
+        return content.substring(range.start, range.end)
+    }
+
     fun applyTypeface(fontFamilyName: String) {
         textPaint.typeface = when (fontFamilyName) {
             "Serif" -> Typeface.SERIF
