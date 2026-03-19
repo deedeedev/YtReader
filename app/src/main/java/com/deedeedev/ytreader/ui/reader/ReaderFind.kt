@@ -22,16 +22,39 @@ internal data class OriginalSegmentFindResult(
 private const val FIND_EXCERPT_RADIUS = 24
 
 internal fun compileFindRegex(query: String): Result<Regex> {
+    return compileReaderRegex(query = query, isCaseSensitive = false)
+}
+
+internal fun compileReaderRegex(
+    query: String,
+    isCaseSensitive: Boolean
+): Result<Regex> {
     val trimmedQuery = query.trim()
     if (trimmedQuery.isEmpty()) {
         return Result.failure(IllegalArgumentException("Enter a regex to search."))
     }
 
     return try {
-        Result.success(Regex(trimmedQuery, setOf(RegexOption.IGNORE_CASE)))
+        val options = if (isCaseSensitive) {
+            emptySet()
+        } else {
+            setOf(RegexOption.IGNORE_CASE)
+        }
+        Result.success(Regex(trimmedQuery, options))
     } catch (_: IllegalArgumentException) {
         Result.failure(IllegalArgumentException("Invalid regex."))
     }
+}
+
+internal fun replaceRegexMatches(
+    text: String,
+    query: String,
+    replacement: String,
+    isCaseSensitive: Boolean
+): Result<String> {
+    val regex = compileReaderRegex(query = query, isCaseSensitive = isCaseSensitive)
+        .getOrElse { return Result.failure(it) }
+    return Result.success(regex.replace(text, replacement))
 }
 
 internal fun findRegexMatches(

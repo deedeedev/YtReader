@@ -132,6 +132,8 @@ private const val READER_SELECTION_TOOLBAR_TAG = "reader_selection_toolbar"
 private const val READER_FIND_DIALOG_TAG = "reader_find_dialog"
 private const val READER_FIND_INPUT_TAG = "reader_find_input"
 private const val READER_FIND_RESULTS_TAG = "reader_find_results"
+private const val READER_FIND_REPLACE_INPUT_TAG = "reader_find_replace_input"
+private const val READER_FIND_REPLACE_REPLACEMENT_TAG = "reader_find_replace_replacement"
 private val READER_BOTTOM_BAR_HEIGHT = 80.dp
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
@@ -211,6 +213,7 @@ fun ReaderScreen(
     var findErrorMessage by remember { mutableStateOf<String?>(null) }
     var hasSearchedFind by remember { mutableStateOf(false) }
     var pendingFindSelection by remember { mutableStateOf<PendingFindSelection?>(null) }
+    var findReplaceErrorMessage by remember { mutableStateOf<String?>(null) }
     var findText by rememberSaveable { mutableStateOf("") }
     var replaceText by rememberSaveable { mutableStateOf("") }
     var isCaseSensitive by rememberSaveable { mutableStateOf(false) }
@@ -330,6 +333,7 @@ fun ReaderScreen(
     }
 
     fun resetFindReplaceDialogState() {
+        findReplaceErrorMessage = null
         findText = ""
         replaceText = ""
         isCaseSensitive = false
@@ -1395,18 +1399,32 @@ fun ReaderScreen(
                 Column {
                     TextField(
                         value = findText,
-                        onValueChange = { findText = it },
-                        modifier = Modifier.fillMaxWidth(),
+                        onValueChange = {
+                            findText = it
+                            findReplaceErrorMessage = null
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag(READER_FIND_REPLACE_INPUT_TAG),
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.None
                         ),
-                        label = { Text("Find") }
+                        label = { Text("Regex") },
+                        isError = findReplaceErrorMessage != null,
+                        supportingText = {
+                            val errorMessage = findReplaceErrorMessage
+                            if (errorMessage != null) {
+                                Text(errorMessage)
+                            }
+                        }
                     )
                     Spacer(modifier = Modifier.padding(top = 12.dp))
                     TextField(
                         value = replaceText,
                         onValueChange = { replaceText = it },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag(READER_FIND_REPLACE_REPLACEMENT_TAG),
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.None
                         ),
@@ -1428,16 +1446,17 @@ fun ReaderScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val query = findText
-                    if (query.isNotEmpty()) {
-                        val regex = if (isCaseSensitive) {
-                            Regex(Regex.escape(query))
-                        } else {
-                            Regex(Regex.escape(query), RegexOption.IGNORE_CASE)
-                        }
-                        val updated = currentText().replace(regex, replaceText)
-                        applyTextUpdate(updated)
+                    val updated = replaceRegexMatches(
+                        text = currentText(),
+                        query = findText,
+                        replacement = replaceText,
+                        isCaseSensitive = isCaseSensitive
+                    ).getOrElse { error ->
+                        findReplaceErrorMessage = error.message ?: "Invalid regex."
+                        return@TextButton
                     }
+
+                    applyTextUpdate(updated)
                     resetFindReplaceDialogState()
                     showFindReplaceDialog = false
                 }) {

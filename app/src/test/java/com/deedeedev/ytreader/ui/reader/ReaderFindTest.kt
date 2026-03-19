@@ -66,4 +66,53 @@ class ReaderFindTest {
         assertEquals(2, matches[1].number)
         assertTrue(matches[1].progressPercent > matches[0].progressPercent)
     }
+
+    @Test
+    fun `replaceRegexMatches supports capture groups`() {
+        val updated = replaceRegexMatches(
+            text = "First line\nSecond line",
+            query = "(line)",
+            replacement = "[$1]",
+            isCaseSensitive = false
+        ).getOrThrow()
+
+        assertEquals("First [line]\nSecond [line]", updated)
+    }
+
+    @Test
+    fun `replaceRegexMatches returns failure for invalid regex`() {
+        val result = replaceRegexMatches(
+            text = "First line",
+            query = "(",
+            replacement = "value",
+            isCaseSensitive = false
+        )
+
+        assertTrue(result.isFailure)
+        assertEquals("Invalid regex.", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `replaceRegexMatches ignores case by default`() {
+        val updated = replaceRegexMatches(
+            text = "Line line LINE",
+            query = "line",
+            replacement = "match",
+            isCaseSensitive = false
+        ).getOrThrow()
+
+        assertEquals("match match match", updated)
+    }
+
+    @Test
+    fun `replaceRegexMatches respects case sensitivity`() {
+        val updated = replaceRegexMatches(
+            text = "Line line LINE",
+            query = "line",
+            replacement = "match",
+            isCaseSensitive = true
+        ).getOrThrow()
+
+        assertEquals("Line match LINE", updated)
+    }
 }

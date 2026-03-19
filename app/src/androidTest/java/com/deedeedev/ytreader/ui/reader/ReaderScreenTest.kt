@@ -11,6 +11,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -50,6 +51,8 @@ class ReaderScreenTest {
         private const val READER_FIND_DIALOG_TAG = "reader_find_dialog"
         private const val READER_FIND_INPUT_TAG = "reader_find_input"
         private const val READER_FIND_RESULTS_TAG = "reader_find_results"
+        private const val READER_FIND_REPLACE_INPUT_TAG = "reader_find_replace_input"
+        private const val READER_FIND_REPLACE_REPLACEMENT_TAG = "reader_find_replace_replacement"
     }
 
     @get:Rule
@@ -246,6 +249,19 @@ class ReaderScreenTest {
     }
 
     @Test
+    fun findAndReplaceDialog_invalidRegexShowsErrorAndDoesNotChangeContent() {
+        setReaderContent()
+
+        enterEditMode()
+        openFindAndReplaceDialog()
+        regexField().performTextInput("(")
+        replaceField().performTextInput("updated")
+        composeTestRule.onNodeWithText("Replace").performClick()
+
+        composeTestRule.onNodeWithText("Invalid regex.").assertIsDisplayed()
+    }
+
+    @Test
     fun disposingReader_restoresSystemBarsVisible() {
         setReaderContent()
 
@@ -313,6 +329,26 @@ class ReaderScreenTest {
         composeTestRule.onNodeWithText("Find").assertIsDisplayed().performClick()
         composeTestRule.onNodeWithTag(READER_FIND_DIALOG_TAG).assertIsDisplayed()
     }
+
+    private fun enterEditMode() {
+        ensureChromeVisible()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithContentDescription("Edit").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithContentDescription("Edit").assertIsDisplayed().performClick()
+        composeTestRule.waitForIdle()
+    }
+
+    private fun openFindAndReplaceDialog() {
+        ensureChromeVisible()
+        openOverflowMenu()
+        composeTestRule.onNodeWithText("Find and replace").assertIsDisplayed().performClick()
+        composeTestRule.onNodeWithText("Replace with").assertIsDisplayed()
+    }
+
+    private fun regexField() = composeTestRule.onNodeWithTag(READER_FIND_REPLACE_INPUT_TAG)
+
+    private fun replaceField() = composeTestRule.onNodeWithTag(READER_FIND_REPLACE_REPLACEMENT_TAG)
 
     private fun waitForReaderTextViews(count: Int): List<SelectableHighlightTextView> {
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
