@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -18,13 +19,18 @@ import androidx.work.workDataOf
 import com.deedeedev.ytreader.MainActivity
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.YtReaderApplication
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 private const val AI_CLEANING_CHANNEL_ID = "ai_cleaning_jobs"
 private const val AI_CLEANING_UNIQUE_WORK_PREFIX = "ai_cleaning_"
 private const val AI_CLEANING_NOTIFICATION_ID_BASE = 4_200
 private const val KEY_SUBTITLE_ID = "subtitle_id"
+private const val KEY_WORK_ID = "work_id"
+private const val ACTION_CANCEL_AI_CLEANING = "com.deedeedev.ytreader.action.CANCEL_AI_CLEANING"
 
 class AiCleaningWorker(
     appContext: Context,
@@ -93,7 +99,14 @@ class AiCleaningWorker(
             subtitleText = sourceText
         )
 
-        setForeground(createForegroundInfo(subtitleId, subtitle.title, "Cleaning in progress"))
+        setForeground(
+            createForegroundInfo(
+                subtitleId = subtitleId,
+                workId = id,
+                title = subtitle.title,
+                message = "Cleaning in progress"
+            )
+        )
 
         return@withContext try {
             val cleanedText = repository.cleanText(request)
@@ -109,6 +122,14 @@ class AiCleaningWorker(
                 message = "AI cleaning complete."
             )
             Result.success()
+        } catch (cancelled: CancellationException) {
+            withContext(NonCancellable) {
+                subtitleDao.cancelAiCleaning(
+                    id = subtitleId,
+                    updatedAt = System.currentTimeMillis()
+                )
+            }
+            throw cancelled
         } catch (throwable: Throwable) {
             val failure = repository.toFailure(request, throwable)
             subtitleDao.storeAiCleaningFailure(
@@ -127,16 +148,19 @@ class AiCleaningWorker(
         }
     }
 
-    private fun createForegroundInfo(subtitleId: Long, title: String, message: String): ForegroundInfo {
-        val notification = NotificationCompat.Builder(applicationContext, AI_CLEANING_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setContentIntent(createReaderPendingIntent(applicationContext, subtitleId))
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setProgress(0, 0, true)
-            .build()
+    private fun createForegroundInfo(
+        subtitleId: Long,
+        workId: UUID,
+        title: String,
+        message: String
+    ): ForegroundInfo {
+        val notification = buildAiCleaningForegroundNotification(
+            context = applicationContext,
+            subtitleId = subtitleId,
+            workId = workId,
+            title = title,
+            message = message
+        )
         return ForegroundInfo(notificationIdFor(subtitleId), notification)
     }
 }
@@ -172,6 +196,25 @@ fun createAiCleaningNotificationChannel(context: Context) {
     manager.createNotificationChannel(channel)
 }
 
+internal fun buildAiCleaningForegroundNotification(
+    context: Context,
+    subtitleId: Long,
+    workId: UUID,
+    title: String,
+    message: String
+): Notification {
+    return NotificationCompat.Builder(context, AI_CLEANING_CHANNEL_ID)
+        .setSmallIcon(R.mipmap.ic_launcher)
+        .setContentTitle(title)
+        .setContentText(message)
+        .setContentIntent(createReaderPendingIntent(context, subtitleId))
+        .setOngoing(true)
+        .setOnlyAlertOnce(true)
+        .setProgress(0, 0, true)
+        .addAction(0, "Cancel", createCancelAiCleaningPendingIntent(context, subtitleId, workId))
+        .build()
+}
+
 private fun postCompletionNotification(
     context: Context,
     subtitleId: Long,
@@ -201,6 +244,48 @@ private fun createReaderPendingIntent(context: Context, subtitleId: Long): Pendi
         intent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
+}
+
+private fun createCancelAiCleaningPendingIntent(
+    context: Context,
+    subtitleId: Long,
+    workId: UUID
+): PendingIntent {
+    val intent = Intent(context, AiCleaningCancelReceiver::class.java).apply {
+        action = ACTION_CANCEL_AI_CLEANING
+        putExtra(KEY_SUBTITLE_ID, subtitleId)
+        putExtra(KEY_WORK_ID, workId.toString())
+    }
+    return PendingIntent.getBroadcast(
+        context,
+        subtitleId.toInt(),
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+}
+
+class AiCleaningCancelReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != ACTION_CANCEL_AI_CLEANING) return
+
+        val subtitleId = intent.getLongExtra(KEY_SUBTITLE_ID, -1L)
+        val workSpecId = intent.getStringExtra(KEY_WORK_ID)
+        if (subtitleId <= 0L || workSpecId.isNullOrBlank()) return
+
+        val appContext = context.applicationContext
+        WorkManager.getInstance(appContext).cancelWorkById(UUID.fromString(workSpecId))
+
+        val container = (appContext as YtReaderApplication).container
+        kotlinx.coroutines.runBlocking {
+            container.subtitleDao.cancelAiCleaning(
+                id = subtitleId,
+                updatedAt = System.currentTimeMillis()
+            )
+        }
+
+        val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(notificationIdFor(subtitleId))
+    }
 }
 
 private fun notificationIdFor(subtitleId: Long): Int {

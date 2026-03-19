@@ -3,13 +3,19 @@ package com.deedeedev.ytreader.data
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.net.SocketTimeoutException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 data class AiCleaningRequest(
     val endpointBaseUrl: String,
@@ -50,7 +56,7 @@ class AiCleaningRepository(
             .post(gson.toJson(payload).toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
-        client.newCall(httpRequest).execute().use { response ->
+        executeCancellable(httpRequest).use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 throw AiCleaningException(
@@ -134,6 +140,25 @@ class AiCleaningRepository(
             normalized + CHAT_COMPLETIONS_PATH
         }
     }
+
+    private suspend fun executeCancellable(request: Request): Response =
+        suspendCancellableCoroutine { continuation ->
+            val call = client.newCall(request)
+            continuation.invokeOnCancellation {
+                call.cancel()
+            }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (!continuation.isCancelled) {
+                        continuation.resumeWithException(e)
+                    }
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    continuation.resume(response)
+                }
+            })
+        }
 
     private data class ChatCompletionsRequest(
         val model: String,

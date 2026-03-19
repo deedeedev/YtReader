@@ -90,6 +90,20 @@ interface SubtitleDao {
     @Query(
         """
         UPDATE subtitles
+        SET aiCleaningInProgress = 0,
+            aiCleaningSourceText = NULL,
+            aiCleaningPendingResult = NULL,
+            aiCleaningErrorSummary = NULL,
+            aiCleaningErrorLog = NULL,
+            aiCleaningUpdatedAt = :updatedAt
+        WHERE id = :id
+        """
+    )
+    suspend fun cancelAiCleaning(id: Long, updatedAt: Long)
+
+    @Query(
+        """
+        UPDATE subtitles
         SET aiCleaningPendingResult = NULL,
             aiCleaningUpdatedAt = :updatedAt
         WHERE id = :id

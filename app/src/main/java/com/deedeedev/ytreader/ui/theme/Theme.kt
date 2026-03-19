@@ -18,7 +18,8 @@ private val DarkAmoledColorScheme = DarkColorScheme.copy(
     background = Color.Black,
     surface = Color.Black,
     surfaceVariant = Color.Black,
-    inverseSurface = Color.Black
+    inverseSurface = Color.Black,
+    inverseOnSurface = Color.White
 )
 
 private val LightColorScheme = lightColorScheme(

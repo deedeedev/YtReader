@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -131,5 +134,49 @@ class SubtitleDaoTest {
         assertEquals("", fetched?.highlights)
         assertEquals(0L, fetched?.lastTimestamp)
         assertEquals(0, fetched?.lastStudyScroll)
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun cancelAiCleaning_clearsTransientAiCleaningState() = runBlocking {
+        val subtitle = SubtitleEntity(
+            videoId = "ai-cleaning-123",
+            title = "AI Cleaning Test",
+            languageCode = "en",
+            content = "raw content"
+        )
+        subtitleDao.insert(subtitle)
+
+        val inserted = subtitleDao.getAll().first().first()
+        subtitleDao.markAiCleaningQueued(
+            id = inserted.id,
+            sourceText = "source text",
+            updatedAt = 100L
+        )
+        subtitleDao.storeAiCleaningFailure(
+            id = inserted.id,
+            summary = "Old error",
+            log = "Old log",
+            updatedAt = 150L
+        )
+        subtitleDao.markAiCleaningQueued(
+            id = inserted.id,
+            sourceText = "source text",
+            updatedAt = 200L
+        )
+
+        subtitleDao.cancelAiCleaning(
+            id = inserted.id,
+            updatedAt = 300L
+        )
+
+        val fetched = subtitleDao.getById(inserted.id)
+        assertNotNull(fetched)
+        assertFalse(fetched!!.aiCleaningInProgress)
+        assertNull(fetched.aiCleaningSourceText)
+        assertNull(fetched.aiCleaningPendingResult)
+        assertNull(fetched.aiCleaningErrorSummary)
+        assertNull(fetched.aiCleaningErrorLog)
+        assertEquals(300L, fetched.aiCleaningUpdatedAt)
     }
 }
