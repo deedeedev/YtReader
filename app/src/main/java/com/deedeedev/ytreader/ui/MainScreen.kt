@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -31,6 +32,7 @@ import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.deedeedev.ytreader.AppContainer
 import com.deedeedev.ytreader.ui.home.HomeViewModel
+import com.deedeedev.ytreader.ui.home.CollectionsScreen
 import com.deedeedev.ytreader.ui.home.LibraryScreen
 import com.deedeedev.ytreader.ui.home.SearchScreen
 import com.deedeedev.ytreader.ui.reader.ReaderScreen
@@ -39,6 +41,7 @@ import com.deedeedev.ytreader.ui.settings.SettingsScreen
 sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     object Search : Screen("search", "Search", Icons.Default.Search)
     object Library : Screen("library", "Library", Icons.Default.Home)
+    object Collections : Screen("collections", "Collections", Icons.Default.CollectionsBookmark)
     object Settings : Screen("settings", "Settings", Icons.Default.Settings)
     object Reader : Screen("reader/{subtitleId}", "Reader", Icons.AutoMirrored.Filled.MenuBook)
 }
@@ -91,11 +94,11 @@ fun MainScreen(
             // Hide bottom bar on Reader screen
             if (currentRoute?.startsWith("reader") != true) {
                 NavigationBar {
-                    val items = listOf(Screen.Search, Screen.Library, Screen.Settings)
+                    val items = listOf(Screen.Search, Screen.Library, Screen.Collections, Screen.Settings)
                     items.forEach { screen ->
                         NavigationBarItem(
                             icon = { Icon(screen.icon, contentDescription = null) },
-                            label = { Text(screen.label) },
+                            alwaysShowLabel = false,
                             selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
                             onClick = {
                                 navController.navigate(screen.route) {
@@ -166,6 +169,32 @@ fun MainScreen(
                 popExitTransition = { null }
             ) {
                 SettingsScreen(appContainer = appContainer)
+            }
+            composable(
+                route = Screen.Collections.route,
+                enterTransition = { null },
+                exitTransition = { null },
+                popEnterTransition = { null },
+                popExitTransition = { null }
+            ) {
+                CollectionsScreen(
+                    viewModel = viewModel,
+                    onSubtitleClick = { id ->
+                        isReaderChromeReady = false
+                        navController.navigate("reader/$id")
+                    },
+                    onVideoClick = { url ->
+                        viewModel.onUrlChange(url)
+                        viewModel.searchVideo()
+                        navController.navigate(Screen.Search.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
             }
             composable(
                 route = Screen.Reader.route,

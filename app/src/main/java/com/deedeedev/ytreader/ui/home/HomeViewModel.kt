@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
@@ -33,7 +34,8 @@ data class HomeUiState(
     val selectedChannelFilter: String? = null,
     val sortOption: SortOption = SortOption.DOWNLOADED,
     val isAscending: Boolean = false,
-    val downloadingSubtitleIds: Set<Long> = emptySet()
+    val downloadingSubtitleIds: Set<Long> = emptySet(),
+    val collections: List<VideoCollection> = emptyList()
 )
 
 class HomeViewModel(
@@ -48,6 +50,15 @@ class HomeViewModel(
     init {
         loadSavedSubtitles()
         loadFavoriteLanguages()
+        loadCollections()
+    }
+
+    private fun loadCollections() {
+        viewModelScope.launch {
+            userPreferencesRepository.videoCollections.collect { collections ->
+                _uiState.update { it.copy(collections = collections) }
+            }
+        }
     }
 
     private fun loadFavoriteLanguages() {
@@ -185,6 +196,7 @@ class HomeViewModel(
 
     fun deleteLibraryItem(subtitle: SubtitleEntity) {
         viewModelScope.launch {
+            userPreferencesRepository.removeVideoFromAllCollections(subtitle.videoId)
             subtitleDao.deleteByVideoId(subtitle.videoId)
         }
     }
@@ -199,8 +211,32 @@ class HomeViewModel(
 
     fun deleteSubtitle(subtitle: SubtitleEntity) {
         viewModelScope.launch {
+            val subtitleCountForVideo = _uiState.value.savedSubtitles.count { it.videoId == subtitle.videoId }
+            if (subtitleCountForVideo <= 1) {
+                userPreferencesRepository.removeVideoFromAllCollections(subtitle.videoId)
+            }
             subtitleDao.delete(subtitle)
         }
+    }
+
+    fun createCollection(name: String): Boolean {
+        return userPreferencesRepository.createCollection(name)
+    }
+
+    fun renameCollection(collectionId: String, newName: String): Boolean {
+        return userPreferencesRepository.renameCollection(collectionId, newName)
+    }
+
+    fun deleteCollection(collectionId: String) {
+        userPreferencesRepository.deleteCollection(collectionId)
+    }
+
+    fun addVideoToCollection(collectionId: String, videoId: String): Boolean {
+        return userPreferencesRepository.addVideoToCollection(collectionId, videoId)
+    }
+
+    fun removeVideoFromCollection(collectionId: String, videoId: String) {
+        userPreferencesRepository.removeVideoFromCollection(collectionId, videoId)
     }
 
     companion object {

@@ -2,15 +2,29 @@ package com.deedeedev.ytreader.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.deedeedev.ytreader.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.UUID
+
+data class VideoCollection(
+    val id: String,
+    val name: String,
+    val videoIds: List<String> = emptyList(),
+    val createdAt: Long = System.currentTimeMillis()
+)
 
 class UserPreferencesRepository(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val gson = Gson()
     private val _favoriteLanguages = MutableStateFlow<Set<String>>(emptySet())
     val favoriteLanguages: StateFlow<Set<String>> = _favoriteLanguages.asStateFlow()
+
+    private val _videoCollections = MutableStateFlow<List<VideoCollection>>(emptyList())
+    val videoCollections: StateFlow<List<VideoCollection>> = _videoCollections.asStateFlow()
 
     private val _defaultFontSize = MutableStateFlow(16f)
     val defaultFontSize: StateFlow<Float> = _defaultFontSize.asStateFlow()
@@ -42,6 +56,7 @@ class UserPreferencesRepository(context: Context) {
     init {
         loadFavorites()
         loadDisplaySettings()
+        loadCollections()
     }
 
     private fun loadFavorites() {
@@ -62,6 +77,36 @@ class UserPreferencesRepository(context: Context) {
             ?: DEFAULT_AI_CLEANING_PROMPT
     }
 
+    private fun loadCollections() {
+        _videoCollections.value = decodeCollections(prefs.getString(KEY_VIDEO_COLLECTIONS, null))
+    }
+
+    private fun persistCollections(collections: List<VideoCollection>) {
+        prefs.edit().putString(KEY_VIDEO_COLLECTIONS, gson.toJson(collections)).apply()
+        _videoCollections.value = collections
+    }
+
+    private fun decodeCollections(raw: String?): List<VideoCollection> {
+        if (raw.isNullOrBlank()) {
+            return emptyList()
+        }
+
+        return try {
+            val type = object : TypeToken<List<VideoCollection>>() {}.type
+            val parsed = gson.fromJson<List<VideoCollection>>(raw, type) ?: emptyList()
+            parsed
+                .map { collection ->
+                    collection.copy(
+                        name = collection.name.trim(),
+                        videoIds = collection.videoIds.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+                    )
+                }
+                .filter { it.id.isNotBlank() && it.name.isNotBlank() }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
     fun toggleFavoriteLanguage(languageCode: String) {
         val current = _favoriteLanguages.value.toMutableSet()
         if (current.contains(languageCode)) {
@@ -72,6 +117,100 @@ class UserPreferencesRepository(context: Context) {
         
         prefs.edit().putStringSet(KEY_FAVORITE_LANGUAGES, current).apply()
         _favoriteLanguages.value = current
+    }
+
+    fun createCollection(name: String): Boolean {
+        val trimmedName = name.trim()
+        if (trimmedName.isBlank()) {
+            return false
+        }
+        if (_videoCollections.value.any { it.name.equals(trimmedName, ignoreCase = true) }) {
+            return false
+        }
+
+        val updated = _videoCollections.value + VideoCollection(
+            id = UUID.randomUUID().toString(),
+            name = trimmedName
+        )
+        persistCollections(updated)
+        return true
+    }
+
+    fun renameCollection(collectionId: String, newName: String): Boolean {
+        val trimmedName = newName.trim()
+        if (trimmedName.isBlank()) {
+            return false
+        }
+
+        val existing = _videoCollections.value
+        if (existing.none { it.id == collectionId }) {
+            return false
+        }
+        if (existing.any { it.id != collectionId && it.name.equals(trimmedName, ignoreCase = true) }) {
+            return false
+        }
+
+        val updated = existing.map { collection ->
+            if (collection.id == collectionId) {
+                collection.copy(name = trimmedName)
+            } else {
+                collection
+            }
+        }
+        persistCollections(updated)
+        return true
+    }
+
+    fun deleteCollection(collectionId: String) {
+        val updated = _videoCollections.value.filterNot { it.id == collectionId }
+        persistCollections(updated)
+    }
+
+    fun addVideoToCollection(collectionId: String, videoId: String): Boolean {
+        val trimmedVideoId = videoId.trim()
+        if (trimmedVideoId.isBlank()) {
+            return false
+        }
+
+        var foundCollection = false
+        var changed = false
+        val updated = _videoCollections.value.map { collection ->
+            if (collection.id != collectionId) {
+                return@map collection
+            }
+            foundCollection = true
+            if (collection.videoIds.contains(trimmedVideoId)) {
+                return@map collection
+            }
+            changed = true
+            collection.copy(videoIds = collection.videoIds + trimmedVideoId)
+        }
+
+        if (!foundCollection) {
+            return false
+        }
+        if (changed) {
+            persistCollections(updated)
+        }
+        return true
+    }
+
+    fun removeVideoFromCollection(collectionId: String, videoId: String) {
+        val updated = _videoCollections.value.map { collection ->
+            if (collection.id == collectionId) {
+                collection.copy(videoIds = collection.videoIds.filterNot { it == videoId })
+            } else {
+                collection
+            }
+        }
+        persistCollections(updated)
+    }
+
+    fun removeVideoFromAllCollections(videoId: String) {
+        val updated = _videoCollections.value.map { collection ->
+            collection.copy(videoIds = collection.videoIds.filterNot { it == videoId })
+        }
+        persistCollections(updated)
     }
 
     fun setDefaultFontSize(size: Float) {
@@ -145,6 +284,7 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_AI_API_KEY = "ai_api_key"
         private const val KEY_AI_MODEL = "ai_model"
         private const val KEY_AI_PROMPT = "ai_prompt"
+        private const val KEY_VIDEO_COLLECTIONS = "video_collections"
 
         const val BRIGHTNESS_FOLLOW_SYSTEM = -1f
     }

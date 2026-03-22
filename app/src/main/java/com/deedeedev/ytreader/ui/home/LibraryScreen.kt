@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.*
@@ -25,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -42,6 +44,7 @@ fun LibraryScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    var addToCollectionTargetVideoId by remember { mutableStateOf<String?>(null) }
 
     // Extract filtering logic
     val uniqueChannels = remember(uiState.savedSubtitles) {
@@ -272,6 +275,7 @@ fun LibraryScreen(
                                 item = item,
                                 onSubtitleClick = onSubtitleClick,
                                 onVideoClick = onVideoClick,
+                                onAddToCollection = { addToCollectionTargetVideoId = item.videoId },
                                 onDelete = {
                                     viewModel.deleteLibraryItem(item.subtitles.first())
                                 },
@@ -288,6 +292,44 @@ fun LibraryScreen(
                 }
             }
         }
+    }
+
+    addToCollectionTargetVideoId?.let { videoId ->
+        AddToCollectionDialog(
+            collections = uiState.collections,
+            onDismiss = { addToCollectionTargetVideoId = null },
+            onCreateCollection = { name ->
+                val created = viewModel.createCollection(name)
+                if (!created) {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = "Could not create collection",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                }
+                created
+            },
+            onAddToCollection = { collectionId ->
+                val added = viewModel.addVideoToCollection(collectionId, videoId)
+                if (added) {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = "Added to collection",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                    addToCollectionTargetVideoId = null
+                } else {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = "Could not add to collection",
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -307,6 +349,7 @@ fun LibraryItemCard(
     item: LibraryItem,
     onSubtitleClick: (Long) -> Unit,
     onVideoClick: (String) -> Unit,
+    onAddToCollection: () -> Unit,
     onDelete: () -> Unit,
     onSubtitleDelete: (SubtitleEntity) -> Unit,
     onSubtitleDownloadAgain: (SubtitleEntity) -> Unit,
@@ -401,6 +444,19 @@ fun LibraryItemCard(
                 }
             )
             DropdownMenuItem(
+                text = { Text("Add to collection") },
+                onClick = {
+                    onAddToCollection()
+                    showMenu = false
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.AutoMirrored.Filled.PlaylistAdd,
+                        contentDescription = null
+                    )
+                }
+            )
+            DropdownMenuItem(
                 text = { Text("Delete entry") },
                 onClick = {
                     onDelete()
@@ -415,6 +471,69 @@ fun LibraryItemCard(
             )
         }
     }
+}
+
+@Composable
+private fun AddToCollectionDialog(
+    collections: List<VideoCollection>,
+    onDismiss: () -> Unit,
+    onCreateCollection: (String) -> Boolean,
+    onAddToCollection: (String) -> Unit
+) {
+    var newCollectionName by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add to collection") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = newCollectionName,
+                    onValueChange = { newCollectionName = it },
+                    singleLine = true,
+                    label = { Text("New collection") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                TextButton(
+                    onClick = {
+                        val created = onCreateCollection(newCollectionName)
+                        if (created) {
+                            newCollectionName = ""
+                        }
+                    }
+                ) {
+                    Text("Create")
+                }
+
+                if (collections.isEmpty()) {
+                    Text(
+                        text = "No collections yet. Create one above.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                } else {
+                    Text(
+                        text = "Choose a collection",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        collections.forEach { collection ->
+                            TextButton(
+                                onClick = { onAddToCollection(collection.id) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(collection.name)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
