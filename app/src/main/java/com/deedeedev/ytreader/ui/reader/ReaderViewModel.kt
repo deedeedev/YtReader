@@ -42,8 +42,15 @@ class ReaderViewModel(
     val uiState: StateFlow<ReaderUiState> = _uiState.asStateFlow()
 
     init {
+        markSubtitleOpened()
         loadSubtitle()
         loadPreferences()
+    }
+
+    private fun markSubtitleOpened() {
+        viewModelScope.launch {
+            subtitleDao.updateLastOpenedAt(subtitleId, System.currentTimeMillis())
+        }
     }
 
     private fun loadPreferences() {

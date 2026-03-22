@@ -19,7 +19,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 
 enum class SortOption {
-    TITLE, CHANNEL_NAME, DATE_PUBLISHED, DOWNLOADED
+    TITLE, CHANNEL_NAME, DATE_PUBLISHED, DOWNLOADED, LAST_OPENED
 }
 
 data class HomeUiState(

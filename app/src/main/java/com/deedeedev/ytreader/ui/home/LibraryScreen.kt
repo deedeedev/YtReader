@@ -69,7 +69,8 @@ fun LibraryScreen(
                     channelName = first.channelName,
                     subtitles = subtitles.sortedBy { it.languageCode },
                     uploadDate = first.uploadDate,
-                    lastDownloaded = subtitles.maxOf { it.createdAt }
+                    lastDownloaded = subtitles.maxOf { it.createdAt },
+                    lastOpenedAt = subtitles.maxOf { it.lastOpenedAt }
                 )
             }
     }
@@ -81,6 +82,7 @@ fun LibraryScreen(
             SortOption.CHANNEL_NAME -> libraryItems.sortedBy { it.channelName }
             SortOption.DATE_PUBLISHED -> libraryItems.sortedBy { it.uploadDate }
             SortOption.DOWNLOADED -> libraryItems.sortedBy { it.lastDownloaded }
+            SortOption.LAST_OPENED -> libraryItems.sortedBy { it.lastOpenedAt }
         }
         if (uiState.isAscending) sorted else sorted.reversed()
     }
@@ -163,7 +165,8 @@ fun LibraryScreen(
                             SortOption.TITLE to "Title",
                             SortOption.CHANNEL_NAME to "Channel Name",
                             SortOption.DATE_PUBLISHED to "Date Published",
-                            SortOption.DOWNLOADED to "Downloaded"
+                            SortOption.DOWNLOADED to "Downloaded",
+                            SortOption.LAST_OPENED to "Last opened"
                         )
 
                         sortOptions.forEach { (option, label) ->
@@ -294,7 +297,8 @@ data class LibraryItem(
     val channelName: String,
     val subtitles: List<SubtitleEntity>,
     val uploadDate: Long,
-    val lastDownloaded: Long
+    val lastDownloaded: Long,
+    val lastOpenedAt: Long
 )
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
