@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -96,6 +97,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.ui.viewinterop.AndroidView
 import android.graphics.Color as AndroidColor
+import kotlin.math.ceil
 
 private enum class ReaderMode {
     ORIGINAL,
@@ -111,6 +113,11 @@ private sealed interface PendingAction {
 private data class SelectionRange(
     val start: Int,
     val end: Int
+)
+
+private data class PageProgress(
+    val currentPage: Int,
+    val totalPages: Int
 )
 
 private sealed interface PendingFindSelection {
@@ -230,6 +237,8 @@ fun ReaderScreen(
         mutableStateOf(subtitle.lastStudyScroll)
     }
     var hasRestoredStudyScroll by rememberSaveable(subtitle.id) { mutableStateOf(false) }
+    var studyViewportHeightPx by remember { mutableStateOf(0) }
+    var originalFallbackViewportHeightPx by remember { mutableStateOf(0) }
 
     LaunchedEffect(uiState.content, isEditing) {
         if (!isEditing) {
@@ -562,6 +571,49 @@ fun ReaderScreen(
         }
     }
 
+    val fullscreenPageProgress by remember(
+        readerMode,
+        originalSegments,
+        originalListState.firstVisibleItemIndex,
+        originalListState.canScrollForward,
+        originalListState.layoutInfo.visibleItemsInfo.size,
+        studyScrollState.value,
+        studyScrollState.maxValue,
+        studyViewportHeightPx,
+        originalFallbackScrollState.value,
+        originalFallbackScrollState.maxValue,
+        originalFallbackViewportHeightPx
+    ) {
+        derivedStateOf {
+            when (readerMode) {
+                ReaderMode.ORIGINAL -> {
+                    if (originalSegments.isEmpty()) {
+                        pagedScrollProgress(
+                            value = originalFallbackScrollState.value,
+                            maxValue = originalFallbackScrollState.maxValue,
+                            viewportHeightPx = originalFallbackViewportHeightPx
+                        )
+                    } else {
+                        lazyListPageProgress(
+                            firstVisibleItemIndex = originalListState.firstVisibleItemIndex,
+                            totalItems = originalSegments.size,
+                            visibleItemsCount = originalListState.layoutInfo.visibleItemsInfo.size,
+                            canScrollForward = originalListState.canScrollForward
+                        )
+                    }
+                }
+
+                ReaderMode.STUDY -> {
+                    pagedScrollProgress(
+                        value = studyScrollState.value,
+                        maxValue = studyScrollState.maxValue,
+                        viewportHeightPx = studyViewportHeightPx
+                    )
+                }
+            }
+        }
+    }
+
     DisposableEffect(activity, view, isUiVisible, isEditing) {
         val window = activity?.window
         val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
@@ -594,6 +646,7 @@ fun ReaderScreen(
                             bottom = bottomContentPadding
                         )
                         .onUnconsumedTap { isUiVisible = !isUiVisible }
+                        .onSizeChanged { originalFallbackViewportHeightPx = it.height }
                         .verticalScroll(originalFallbackScrollState)
                 ) {
                     AndroidView<SelectableHighlightTextView>(
@@ -817,6 +870,7 @@ fun ReaderScreen(
                             bottom = bottomContentPadding
                         )
                         .onUnconsumedTap { isUiVisible = !isUiVisible }
+                        .onSizeChanged { studyViewportHeightPx = it.height }
                         .verticalScroll(studyScrollState)
                 ) {
                     AndroidView<JustifiedStudyTextView>(
@@ -1223,6 +1277,8 @@ fun ReaderScreen(
         if (!isUiVisible && !isEditing) {
             TinyProgressIndicator(
                 percent = fullscreenProgressPercent,
+                currentPage = fullscreenPageProgress.currentPage,
+                totalPages = fullscreenPageProgress.totalPages,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
@@ -1773,9 +1829,52 @@ private fun lazyListScrollPercent(
         .coerceIn(0, 99)
 }
 
+private fun pagedScrollProgress(
+    value: Int,
+    maxValue: Int,
+    viewportHeightPx: Int
+): PageProgress {
+    if (viewportHeightPx <= 0) {
+        return PageProgress(currentPage = 1, totalPages = 1)
+    }
+    val contentHeightPx = (maxValue + viewportHeightPx).coerceAtLeast(viewportHeightPx)
+    val totalPages = ceil(contentHeightPx.toFloat() / viewportHeightPx.toFloat())
+        .toInt()
+        .coerceAtLeast(1)
+    val currentPage = ((value.coerceAtLeast(0)) / viewportHeightPx) + 1
+    return PageProgress(
+        currentPage = currentPage.coerceIn(1, totalPages),
+        totalPages = totalPages
+    )
+}
+
+private fun lazyListPageProgress(
+    firstVisibleItemIndex: Int,
+    totalItems: Int,
+    visibleItemsCount: Int,
+    canScrollForward: Boolean
+): PageProgress {
+    if (totalItems <= 0) {
+        return PageProgress(currentPage = 1, totalPages = 1)
+    }
+    val itemsPerPage = visibleItemsCount.coerceAtLeast(1)
+    val totalPages = ceil(totalItems.toFloat() / itemsPerPage.toFloat())
+        .toInt()
+        .coerceAtLeast(1)
+    val estimatedCurrentPage = (firstVisibleItemIndex.coerceAtLeast(0) / itemsPerPage) + 1
+    val currentPage = if (!canScrollForward) {
+        totalPages
+    } else {
+        estimatedCurrentPage.coerceIn(1, totalPages)
+    }
+    return PageProgress(currentPage = currentPage, totalPages = totalPages)
+}
+
 @Composable
 private fun TinyProgressIndicator(
     percent: Int,
+    currentPage: Int,
+    totalPages: Int,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -1786,7 +1885,7 @@ private fun TinyProgressIndicator(
         shadowElevation = 0.dp
     ) {
         Text(
-            text = "$percent%",
+            text = "$percent% $currentPage/$totalPages",
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
             fontSize = 10.sp,
             color = MaterialTheme.colorScheme.onSurface,
