@@ -42,6 +42,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     private var redColor: Int = 0
     private var blueColor: Int = 0
     private var greenColor: Int = 0
+    private var yellowColor: Int = 0
     private var backgroundColorInt: Int = Color.TRANSPARENT
     private var lineSpacingMultiplier: Float = 1f
     private var layout: StaticLayout? = null
@@ -161,7 +162,8 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         highlights: List<TextHighlight>,
         redColor: Int,
         blueColor: Int,
-        greenColor: Int
+        greenColor: Int,
+        yellowColor: Int
     ) {
         this.content = content
         this.highlights = highlights
@@ -173,6 +175,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         this.redColor = redColor
         this.blueColor = blueColor
         this.greenColor = greenColor
+        this.yellowColor = yellowColor
         selectionRange = selectionRange?.let { range ->
             val start = range.start.coerceIn(0, content.length)
             val end = range.end.coerceIn(0, content.length)
@@ -330,6 +333,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
                         HighlightColor.RED -> redColor
                         HighlightColor.BLUE -> blueColor
                         HighlightColor.GREEN -> greenColor
+                        HighlightColor.YELLOW -> yellowColor
                     }
                 ),
                 highlight.start,

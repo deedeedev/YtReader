@@ -81,7 +81,8 @@ class SelectableHighlightTextView @JvmOverloads constructor(
         highlights: List<TextHighlight>,
         redColor: Int,
         blueColor: Int,
-        greenColor: Int
+        greenColor: Int,
+        yellowColor: Int
     ) {
         val spannable = SpannableString(content)
         val contentLength = content.length
@@ -103,6 +104,7 @@ class SelectableHighlightTextView @JvmOverloads constructor(
                 HighlightColor.RED -> redColor
                 HighlightColor.BLUE -> blueColor
                 HighlightColor.GREEN -> greenColor
+                HighlightColor.YELLOW -> yellowColor
             }
             spannable.setSpan(
                 BackgroundColorSpan(spanColor),

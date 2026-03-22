@@ -3,7 +3,8 @@ package com.deedeedev.ytreader.ui.reader
 enum class HighlightColor {
     RED,
     BLUE,
-    GREEN
+    GREEN,
+    YELLOW
 }
 
 data class TextHighlight(

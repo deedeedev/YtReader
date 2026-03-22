@@ -713,7 +713,8 @@ fun ReaderScreen(
                                 highlights = emptyList(),
                                 redColor = 0,
                                 blueColor = 0,
-                                greenColor = 0
+                                greenColor = 0,
+                                yellowColor = 0
                             )
                         }
                     )
@@ -823,7 +824,8 @@ fun ReaderScreen(
                                         highlights = emptyList(),
                                         redColor = 0,
                                         blueColor = 0,
-                                        greenColor = 0
+                                        greenColor = 0,
+                                        yellowColor = 0
                                     )
                                 }
                             )
@@ -953,7 +955,8 @@ fun ReaderScreen(
                                 highlights = uiState.highlights,
                                 redColor = highlightSpanColor(HighlightColor.RED),
                                 blueColor = highlightSpanColor(HighlightColor.BLUE),
-                                greenColor = highlightSpanColor(HighlightColor.GREEN)
+                                greenColor = highlightSpanColor(HighlightColor.GREEN),
+                                yellowColor = highlightSpanColor(HighlightColor.YELLOW)
                             )
                         }
                     )
@@ -1684,6 +1687,7 @@ private fun HighlightSelectionToolbar(
             HighlightColorButton(color = HighlightColor.RED, onClick = onColorSelected)
             HighlightColorButton(color = HighlightColor.BLUE, onClick = onColorSelected)
             HighlightColorButton(color = HighlightColor.GREEN, onClick = onColorSelected)
+            HighlightColorButton(color = HighlightColor.YELLOW, onClick = onColorSelected)
             if (showDelete) {
                 FilledTonalButton(
                     onClick = onDeleteHighlight,
@@ -1763,12 +1767,14 @@ private fun highlightButtonColor(color: HighlightColor): Color = when (color) {
     HighlightColor.RED -> Color(0xFFE57373)
     HighlightColor.BLUE -> Color(0xFF64B5F6)
     HighlightColor.GREEN -> Color(0xFF81C784)
+    HighlightColor.YELLOW -> Color(0xFFFFF176)
 }
 
 private fun highlightSpanColor(color: HighlightColor): Int = when (color) {
     HighlightColor.RED -> AndroidColor.parseColor("#66E57373")
     HighlightColor.BLUE -> AndroidColor.parseColor("#6664B5F6")
     HighlightColor.GREEN -> AndroidColor.parseColor("#6681C784")
+    HighlightColor.YELLOW -> AndroidColor.parseColor("#66FFF176")
 }
 
 private fun formatOriginalModeCopyText(
