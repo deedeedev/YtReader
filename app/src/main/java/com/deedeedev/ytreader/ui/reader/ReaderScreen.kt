@@ -222,6 +222,7 @@ fun ReaderScreen(
     var originalSegmentFindResults by remember { mutableStateOf<List<OriginalSegmentFindResult>>(emptyList()) }
     var findErrorMessage by remember { mutableStateOf<String?>(null) }
     var hasSearchedFind by remember { mutableStateOf(false) }
+    var findIsCaseSensitive by rememberSaveable { mutableStateOf(false) }
     var pendingFindSelection by remember { mutableStateOf<PendingFindSelection?>(null) }
     var findReplaceErrorMessage by remember { mutableStateOf<String?>(null) }
     var findText by rememberSaveable { mutableStateOf("") }
@@ -380,11 +381,15 @@ fun ReaderScreen(
         originalSegmentFindResults = emptyList()
         findErrorMessage = null
         hasSearchedFind = false
+        findIsCaseSensitive = false
     }
 
     fun runFindSearch() {
         hasSearchedFind = true
-        val regex = compileFindRegex(findQuery).getOrElse { error ->
+        val regex = compileFindRegex(
+            query = findQuery,
+            isCaseSensitive = findIsCaseSensitive
+        ).getOrElse { error ->
             findErrorMessage = error.message ?: "Invalid regex."
             findResults = emptyList()
             originalSegmentFindResults = emptyList()
@@ -1377,6 +1382,18 @@ fun ReaderScreen(
                                 contentDescription = "Search"
                             )
                         }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = findIsCaseSensitive,
+                            onCheckedChange = { findIsCaseSensitive = it }
+                        )
+                        Text("Case sensitive")
                     }
                     when {
                         originalSegmentFindResults.isNotEmpty() -> {

@@ -21,8 +21,11 @@ internal data class OriginalSegmentFindResult(
 
 private const val FIND_EXCERPT_RADIUS = 24
 
-internal fun compileFindRegex(query: String): Result<Regex> {
-    return compileReaderRegex(query = query, isCaseSensitive = false)
+internal fun compileFindRegex(
+    query: String,
+    isCaseSensitive: Boolean = false
+): Result<Regex> {
+    return compileReaderRegex(query = query, isCaseSensitive = isCaseSensitive)
 }
 
 internal fun compileReaderRegex(

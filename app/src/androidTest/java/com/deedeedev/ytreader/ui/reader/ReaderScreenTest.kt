@@ -208,6 +208,15 @@ class ReaderScreenTest {
     }
 
     @Test
+    fun findDialog_showsCaseSensitiveOption() {
+        setReaderContent()
+
+        openFindDialog()
+
+        composeTestRule.onNodeWithText("Case sensitive").assertIsDisplayed()
+    }
+
+    @Test
     fun studyMode_findResultClosesDialogAndSelectsMatch() {
         setReaderContent()
 

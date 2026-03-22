@@ -19,6 +19,20 @@ class ReaderFindTest {
     }
 
     @Test
+    fun `compileFindRegex respects case sensitivity when enabled`() {
+        val regex = compileFindRegex(
+            query = "hello",
+            isCaseSensitive = true
+        ).getOrThrow()
+
+        val matches = findRegexMatches("Hello hello", regex)
+
+        assertEquals(1, matches.size)
+        assertEquals(6, matches.first().start)
+        assertEquals(11, matches.first().end)
+    }
+
+    @Test
     fun `compileFindRegex returns failure for invalid regex`() {
         val result = compileFindRegex("(")
 
