@@ -1,7 +1,5 @@
 package com.deedeedev.ytreader.ui
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -12,12 +10,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -27,8 +20,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-
-import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.deedeedev.ytreader.AppContainer
 import com.deedeedev.ytreader.ui.home.HomeViewModel
@@ -48,7 +39,6 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     object Reader : Screen("reader/{subtitleId}", "Reader", Icons.AutoMirrored.Filled.MenuBook)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     appContainer: AppContainer,
@@ -63,21 +53,11 @@ fun MainScreen(
     )
 ) {
     val navController = rememberNavController()
-    val uiState by viewModel.uiState.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val isReaderRoute = currentRoute?.startsWith("reader") == true
-    var isReaderChromeReady by remember { mutableStateOf(false) }
-
-    LaunchedEffect(navBackStackEntry) {
-        if (isReaderRoute) {
-            isReaderChromeReady = false
-        }
-    }
 
     LaunchedEffect(requestedReaderSubtitleId) {
         val subtitleId = requestedReaderSubtitleId ?: return@LaunchedEffect
-        isReaderChromeReady = false
         navController.navigate("reader/$subtitleId") {
             launchSingleTop = true
         }
@@ -85,11 +65,6 @@ fun MainScreen(
     }
 
     Scaffold(
-        topBar = {
-            if (!isReaderRoute || !isReaderChromeReady) {
-                CenterAlignedTopAppBar(title = { Text("YtReader") })
-            }
-        },
         bottomBar = {
             val currentDestination = navBackStackEntry?.destination
 
@@ -132,7 +107,6 @@ fun MainScreen(
                 SearchScreen(
                     viewModel = viewModel,
                     onSubtitleClick = { id ->
-                        isReaderChromeReady = false
                         navController.navigate("reader/$id")
                     }
                 )
@@ -147,7 +121,6 @@ fun MainScreen(
                 LibraryScreen(
                     viewModel = viewModel,
                     onSubtitleClick = { id ->
-                        isReaderChromeReady = false
                         navController.navigate("reader/$id")
                     },
                     onVideoClick = { url ->
@@ -202,7 +175,6 @@ fun MainScreen(
                     viewModel = viewModel,
                     collectionId = collectionId,
                     onSubtitleClick = { id ->
-                        isReaderChromeReady = false
                         navController.navigate("reader/$id")
                     },
                     onVideoClick = { url ->
@@ -232,7 +204,7 @@ fun MainScreen(
                     subtitleId = subtitleId,
                     subtitleDao = appContainer.subtitleDao,
                     userPreferencesRepository = appContainer.userPreferencesRepository,
-                    onChromeReady = { isReaderChromeReady = true },
+                    onChromeReady = {},
                     onBack = { navController.popBackStack() }
                 )
             }
