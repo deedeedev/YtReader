@@ -55,6 +55,8 @@ class ReaderScreenTest {
         private const val READER_FIND_RESULTS_TAG = "reader_find_results"
         private const val READER_FIND_REPLACE_INPUT_TAG = "reader_find_replace_input"
         private const val READER_FIND_REPLACE_REPLACEMENT_TAG = "reader_find_replace_replacement"
+        private const val READER_BRIGHTNESS_GESTURE_TAG = "reader_brightness_gesture"
+        private const val READER_BRIGHTNESS_INDICATOR_TAG = "reader_brightness_indicator"
     }
 
     @get:Rule
@@ -70,6 +72,7 @@ class ReaderScreenTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         preferencesRepository = UserPreferencesRepository(context)
+        preferencesRepository.setAppBrightness(UserPreferencesRepository.BRIGHTNESS_FOLLOW_SYSTEM)
         db.subtitleDao().insert(
             SubtitleEntity(
                 videoId = "video-1",
@@ -320,6 +323,40 @@ class ReaderScreenTest {
         composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
     }
 
+    @Test
+    fun leftEdgeSwipe_changesBrightnessAndShowsIndicator() {
+        preferencesRepository.setAppBrightness(0.35f)
+        setReaderContent()
+        setWindowBrightness(0.35f)
+
+        val before = currentWindowBrightness()
+
+        composeTestRule.onNodeWithTag(READER_BRIGHTNESS_GESTURE_TAG).performTouchInput {
+            swipeUp()
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag(READER_BRIGHTNESS_INDICATOR_TAG).assertIsDisplayed()
+        val after = currentWindowBrightness()
+        assertTrue("Expected brightness to increase from $before, but was $after", after > before)
+    }
+
+    @Test
+    fun editMode_leftEdgeSwipeDoesNotChangeBrightness() {
+        preferencesRepository.setAppBrightness(0.55f)
+        setReaderContent()
+        setWindowBrightness(0.55f)
+
+        enterEditMode()
+
+        composeTestRule.onNodeWithTag(READER_BRIGHTNESS_GESTURE_TAG).performTouchInput {
+            swipeUp()
+        }
+        composeTestRule.waitForIdle()
+
+        assertEquals(0.55f, currentWindowBrightness(), 0.001f)
+    }
+
     private fun setReaderContent() {
         showReaderContent.value = true
         composeTestRule.runOnUiThread {
@@ -504,6 +541,23 @@ class ReaderScreenTest {
             visible = !statusBarHidden && !navigationBarHidden
         }
         return visible
+    }
+
+    private fun setWindowBrightness(brightness: Float) {
+        composeTestRule.runOnUiThread {
+            val params = composeTestRule.activity.window.attributes
+            params.screenBrightness = brightness
+            composeTestRule.activity.window.attributes = params
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    private fun currentWindowBrightness(): Float {
+        var brightness = -1f
+        composeTestRule.runOnUiThread {
+            brightness = composeTestRule.activity.window.attributes.screenBrightness
+        }
+        return brightness
     }
 
     private fun longStudyContent(): String = buildString {

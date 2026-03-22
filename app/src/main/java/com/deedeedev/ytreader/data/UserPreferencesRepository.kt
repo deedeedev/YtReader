@@ -24,6 +24,9 @@ class UserPreferencesRepository(context: Context) {
     private val _appTheme = MutableStateFlow(AppTheme.SYSTEM)
     val appTheme: StateFlow<AppTheme> = _appTheme.asStateFlow()
 
+    private val _appBrightness = MutableStateFlow(BRIGHTNESS_FOLLOW_SYSTEM)
+    val appBrightness: StateFlow<Float> = _appBrightness.asStateFlow()
+
     private val _aiEndpoint = MutableStateFlow("")
     val aiEndpoint: StateFlow<String> = _aiEndpoint.asStateFlow()
 
@@ -51,6 +54,7 @@ class UserPreferencesRepository(context: Context) {
         _fontFamily.value = prefs.getString(KEY_FONT_FAMILY, "Default") ?: "Default"
         _lineHeightMultiplier.value = prefs.getFloat(KEY_LINE_HEIGHT_MULTIPLIER, 1.5f)
         _appTheme.value = AppTheme.fromStorageValue(prefs.getString(KEY_APP_THEME, AppTheme.SYSTEM.storageValue))
+        _appBrightness.value = prefs.getFloat(KEY_APP_BRIGHTNESS, BRIGHTNESS_FOLLOW_SYSTEM)
         _aiEndpoint.value = prefs.getString(KEY_AI_ENDPOINT, "") ?: ""
         _aiApiKey.value = prefs.getString(KEY_AI_API_KEY, "") ?: ""
         _aiModel.value = prefs.getString(KEY_AI_MODEL, DEFAULT_AI_MODEL) ?: DEFAULT_AI_MODEL
@@ -90,6 +94,16 @@ class UserPreferencesRepository(context: Context) {
         _appTheme.value = appTheme
     }
 
+    fun setAppBrightness(brightness: Float) {
+        val normalized = if (brightness == BRIGHTNESS_FOLLOW_SYSTEM) {
+            BRIGHTNESS_FOLLOW_SYSTEM
+        } else {
+            brightness.coerceIn(0f, 1f)
+        }
+        prefs.edit().putFloat(KEY_APP_BRIGHTNESS, normalized).apply()
+        _appBrightness.value = normalized
+    }
+
     fun setAiEndpoint(endpoint: String) {
         prefs.edit().putString(KEY_AI_ENDPOINT, endpoint).apply()
         _aiEndpoint.value = endpoint
@@ -126,9 +140,12 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_FONT_FAMILY = "font_family"
         private const val KEY_LINE_HEIGHT_MULTIPLIER = "line_height_multiplier"
         private const val KEY_APP_THEME = "app_theme"
+        private const val KEY_APP_BRIGHTNESS = "app_brightness"
         private const val KEY_AI_ENDPOINT = "ai_endpoint"
         private const val KEY_AI_API_KEY = "ai_api_key"
         private const val KEY_AI_MODEL = "ai_model"
         private const val KEY_AI_PROMPT = "ai_prompt"
+
+        const val BRIGHTNESS_FOLLOW_SYSTEM = -1f
     }
 }

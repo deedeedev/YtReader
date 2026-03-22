@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,9 +18,11 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.heightIn
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -97,7 +100,9 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.ui.viewinterop.AndroidView
 import android.graphics.Color as AndroidColor
+import android.view.WindowManager
 import kotlin.math.ceil
+import kotlinx.coroutines.Job
 
 private enum class ReaderMode {
     ORIGINAL,
@@ -144,7 +149,13 @@ private const val READER_FIND_INPUT_TAG = "reader_find_input"
 private const val READER_FIND_RESULTS_TAG = "reader_find_results"
 private const val READER_FIND_REPLACE_INPUT_TAG = "reader_find_replace_input"
 private const val READER_FIND_REPLACE_REPLACEMENT_TAG = "reader_find_replace_replacement"
+private const val READER_BRIGHTNESS_GESTURE_TAG = "reader_brightness_gesture"
+private const val READER_BRIGHTNESS_INDICATOR_TAG = "reader_brightness_indicator"
 private val READER_BOTTOM_BAR_HEIGHT = 80.dp
+private const val BRIGHTNESS_SWIPE_FULL_RANGE_PX = 600f
+private const val MIN_READER_BRIGHTNESS = 0.05f
+private const val DEFAULT_GESTURE_BRIGHTNESS = 0.5f
+private const val BRIGHTNESS_INDICATOR_HIDE_DELAY_MS = 1200L
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
@@ -204,6 +215,7 @@ fun ReaderScreen(
     val readerTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val readerBackgroundColor = Color.Transparent.toArgb()
     val activity = remember(context) { context.findActivity() }
+    val appBrightnessPreference by userPreferencesRepository.appBrightness.collectAsState()
 
     var readerMode by rememberSaveable { mutableStateOf(ReaderMode.STUDY) }
     var showTimestamps by rememberSaveable { mutableStateOf(false) }
@@ -240,6 +252,10 @@ fun ReaderScreen(
     var hasRestoredStudyScroll by rememberSaveable(subtitle.id) { mutableStateOf(false) }
     var studyViewportHeightPx by remember { mutableStateOf(0) }
     var originalFallbackViewportHeightPx by remember { mutableStateOf(0) }
+    var showBrightnessIndicator by remember { mutableStateOf(false) }
+    var brightnessIndicatorPercent by remember { mutableStateOf(100) }
+    var brightnessHideJob by remember { mutableStateOf<Job?>(null) }
+    var gestureBrightness by remember { mutableStateOf<Float?>(null) }
 
     LaunchedEffect(uiState.content, isEditing) {
         if (!isEditing) {
@@ -345,6 +361,12 @@ fun ReaderScreen(
         pendingFindSelection = null
     }
 
+    DisposableEffect(Unit) {
+        onDispose {
+            brightnessHideJob?.cancel()
+        }
+    }
+
     val hasUnsavedChanges = isEditing && editText != uiState.content
 
     val originalSegments = remember(subtitle.content) {
@@ -444,6 +466,40 @@ fun ReaderScreen(
             showUnsavedDialog = true
         } else {
             runPendingAction(action)
+        }
+    }
+
+    fun applyReaderBrightness(brightness: Float) {
+        val window = activity?.window ?: return
+        val params = window.attributes
+        params.screenBrightness = brightness.coerceIn(MIN_READER_BRIGHTNESS, 1f)
+        window.attributes = params
+    }
+
+    fun currentEffectiveBrightness(): Float {
+        if (appBrightnessPreference != UserPreferencesRepository.BRIGHTNESS_FOLLOW_SYSTEM) {
+            return appBrightnessPreference.coerceIn(MIN_READER_BRIGHTNESS, 1f)
+        }
+        val windowBrightness = activity?.window?.attributes?.screenBrightness
+            ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        return if (windowBrightness >= 0f) {
+            windowBrightness.coerceIn(MIN_READER_BRIGHTNESS, 1f)
+        } else {
+            DEFAULT_GESTURE_BRIGHTNESS
+        }
+    }
+
+    fun showBrightnessValue(brightness: Float) {
+        brightnessIndicatorPercent = (brightness.coerceIn(0f, 1f) * 100f).toInt().coerceIn(0, 100)
+        showBrightnessIndicator = true
+        brightnessHideJob?.cancel()
+    }
+
+    fun scheduleHideBrightnessValue() {
+        brightnessHideJob?.cancel()
+        brightnessHideJob = coroutineScope.launch {
+            delay(BRIGHTNESS_INDICATOR_HIDE_DELAY_MS)
+            showBrightnessIndicator = false
         }
     }
 
@@ -969,6 +1025,56 @@ fun ReaderScreen(
             }
         }
 
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .fillMaxHeight()
+                .width(28.dp)
+                .testTag(READER_BRIGHTNESS_GESTURE_TAG)
+                .then(
+                    if (isEditing) {
+                        Modifier
+                    } else {
+                        Modifier.pointerInput(appBrightnessPreference, isEditing) {
+                            var activeBrightness = 0f
+                            detectVerticalDragGestures(
+                                onDragStart = {
+                                    activeBrightness = (gestureBrightness ?: currentEffectiveBrightness())
+                                        .coerceIn(MIN_READER_BRIGHTNESS, 1f)
+                                    gestureBrightness = activeBrightness
+                                    showBrightnessValue(activeBrightness)
+                                },
+                                onVerticalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    val updated = (activeBrightness - (dragAmount / BRIGHTNESS_SWIPE_FULL_RANGE_PX))
+                                        .coerceIn(MIN_READER_BRIGHTNESS, 1f)
+                                    activeBrightness = updated
+                                    gestureBrightness = updated
+                                    applyReaderBrightness(updated)
+                                    showBrightnessValue(updated)
+                                },
+                                onDragEnd = {
+                                    gestureBrightness?.let { finalBrightness ->
+                                        val normalized = finalBrightness.coerceIn(MIN_READER_BRIGHTNESS, 1f)
+                                        userPreferencesRepository.setAppBrightness(normalized)
+                                    }
+                                    gestureBrightness = null
+                                    scheduleHideBrightnessValue()
+                                },
+                                onDragCancel = {
+                                    gestureBrightness?.let { finalBrightness ->
+                                        val normalized = finalBrightness.coerceIn(MIN_READER_BRIGHTNESS, 1f)
+                                        userPreferencesRepository.setAppBrightness(normalized)
+                                    }
+                                    gestureBrightness = null
+                                    scheduleHideBrightnessValue()
+                                }
+                            )
+                        }
+                    }
+                )
+        )
+
         AnimatedVisibility(
             visible = isUiVisible,
             enter = slideInVertically(initialOffsetY = { -it }),
@@ -1291,6 +1397,21 @@ fun ReaderScreen(
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
                     .padding(end = 8.dp, bottom = 8.dp)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showBrightnessIndicator,
+            enter = slideInVertically(initialOffsetY = { it / 2 }),
+            exit = slideOutVertically(targetOffsetY = { it / 2 }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = if (isUiVisible) 88.dp else 16.dp)
+        ) {
+            TinyValueIndicator(
+                text = "$brightnessIndicatorPercent%",
+                modifier = Modifier.testTag(READER_BRIGHTNESS_INDICATOR_TAG)
             )
         }
 
@@ -1909,6 +2030,28 @@ private fun TinyProgressIndicator(
     ) {
         Text(
             text = "$percent% $currentPage/$totalPages",
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelSmall
+        )
+    }
+}
+
+@Composable
+private fun TinyValueIndicator(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.extraSmall,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.68f),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Text(
+            text = text,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
             fontSize = 10.sp,
             color = MaterialTheme.colorScheme.onSurface,
