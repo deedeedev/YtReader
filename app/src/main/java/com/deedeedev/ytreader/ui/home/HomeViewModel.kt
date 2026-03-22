@@ -189,6 +189,14 @@ class HomeViewModel(
         }
     }
 
+    fun restoreLibraryItem(subtitles: List<SubtitleEntity>) {
+        viewModelScope.launch {
+            subtitles.forEach { subtitle ->
+                subtitleDao.insert(subtitle)
+            }
+        }
+    }
+
     fun deleteSubtitle(subtitle: SubtitleEntity) {
         viewModelScope.launch {
             subtitleDao.delete(subtitle)
