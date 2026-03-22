@@ -32,6 +32,7 @@ import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.deedeedev.ytreader.AppContainer
 import com.deedeedev.ytreader.ui.home.HomeViewModel
+import com.deedeedev.ytreader.ui.home.CollectionDetailScreen
 import com.deedeedev.ytreader.ui.home.CollectionsScreen
 import com.deedeedev.ytreader.ui.home.LibraryScreen
 import com.deedeedev.ytreader.ui.home.SearchScreen
@@ -42,6 +43,7 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     object Search : Screen("search", "Search", Icons.Default.Search)
     object Library : Screen("library", "Library", Icons.Default.Home)
     object Collections : Screen("collections", "Collections", Icons.Default.CollectionsBookmark)
+    object CollectionDetail : Screen("collection/{collectionId}", "Collection", Icons.Default.CollectionsBookmark)
     object Settings : Screen("settings", "Settings", Icons.Default.Settings)
     object Reader : Screen("reader/{subtitleId}", "Reader", Icons.AutoMirrored.Filled.MenuBook)
 }
@@ -179,6 +181,26 @@ fun MainScreen(
             ) {
                 CollectionsScreen(
                     viewModel = viewModel,
+                    onCollectionClick = { collectionId ->
+                        navController.navigate("collection/$collectionId") {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
+            composable(
+                route = Screen.CollectionDetail.route,
+                arguments = listOf(navArgument("collectionId") { type = NavType.StringType }),
+                enterTransition = { null },
+                exitTransition = { null },
+                popEnterTransition = { null },
+                popExitTransition = { null }
+            ) { backStackEntry ->
+                val collectionId = backStackEntry.arguments?.getString("collectionId") ?: return@composable
+
+                CollectionDetailScreen(
+                    viewModel = viewModel,
+                    collectionId = collectionId,
                     onSubtitleClick = { id ->
                         isReaderChromeReady = false
                         navController.navigate("reader/$id")

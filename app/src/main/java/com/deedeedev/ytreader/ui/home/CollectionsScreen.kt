@@ -2,7 +2,6 @@ package com.deedeedev.ytreader.ui.home
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,17 +15,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -55,8 +53,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun CollectionsScreen(
     viewModel: HomeViewModel,
-    onSubtitleClick: (Long) -> Unit,
-    onVideoClick: (String) -> Unit,
+    onCollectionClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -67,21 +64,8 @@ fun CollectionsScreen(
     var renameTarget by remember { mutableStateOf<VideoCollection?>(null) }
     var deleteTarget by remember { mutableStateOf<VideoCollection?>(null) }
 
-    val libraryItemsByVideoId = remember(uiState.savedSubtitles) {
-        uiState.savedSubtitles
-            .groupBy { it.videoId }
-            .mapValues { (_, subtitles) ->
-                val first = subtitles.first()
-                LibraryItem(
-                    videoId = first.videoId,
-                    title = first.title,
-                    channelName = first.channelName,
-                    subtitles = subtitles.sortedBy { it.languageCode },
-                    uploadDate = first.uploadDate,
-                    lastDownloaded = subtitles.maxOf { it.createdAt },
-                    lastOpenedAt = subtitles.maxOf { it.lastOpenedAt }
-                )
-            }
+    val availableVideoIds = remember(uiState.savedSubtitles) {
+        uiState.savedSubtitles.map { it.videoId }.toSet()
     }
 
     Scaffold(
@@ -126,25 +110,13 @@ fun CollectionsScreen(
                     }
                 } else {
                     items(items = uiState.collections, key = { it.id }) { collection ->
-                        val videosInCollection = collection.videoIds.mapNotNull { libraryItemsByVideoId[it] }
-                        val missingCount = collection.videoIds.size - videosInCollection.size
+                        val missingCount = collection.videoIds.count { it !in availableVideoIds }
                         CollectionCard(
                             collection = collection,
-                            videos = videosInCollection,
                             missingCount = missingCount,
+                            onOpen = { onCollectionClick(collection.id) },
                             onRename = { renameTarget = collection },
-                            onDelete = { deleteTarget = collection },
-                            onVideoClick = onVideoClick,
-                            onSubtitleClick = onSubtitleClick,
-                            onRemoveVideo = { videoId ->
-                                viewModel.removeVideoFromCollection(collection.id, videoId)
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        message = "Removed from ${collection.name}",
-                                        duration = SnackbarDuration.Short
-                                    )
-                                }
-                            }
+                            onDelete = { deleteTarget = collection }
                         )
                     }
                 }
@@ -214,22 +186,24 @@ fun CollectionsScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CollectionCard(
     collection: VideoCollection,
-    videos: List<LibraryItem>,
     missingCount: Int,
+    onOpen: () -> Unit,
     onRename: () -> Unit,
-    onDelete: () -> Unit,
-    onVideoClick: (String) -> Unit,
-    onSubtitleClick: (Long) -> Unit,
-    onRemoveVideo: (String) -> Unit
+    onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onOpen,
+                onLongClick = { showMenu = true }
+            ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -238,14 +212,14 @@ private fun CollectionCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = collection.name,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "${videos.size} videos",
+                        text = "${collection.videoIds.size} videos",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
@@ -258,139 +232,36 @@ private fun CollectionCard(
                     }
                 }
 
-                Column(horizontalAlignment = Alignment.End) {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Collection options")
-                    }
-                    androidx.compose.material3.DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        androidx.compose.material3.DropdownMenuItem(
-                            text = { Text("Rename") },
-                            onClick = {
-                                showMenu = false
-                                onRename()
-                            },
-                            leadingIcon = {
-                                Icon(imageVector = Icons.Default.Edit, contentDescription = null)
-                            }
-                        )
-                        androidx.compose.material3.DropdownMenuItem(
-                            text = { Text("Delete") },
-                            onClick = {
-                                showMenu = false
-                                onDelete()
-                            },
-                            leadingIcon = {
-                                Icon(imageVector = Icons.Default.Delete, contentDescription = null)
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (videos.isEmpty()) {
-                Text(
-                    text = "No videos in this collection.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    videos.forEach { video ->
-                        CollectionVideoCard(
-                            item = video,
-                            onVideoClick = onVideoClick,
-                            onSubtitleClick = onSubtitleClick,
-                            onRemove = { onRemoveVideo(video.videoId) }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
-@Composable
-private fun CollectionVideoCard(
-    item: LibraryItem,
-    onVideoClick: (String) -> Unit,
-    onSubtitleClick: (Long) -> Unit,
-    onRemove: () -> Unit
-) {
-    var showMenu by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(onClick = { onVideoClick(item.videoId) }, onLongClick = { showMenu = true }),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    if (item.channelName.isNotBlank()) {
-                        Text(
-                            text = item.channelName,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                }
                 IconButton(onClick = { showMenu = true }) {
-                    Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Video options")
+                    Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Collection options")
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            androidx.compose.foundation.layout.FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
             ) {
-                item.subtitles.forEach { subtitle ->
-                    FilterChip(
-                        selected = false,
-                        onClick = { onSubtitleClick(subtitle.id) },
-                        label = {
-                            val suffix = if (subtitle.isAutoGenerated) " (AUTO)" else ""
-                            Text("${subtitle.languageCode.uppercase()}$suffix")
-                        },
-                        leadingIcon = {
-                            Icon(imageVector = Icons.Default.Check, contentDescription = null)
-                        }
-                    )
-                }
+                DropdownMenuItem(
+                    text = { Text("Rename") },
+                    onClick = {
+                        showMenu = false
+                        onRename()
+                    },
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Default.Edit, contentDescription = null)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Delete") },
+                    onClick = {
+                        showMenu = false
+                        onDelete()
+                    },
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = null)
+                    }
+                )
             }
-        }
-
-        androidx.compose.material3.DropdownMenu(
-            expanded = showMenu,
-            onDismissRequest = { showMenu = false }
-        ) {
-            androidx.compose.material3.DropdownMenuItem(
-                text = { Text("Remove from collection") },
-                onClick = {
-                    showMenu = false
-                    onRemove()
-                },
-                leadingIcon = {
-                    Icon(imageVector = Icons.Default.RemoveCircleOutline, contentDescription = null)
-                }
-            )
         }
     }
 }

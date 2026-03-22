@@ -474,7 +474,7 @@ fun LibraryItemCard(
 }
 
 @Composable
-private fun AddToCollectionDialog(
+fun AddToCollectionDialog(
     collections: List<VideoCollection>,
     onDismiss: () -> Unit,
     onCreateCollection: (String) -> Boolean,
