@@ -21,6 +21,8 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
+import androidx.lifecycle.Lifecycle
 import androidx.room.Room
 import androidx.core.view.WindowCompat
 import androidx.test.core.app.ApplicationProvider
@@ -275,6 +277,40 @@ class ReaderScreenTest {
         assertSystemBarsVisible(visible = true)
     }
 
+    @Test
+    fun backgroundingApp_savesStudyScrollWithoutDisposingReader() {
+        runBlocking {
+            db.subtitleDao().updateStudyContent(subtitleId, longStudyContent())
+        }
+
+        setReaderContent()
+
+        val initialScroll = runBlocking {
+            db.subtitleDao().getById(subtitleId)?.lastStudyScroll ?: 0
+        }
+        assertEquals(0, initialScroll)
+
+        composeTestRule.onRoot().performTouchInput {
+            swipeUp()
+        }
+        composeTestRule.waitForIdle()
+
+        composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            runBlocking {
+                (db.subtitleDao().getById(subtitleId)?.lastStudyScroll ?: 0) > 0
+            }
+        }
+
+        val savedScroll = runBlocking {
+            db.subtitleDao().getById(subtitleId)?.lastStudyScroll ?: 0
+        }
+        assertTrue("Expected study scroll to be saved on background, but was $savedScroll", savedScroll > 0)
+
+        composeTestRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+    }
+
     private fun setReaderContent() {
         showReaderContent.value = true
         composeTestRule.runOnUiThread {
@@ -459,5 +495,13 @@ class ReaderScreenTest {
             visible = !statusBarHidden && !navigationBarHidden
         }
         return visible
+    }
+
+    private fun longStudyContent(): String = buildString {
+        repeat(200) { index ->
+            append("Scrollable study line ")
+            append(index + 1)
+            append('\n')
+        }
     }
 }

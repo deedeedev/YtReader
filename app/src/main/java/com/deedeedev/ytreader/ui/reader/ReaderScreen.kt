@@ -64,6 +64,9 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.AiCleaningRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
@@ -270,9 +273,32 @@ fun ReaderScreen(
             }
     }
 
-    DisposableEffect(subtitle.id) {
-        onDispose {
-            viewModel.updateLastStudyScroll(lastKnownStudyScroll)
+    val persistReadingProgress by rememberUpdatedState(newValue = {
+        val scrollToSave = if (readerMode == ReaderMode.STUDY) {
+            studyScrollState.value
+        } else {
+            lastKnownStudyScroll
+        }
+        viewModel.updateLastStudyScroll(scrollToSave)
+    })
+
+    DisposableEffect(activity, subtitle.id) {
+        val lifecycle = (activity as? LifecycleOwner)?.lifecycle
+        if (lifecycle == null) {
+            onDispose {
+                persistReadingProgress()
+            }
+        } else {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_STOP) {
+                    persistReadingProgress()
+                }
+            }
+            lifecycle.addObserver(observer)
+            onDispose {
+                lifecycle.removeObserver(observer)
+                persistReadingProgress()
+            }
         }
     }
 
@@ -378,12 +404,7 @@ fun ReaderScreen(
     fun runPendingAction(action: PendingAction) {
         when (action) {
             PendingAction.ExitScreen -> {
-                val scrollToSave = if (readerMode == ReaderMode.STUDY) {
-                    studyScrollState.value
-                } else {
-                    lastKnownStudyScroll
-                }
-                viewModel.updateLastStudyScroll(scrollToSave)
+                persistReadingProgress()
                 onBack()
             }
             PendingAction.ExitEditing -> {
