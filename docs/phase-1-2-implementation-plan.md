@@ -35,34 +35,6 @@ Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 
 ## Phase 2 — Scalability
 
-## P2-3. Extract duplicated Library/Collection UI logic
-
-**Status**
-- **Partially implemented**
-
-**Remaining implementation**
-1. Extract shared controls (channel filter + sort selector + sort direction) into reusable home UI components.
-2. Extract shared empty-state logic and common list-section scaffolding.
-3. Keep collection-only behavior local (swipe remove from collection, missing-count text).
-
-**Primary files**
-- `app/src/main/java/com/deedeedev/ytreader/ui/home/LibraryScreen.kt`
-- `app/src/main/java/com/deedeedev/ytreader/ui/home/CollectionDetailScreen.kt`
-- New shared UI files under `app/src/main/java/com/deedeedev/ytreader/ui/home/`.
-
-**Tests needed**
-- UI behavior parity checks for both screens.
-- Manual regression on filter/sort behavior.
-
-**Acceptance criteria**
-- Shared filter/sort UI logic exists in one place.
-- Library and Collection screens remain behaviorally consistent.
-
-**Effort**
-- **M**
-
----
-
 ## P2-FU1. ReaderScreen refactor (maintainability follow-up)
 
 **Status**
