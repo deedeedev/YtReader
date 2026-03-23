@@ -2,30 +2,38 @@
 
 ## Scope
 
-This plan covers the roadmap items already agreed for:
+This is a status-updated implementation plan focused on Phase 2 scalability work, plus one required follow-up refactor identified from the current codebase.
+
+In scope:
 
 - **Phase 2 (scalability):** Room query/index improvements, lifecycle-aware flow collection, Library/Collection UI extraction.
+- **Reader maintainability follow-up:** split `ReaderScreen.kt` if kept in active development.
 
-Out of scope for this plan: ReaderScreen large refactor, DataStore migration, i18n pass, and new product features (Phase 3).
+Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 
 ---
 
-## Current Baseline (verified)
+## Current Baseline (verified against code)
 
-- DB is Room v11 in `app/src/main/java/com/deedeedev/ytreader/data/local/AppDatabase.kt`, with migrations defined in `app/src/main/java/com/deedeedev/ytreader/AppContainer.kt`.
-- Migration tests currently cover only 8→9 in `app/src/androidTest/java/com/deedeedev/ytreader/data/local/AppDatabaseMigrationTest.kt`.
-- Library/Collection screens do in-memory grouping/filter/sort in:
+- Room DB is now **v12** in `app/src/main/java/com/deedeedev/ytreader/data/local/AppDatabase.kt`.
+- `SubtitleEntity` currently has a unique index only on `videoId + trackIdentity` in `app/src/main/java/com/deedeedev/ytreader/data/local/SubtitleEntity.kt`.
+- `SubtitleDao` still exposes broad list access (`getAll`) and does not yet provide DAO projections/queries for grouped library rows by video.
+- Library/Collection screens still do in-memory grouping/filtering/sorting in:
   - `app/src/main/java/com/deedeedev/ytreader/ui/home/LibraryScreen.kt`
   - `app/src/main/java/com/deedeedev/ytreader/ui/home/CollectionDetailScreen.kt`
-- Multiple screens collect flows with `collectAsState()` (not lifecycle-aware), including `app/src/main/java/com/deedeedev/ytreader/MainActivity.kt`, `SearchScreen.kt`, `LibraryScreen.kt`, `CollectionDetailScreen.kt`, `CollectionsScreen.kt`, `SettingsScreen.kt`, and `ReaderScreen.kt`.
+- Lifecycle-aware collection is not yet adopted:
+  - `collectAsStateWithLifecycle()` is not used.
+  - `collectAsState()` is still used in `MainActivity`, `SearchScreen`, `LibraryScreen`, `CollectionDetailScreen`, `CollectionsScreen`, `SettingsScreen`, and `ReaderScreen`.
+- Migration coverage changed: `app/src/androidTest/java/com/deedeedev/ytreader/data/local/AppDatabaseMigrationTest.kt` validates latest schema/hash and index presence, but does not verify upgrade paths across historical versions.
+- `ReaderScreen.kt` is currently very large (~2169 lines), mixing screen orchestration, gesture handling, dialog state, persistence side-effects, and AndroidView configuration.
 
 ---
 
 ## Delivery Strategy
 
-- Ship **Phase 2** as one scalability release.
-- Keep behavior-compatible changes first, then internal cleanup/extraction.
-- Add tests in parallel with each ticket to avoid backlog risk.
+- Keep low-risk behavior-preserving changes first (lifecycle collection), then data/query reshaping, then UI extraction.
+- Add tests with each ticket.
+- Treat Reader refactor as an immediate follow-up after Phase 2 core items (or in parallel if touching reader features).
 
 ---
 
@@ -33,15 +41,18 @@ Out of scope for this plan: ReaderScreen large refactor, DataStore migration, i1
 
 ## P2-1. Push library filtering/sorting/grouping into Room + add indexes
 
-**Goal**
-Reduce UI-thread and memory pressure as subtitle library scales.
+**Status**
+- **Partially implemented**
+  - Done: identity keying and unique index on `videoId + trackIdentity`.
+  - Remaining: query/index work for scalable library browsing.
 
-**Implementation**
-1. Add targeted indexes on frequently queried/sorted columns:
-   - `videoId`, `createdAt`, `lastOpenedAt`, `channelName`, and any new identity keys.
-2. Introduce DAO query models for library summaries (grouped by video) and subtitle tracks per video.
-3. Move filter/sort computation from composables into DAO/ViewModel pipeline.
-4. Keep UI pure-rendering: it receives already grouped/sorted state.
+**Remaining implementation**
+1. Add targeted non-unique indexes for sorting/filtering paths (at minimum `createdAt`, `lastOpenedAt`, `channelName`; retain existing identity index).
+2. Add DAO projection/query models for:
+   - library rows grouped by `videoId`
+   - subtitle tracks per video
+3. Move filter/sort/group logic from `LibraryScreen` and `CollectionDetailScreen` into DAO + ViewModel.
+4. Keep composables render-only with precomputed UI models.
 
 **Primary files**
 - `app/src/main/java/com/deedeedev/ytreader/data/local/SubtitleEntity.kt`
@@ -50,17 +61,14 @@ Reduce UI-thread and memory pressure as subtitle library scales.
 - `app/src/main/java/com/deedeedev/ytreader/ui/home/LibraryScreen.kt`
 - `app/src/main/java/com/deedeedev/ytreader/ui/home/CollectionDetailScreen.kt`
 
-**Tests**
-- DAO/instrumentation:
-  - query returns expected order for each `SortOption`
-  - channel filter correctness
-  - grouping correctness with multiple tracks/video
-- Performance sanity:
-  - synthetic large dataset benchmark (or macro-level timing logs)
+**Tests needed**
+- DAO/instrumentation tests for sort order, channel filtering, grouping behavior.
+- Regression tests for collection membership + missing-item behavior.
+- Optional performance sanity test with large synthetic subtitle set.
 
 **Acceptance criteria**
-- No large in-memory group/sort in composables.
-- Scrolling and screen open time remain stable on larger libraries.
+- No large in-memory group/sort remains in `LibraryScreen` / `CollectionDetailScreen`.
+- Sorting/filtering/grouping behavior remains functionally equivalent.
 
 **Effort**
 - **L**
@@ -69,17 +77,17 @@ Reduce UI-thread and memory pressure as subtitle library scales.
 
 ## P2-2. Lifecycle-aware flow collection in Compose
 
-**Goal**
-Avoid unnecessary collection/work while screens are backgrounded.
+**Status**
+- **Not implemented**
 
-**Implementation**
-1. Add lifecycle compose dependency (`lifecycle-runtime-compose`) if missing.
-2. Replace `collectAsState()` with `collectAsStateWithLifecycle()` in all UI screens and activity compose trees.
-3. Verify no behavior regressions for immediate state updates.
+**Remaining implementation**
+1. Add `lifecycle-runtime-compose` to version catalog and app dependencies.
+2. Replace long-lived `collectAsState()` usages with `collectAsStateWithLifecycle()`.
+3. Verify behavior when app backgrounds/foregrounds during updates.
 
 **Primary files**
-- `app/build.gradle.kts`
 - `gradle/libs.versions.toml`
+- `app/build.gradle.kts`
 - `app/src/main/java/com/deedeedev/ytreader/MainActivity.kt`
 - `app/src/main/java/com/deedeedev/ytreader/ui/home/SearchScreen.kt`
 - `app/src/main/java/com/deedeedev/ytreader/ui/home/LibraryScreen.kt`
@@ -88,13 +96,13 @@ Avoid unnecessary collection/work while screens are backgrounded.
 - `app/src/main/java/com/deedeedev/ytreader/ui/settings/SettingsScreen.kt`
 - `app/src/main/java/com/deedeedev/ytreader/ui/reader/ReaderScreen.kt`
 
-**Tests**
-- Build and UI smoke tests.
-- Manual: background/foreground app while long-running updates happen.
+**Tests needed**
+- Build and smoke tests.
+- Manual lifecycle checks (foreground/background) during active flows.
 
 **Acceptance criteria**
-- No plain `collectAsState()` remains for long-lived app flows.
-- UI state still updates correctly when returning to foreground.
+- No long-lived UI flows rely on plain `collectAsState()`.
+- No missed updates after returning to foreground.
 
 **Effort**
 - **S**
@@ -103,42 +111,70 @@ Avoid unnecessary collection/work while screens are backgrounded.
 
 ## P2-3. Extract duplicated Library/Collection UI logic
 
-**Goal**
-Cut maintenance overhead and keep filter/sort behavior consistent.
+**Status**
+- **Not implemented**
 
-**Implementation**
-1. Extract shared composables/state holders:
-   - filter/sort toolbar
-   - empty/error list states
-   - shared list controller for sort/filter selections
-2. Keep `LibraryItemCard`, `AddToCollectionDialog`, and subtitle chip behaviors centralized.
-3. Ensure Collection-specific behaviors (swipe remove, missing count) stay local.
+**Remaining implementation**
+1. Extract shared controls (channel filter + sort selector + sort direction).
+2. Extract shared empty-state logic and common list section scaffolding.
+3. Keep collection-only behavior local (swipe remove from collection, missing-count text).
 
 **Primary files**
 - `app/src/main/java/com/deedeedev/ytreader/ui/home/LibraryScreen.kt`
 - `app/src/main/java/com/deedeedev/ytreader/ui/home/CollectionDetailScreen.kt`
-- (new) shared UI file(s), e.g.:
-  - `app/src/main/java/com/deedeedev/ytreader/ui/home/LibraryControls.kt`
-  - `app/src/main/java/com/deedeedev/ytreader/ui/home/LibraryListState.kt`
+- New shared UI files under `app/src/main/java/com/deedeedev/ytreader/ui/home/`.
 
-**Tests**
-- UI behavior regression checks for both screens.
-- Snapshot/manual verification for sort/filter interactions.
+**Tests needed**
+- UI behavior parity checks for both screens.
+- Manual regression on filter/sort behavior.
 
 **Acceptance criteria**
-- Shared logic exists in one place.
-- Library and Collection screens still behave identically where intended.
+- Shared filter/sort UI logic exists in one place.
+- Library and Collection screens remain behaviorally consistent.
 
 **Effort**
 - **M**
 
 ---
 
+## P2-FU1. ReaderScreen refactor (maintainability follow-up)
+
+**Why this is now needed**
+- `app/src/main/java/com/deedeedev/ytreader/ui/reader/ReaderScreen.kt` has grown very large and mixes many concerns.
+- Current structure increases regression risk when changing reader features.
+
+**Implementation**
+1. Split Reader screen into focused components:
+   - top/bottom bars and actions
+   - study/original content panes
+   - find/find-replace dialogs
+   - brightness gesture/indicator
+2. Move non-UI orchestration/state transitions into a dedicated reader state holder or ViewModel helpers.
+3. Remove duplicated AndroidView setup code by introducing reusable setup/update helpers.
+
+**Primary files**
+- `app/src/main/java/com/deedeedev/ytreader/ui/reader/ReaderScreen.kt`
+- New files under `app/src/main/java/com/deedeedev/ytreader/ui/reader/` (suggested split by feature area).
+
+**Tests needed**
+- Existing reader UI tests kept green.
+- Focused regression checks for selection, highlight, find, editing, and brightness gestures.
+
+**Acceptance criteria**
+- `ReaderScreen.kt` is substantially smaller and delegates to subcomponents.
+- No functional regressions in reader workflows.
+
+**Effort**
+- **L**
+
+---
+
 ## Suggested Sequence
 
-1. **P2-2** (lifecycle collection) — low-risk scalability hygiene.
-2. **P2-1** (Room queries/indexes) — core scalability uplift.
-3. **P2-3** (UI extraction) — maintainability cleanup after data flow stabilizes.
+1. **P2-2** (lifecycle collection).
+2. **P2-1** (Room query/index scalability).
+3. **P2-3** (Library/Collection UI extraction).
+4. **P2-FU1** (ReaderScreen refactor).
 
 ---
 
@@ -150,25 +186,29 @@ Cut maintenance overhead and keep filter/sort behavior consistent.
 - `./gradlew lint`
 
 Manual release checks:
-- Subtitle download/save/redownload
-- Collection add/remove paths
-- AI clean start/cancel/complete flows
-- Notification open-to-reader deep link
-- Library + Collection sorting/filtering at scale
+- Subtitle download/save/redownload.
+- Collection add/remove paths.
+- AI clean start/cancel/complete flows.
+- Notification open-to-reader deep link.
+- Library + Collection sorting/filtering at scale.
+- Reader selection/highlight/find/edit/brightness interactions.
 
 ---
 
 ## Risks & Mitigations
 
-- **Query complexity in Room**: hard-to-maintain SQL.
-  - Mitigation: introduce DAO projection models and add targeted query tests.
-- **Behavior drift during UI extraction**:
-  - Mitigation: extract in small commits with parity checks each step.
+- **Room query complexity** can reduce maintainability.
+  - Mitigation: add projection data classes and query tests before UI switch-over.
+- **Behavior drift during UI extraction** across Library/Collection.
+  - Mitigation: extract incrementally with parity checks.
+- **Reader regressions during refactor** due to cross-cutting logic.
+  - Mitigation: keep behavior-preserving commits and validate feature-by-feature.
 
 ---
 
 ## Definition of Done
 
-- All Phase 2 tickets merged with tests.
+- Phase 2 scalability tickets completed with tests.
+- Reader follow-up refactor ticket completed (or explicitly deferred in roadmap).
 - No blocking regressions in reader/library/AI-clean flows.
 - Library interactions remain smooth with large subtitle datasets.
