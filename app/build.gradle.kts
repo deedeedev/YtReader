@@ -39,12 +39,17 @@ configure<ApplicationExtension> {
     buildFeatures {
         compose = true
     }
+
 }
 
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_11)
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {

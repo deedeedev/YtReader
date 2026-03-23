@@ -4,7 +4,6 @@
 
 This plan covers the roadmap items already agreed for:
 
-- **Phase 1 (stability):** migration testing hardening.
 - **Phase 2 (scalability):** Room query/index improvements, lifecycle-aware flow collection, Library/Collection UI extraction.
 
 Out of scope for this plan: ReaderScreen large refactor, DataStore migration, i18n pass, and new product features (Phase 3).
@@ -24,46 +23,9 @@ Out of scope for this plan: ReaderScreen large refactor, DataStore migration, i1
 
 ## Delivery Strategy
 
-- Ship **Phase 1** as one stability release with strict migration verification.
-- Ship **Phase 2** as one scalability release after Phase 1 is in production.
+- Ship **Phase 2** as one scalability release.
 - Keep behavior-compatible changes first, then internal cleanup/extraction.
 - Add tests in parallel with each ticket to avoid backlog risk.
-
----
-
-## Phase 1 — Stability
-
-## P1-4. Migration testing hardening (High impact)
-
-**Goal**
-Guarantee users can upgrade safely across all supported DB versions.
-
-**Implementation**
-1. Enable schema export:
-   - set `exportSchema = true` in Room DB annotation.
-   - configure Room schema output in Gradle/KSP.
-2. Add `room-testing` dependency.
-3. Replace narrow migration test with:
-   - full-path migration tests from earliest supported version to latest;
-   - assertions for newly added identity fields/indexes/defaults;
-   - duplicate constraint behavior checks.
-
-**Primary files**
-- `app/src/main/java/com/deedeedev/ytreader/data/local/AppDatabase.kt`
-- `app/build.gradle.kts`
-- `gradle/libs.versions.toml`
-- `app/src/androidTest/java/com/deedeedev/ytreader/data/local/AppDatabaseMigrationTest.kt`
-- (generated) `app/schemas/**`
-
-**Tests**
-- `./gradlew :app:connectedAndroidTest --tests "*AppDatabaseMigrationTest*"`
-
-**Acceptance criteria**
-- Migration suite covers all active upgrade paths.
-- Build fails if schema drift is unaccounted for.
-
-**Effort**
-- **M**
 
 ---
 
@@ -174,10 +136,9 @@ Cut maintenance overhead and keep filter/sort behavior consistent.
 
 ## Suggested Sequence
 
-1. **P1-4** (migration test hardening) — lock in migration safety.
-2. **P2-2** (lifecycle collection) — low-risk scalability hygiene.
-3. **P2-1** (Room queries/indexes) — core scalability uplift.
-4. **P2-3** (UI extraction) — maintainability cleanup after data flow stabilizes.
+1. **P2-2** (lifecycle collection) — low-risk scalability hygiene.
+2. **P2-1** (Room queries/indexes) — core scalability uplift.
+3. **P2-3** (UI extraction) — maintainability cleanup after data flow stabilizes.
 
 ---
 
@@ -185,7 +146,7 @@ Cut maintenance overhead and keep filter/sort behavior consistent.
 
 - `./gradlew :app:assembleDebug`
 - `./gradlew :app:testDebugUnitTest`
-- `./gradlew :app:connectedAndroidTest` (migration-focused subset minimum)
+- `./gradlew :app:connectedAndroidTest`
 - `./gradlew lint`
 
 Manual release checks:
@@ -208,7 +169,6 @@ Manual release checks:
 
 ## Definition of Done
 
-- All Phase 1/2 tickets merged with tests.
-- No blocking migration issues on upgrade paths.
+- All Phase 2 tickets merged with tests.
 - No blocking regressions in reader/library/AI-clean flows.
 - Library interactions remain smooth with large subtitle datasets.
