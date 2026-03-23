@@ -52,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -83,6 +84,11 @@ fun CollectionDetailScreen(
                 val first = subtitles.first()
                 LibraryItem(
                     videoId = first.videoId,
+                    videoUrl = first.videoUrl.ifBlank {
+                        YouTubeVideoIdNormalizer.extractVideoId(first.videoId)?.let {
+                            YouTubeVideoIdNormalizer.canonicalWatchUrl(it)
+                        } ?: first.videoId
+                    },
                     title = first.title,
                     channelName = first.channelName,
                     subtitles = subtitles.sortedBy { it.languageCode },

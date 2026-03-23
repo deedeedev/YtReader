@@ -73,7 +73,7 @@ class ReaderScreenTest {
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         preferencesRepository = UserPreferencesRepository(context)
         preferencesRepository.setAppBrightness(UserPreferencesRepository.BRIGHTNESS_FOLLOW_SYSTEM)
-        db.subtitleDao().insert(
+        db.subtitleDao().upsertByIdentity(
             SubtitleEntity(
                 videoId = "video-1",
                 title = "Reader Test Title",

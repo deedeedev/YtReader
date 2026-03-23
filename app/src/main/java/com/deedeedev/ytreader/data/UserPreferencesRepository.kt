@@ -2,9 +2,10 @@ package com.deedeedev.ytreader.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
+import com.deedeedev.ytreader.ui.theme.AppTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.deedeedev.ytreader.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -213,6 +214,29 @@ class UserPreferencesRepository(context: Context) {
         persistCollections(updated)
     }
 
+    fun normalizeCollectionVideoIds() {
+        if (prefs.getBoolean(KEY_COLLECTION_IDS_NORMALIZED, false)) {
+            return
+        }
+
+        val normalized = _videoCollections.value.map { collection ->
+            val normalizedIds = collection.videoIds.mapNotNull { rawValue ->
+                val trimmed = rawValue.trim()
+                if (trimmed.isBlank()) {
+                    return@mapNotNull null
+                }
+                val extracted = YouTubeVideoIdNormalizer.extractVideoId(trimmed)
+                extracted ?: trimmed
+            }.distinct()
+            collection.copy(videoIds = normalizedIds)
+        }
+
+        if (normalized != _videoCollections.value) {
+            persistCollections(normalized)
+        }
+        prefs.edit().putBoolean(KEY_COLLECTION_IDS_NORMALIZED, true).apply()
+    }
+
     fun setDefaultFontSize(size: Float) {
         prefs.edit().putFloat(KEY_DEFAULT_FONT_SIZE, size).apply()
         _defaultFontSize.value = size
@@ -285,6 +309,7 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_AI_MODEL = "ai_model"
         private const val KEY_AI_PROMPT = "ai_prompt"
         private const val KEY_VIDEO_COLLECTIONS = "video_collections"
+        private const val KEY_COLLECTION_IDS_NORMALIZED = "collection_ids_normalized"
 
         const val BRIGHTNESS_FOLLOW_SYSTEM = -1f
     }

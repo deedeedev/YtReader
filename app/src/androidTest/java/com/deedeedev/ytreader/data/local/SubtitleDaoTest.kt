@@ -45,7 +45,7 @@ class SubtitleDaoTest {
             languageCode = "en",
             content = "Hello World"
         )
-        subtitleDao.insert(subtitle)
+        subtitleDao.upsertByIdentity(subtitle)
         
         val allSubtitles = subtitleDao.getAll().first()
         assertEquals(1, allSubtitles.size)
@@ -66,7 +66,7 @@ class SubtitleDaoTest {
             languageCode = "en",
             content = "Hello World"
         )
-        subtitleDao.insert(subtitle)
+        subtitleDao.upsertByIdentity(subtitle)
 
         val inserted = subtitleDao.getAll().first().first()
         val highlights = "0,5,RED|6,11,BLUE"
@@ -96,8 +96,8 @@ class SubtitleDaoTest {
             content = "auto content"
         )
 
-        subtitleDao.insert(manual)
-        subtitleDao.insert(auto)
+        subtitleDao.upsertByIdentity(manual)
+        subtitleDao.upsertByIdentity(auto)
 
         val saved = subtitleDao.getAll().first().filter { it.videoId == "video-123" && it.languageCode == "it" }
         assertEquals(2, saved.size)
@@ -116,7 +116,7 @@ class SubtitleDaoTest {
             lastStudyScroll = 7,
             highlights = "0,4,YELLOW"
         )
-        subtitleDao.insert(subtitle)
+        subtitleDao.upsertByIdentity(subtitle)
 
         val inserted = subtitleDao.getAll().first().first()
         val newCreatedAt = inserted.createdAt + 1_000L
@@ -145,7 +145,7 @@ class SubtitleDaoTest {
             languageCode = "en",
             content = "raw content"
         )
-        subtitleDao.insert(subtitle)
+        subtitleDao.upsertByIdentity(subtitle)
 
         val inserted = subtitleDao.getAll().first().first()
         subtitleDao.markAiCleaningQueued(

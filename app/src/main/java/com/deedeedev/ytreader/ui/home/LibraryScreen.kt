@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.local.SubtitleEntity
+import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -68,6 +69,7 @@ fun LibraryScreen(
                 val first = subtitles.first()
                 LibraryItem(
                     videoId = first.videoId,
+                    videoUrl = displayUrlFor(first),
                     title = first.title,
                     channelName = first.channelName,
                     subtitles = subtitles.sortedBy { it.languageCode },
@@ -335,6 +337,7 @@ fun LibraryScreen(
 
 data class LibraryItem(
     val videoId: String,
+    val videoUrl: String,
     val title: String,
     val channelName: String,
     val subtitles: List<SubtitleEntity>,
@@ -342,6 +345,18 @@ data class LibraryItem(
     val lastDownloaded: Long,
     val lastOpenedAt: Long
 )
+
+private fun displayUrlFor(subtitle: SubtitleEntity): String {
+    val savedUrl = subtitle.videoUrl.trim()
+    if (savedUrl.isNotBlank()) {
+        return savedUrl
+    }
+    val normalizedVideoId = YouTubeVideoIdNormalizer.extractVideoId(subtitle.videoId)
+    if (normalizedVideoId != null) {
+        return YouTubeVideoIdNormalizer.canonicalWatchUrl(normalizedVideoId)
+    }
+    return subtitle.videoId
+}
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -364,7 +379,7 @@ fun LibraryItemCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .combinedClickable(
-                    onClick = { onVideoClick(item.videoId) },
+                    onClick = { onVideoClick(item.videoUrl) },
                     onLongClick = { showMenu = true }
                 ),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -414,7 +429,7 @@ fun LibraryItemCard(
             DropdownMenuItem(
                 text = { Text("Copy video URL") },
                 onClick = {
-                    clipboardManager.setText(AnnotatedString(item.videoId))
+                    clipboardManager.setText(AnnotatedString(item.videoUrl))
                     showMenu = false
                 },
                 leadingIcon = {
@@ -429,7 +444,7 @@ fun LibraryItemCard(
                 onClick = {
                     val sendIntent = Intent().apply {
                         action = Intent.ACTION_SEND
-                        putExtra(Intent.EXTRA_TEXT, item.videoId)
+                        putExtra(Intent.EXTRA_TEXT, item.videoUrl)
                         type = "text/plain"
                     }
                     val shareIntent = Intent.createChooser(sendIntent, null)

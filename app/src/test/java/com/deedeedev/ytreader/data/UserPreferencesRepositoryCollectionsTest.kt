@@ -65,6 +65,32 @@ class UserPreferencesRepositoryCollectionsTest {
         assertEquals(listOf("video-1"), videos)
     }
 
+    @Test
+    fun normalizeCollectionVideoIds_convertsYoutubeUrlsToCanonicalIds() {
+        val repository = createRepository(
+            initialCollectionsJson =
+            """
+            [
+              {
+                "id": "collection-1",
+                "name": "Favorites",
+                "videoIds": [
+                  "https://youtu.be/dQw4w9WgXcQ?t=1",
+                  "dQw4w9WgXcQ",
+                  "https://www.youtube.com/watch?v=9bZkp7q19f0"
+                ],
+                "createdAt": 1
+              }
+            ]
+            """.trimIndent()
+        )
+
+        repository.normalizeCollectionVideoIds()
+
+        val ids = repository.videoCollections.value.first().videoIds
+        assertEquals(listOf("dQw4w9WgXcQ", "9bZkp7q19f0"), ids)
+    }
+
     private fun createRepository(initialCollectionsJson: String? = null): UserPreferencesRepository {
         val context = mock<Context>()
         val sharedPreferences = mock<SharedPreferences>()
@@ -88,6 +114,9 @@ class UserPreferencesRepositoryCollectionsTest {
                 defaultValue
             }
         }
+        whenever(sharedPreferences.getBoolean(any(), any())).thenAnswer { invocation ->
+            invocation.arguments[1] as Boolean
+        }
 
         whenever(sharedPreferences.edit()).thenReturn(editor)
         whenever(editor.putString(any(), anyOrNull())).thenAnswer { invocation ->
@@ -98,6 +127,7 @@ class UserPreferencesRepositoryCollectionsTest {
             }
             editor
         }
+        whenever(editor.putBoolean(any(), any())).thenReturn(editor)
 
         return UserPreferencesRepository(context)
     }
