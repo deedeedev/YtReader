@@ -31,8 +31,12 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            CenterAlignedTopAppBar(title = { Text("Settings") })
+            CenterAlignedTopAppBar(
+                title = { Text("Settings") },
+                windowInsets = WindowInsets(0, 0, 0, 0)
+            )
         }
     ) { innerPadding ->
         LazyColumn(

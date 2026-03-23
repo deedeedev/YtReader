@@ -69,6 +69,10 @@ fun ReaderScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
+    val activity = remember(context) { context.findActivity() }
+    var isUiVisible by rememberSaveable(subtitleId) { mutableStateOf(false) }
+    var isEditing by rememberSaveable(subtitleId) { mutableStateOf(false) }
     val viewModel: ReaderViewModel = viewModel(
         key = "Reader_$subtitleId",
         factory = ReaderViewModel.provideFactory(
@@ -80,6 +84,13 @@ fun ReaderScreen(
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val subtitle = uiState.subtitle
+
+    ReaderSystemBarsEffect(
+        activity = activity,
+        view = view,
+        isUiVisible = isUiVisible,
+        isEditing = isEditing
+    )
 
     if (uiState.isLoading || subtitle == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -101,7 +112,6 @@ fun ReaderScreen(
     }
 
     val clipboardManager = LocalClipboardManager.current
-    val view = LocalView.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val originalListState = rememberLazyListState()
@@ -110,13 +120,10 @@ fun ReaderScreen(
     val lineHeightSp = fontSize * uiState.lineHeightMultiplier
     val readerTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val readerBackgroundColor = Color.Transparent.toArgb()
-    val activity = remember(context) { context.findActivity() }
     val appBrightnessPreference by userPreferencesRepository.appBrightness.collectAsStateWithLifecycle()
 
     var readerMode by rememberSaveable { mutableStateOf(ReaderMode.STUDY) }
     var showTimestamps by rememberSaveable { mutableStateOf(false) }
-    var isUiVisible by rememberSaveable { mutableStateOf(false) }
-    var isEditing by rememberSaveable { mutableStateOf(false) }
     // Large transcripts can exceed the saved-instance-state Binder limit if persisted via rememberSaveable.
     var editText by remember(subtitle.id) { mutableStateOf(uiState.content) }
     var showEmptyDialog by remember { mutableStateOf(false) }
@@ -495,13 +502,6 @@ fun ReaderScreen(
             }
         }
     }
-
-    ReaderSystemBarsEffect(
-        activity = activity,
-        view = view,
-        isUiVisible = isUiVisible,
-        isEditing = isEditing
-    )
 
     ReaderScreenMainLayer(
         readerMode = readerMode,
