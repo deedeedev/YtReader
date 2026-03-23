@@ -8,6 +8,83 @@ import org.junit.Test
 class ReaderScreenActionsTest {
 
     @Test
+    fun `classifyReaderTapZone returns toggle for center taps`() {
+        val zone = classifyReaderTapZone(ReaderTapPosition(xFraction = 0.5f, yFraction = 0.5f))
+
+        assertEquals(ReaderTapZone.TOGGLE_UI, zone)
+    }
+
+    @Test
+    fun `classifyReaderTapZone uses horizontal precedence for corners`() {
+        val topRight = classifyReaderTapZone(ReaderTapPosition(xFraction = 0.9f, yFraction = 0.1f))
+        val bottomLeft = classifyReaderTapZone(ReaderTapPosition(xFraction = 0.1f, yFraction = 0.9f))
+
+        assertEquals(ReaderTapZone.NEXT_PAGE, topRight)
+        assertEquals(ReaderTapZone.PREVIOUS_PAGE, bottomLeft)
+    }
+
+    @Test
+    fun `classifyReaderTapZone uses vertical edges inside center column`() {
+        val topCenter = classifyReaderTapZone(ReaderTapPosition(xFraction = 0.5f, yFraction = 0.1f))
+        val bottomCenter = classifyReaderTapZone(ReaderTapPosition(xFraction = 0.5f, yFraction = 0.9f))
+
+        assertEquals(ReaderTapZone.PREVIOUS_PAGE, topCenter)
+        assertEquals(ReaderTapZone.NEXT_PAGE, bottomCenter)
+    }
+
+    @Test
+    fun `targetScrollForPageStep moves by viewport and clamps`() {
+        val next = targetScrollForPageStep(
+            currentValue = 250,
+            maxValue = 900,
+            viewportHeightPx = 300,
+            isForward = true
+        )
+        val previous = targetScrollForPageStep(
+            currentValue = 250,
+            maxValue = 900,
+            viewportHeightPx = 300,
+            isForward = false
+        )
+        val clampedEnd = targetScrollForPageStep(
+            currentValue = 850,
+            maxValue = 900,
+            viewportHeightPx = 300,
+            isForward = true
+        )
+
+        assertEquals(550, next)
+        assertEquals(0, previous)
+        assertEquals(900, clampedEnd)
+    }
+
+    @Test
+    fun `targetListIndexForPageStep moves by visible count and clamps`() {
+        val next = targetListIndexForPageStep(
+            currentFirstVisibleItemIndex = 4,
+            totalItems = 20,
+            visibleItemsCount = 5,
+            isForward = true
+        )
+        val previous = targetListIndexForPageStep(
+            currentFirstVisibleItemIndex = 4,
+            totalItems = 20,
+            visibleItemsCount = 5,
+            isForward = false
+        )
+        val clampedEnd = targetListIndexForPageStep(
+            currentFirstVisibleItemIndex = 18,
+            totalItems = 20,
+            visibleItemsCount = 5,
+            isForward = true
+        )
+
+        assertEquals(9, next)
+        assertEquals(0, previous)
+        assertEquals(19, clampedEnd)
+    }
+
+    @Test
     fun `executeReaderFindSearch returns error for invalid regex`() {
         val outcome = executeReaderFindSearch(
             query = "(",

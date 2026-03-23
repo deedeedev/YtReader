@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.text.Layout
 import android.text.Selection
@@ -26,7 +27,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
 
     var onSelectionChangedListener: ((start: Int, end: Int) -> Unit)? = null
     var onHighlightTappedListener: ((TextHighlight?) -> Unit)? = null
-    internal var onTextTapListener: ((TextTapOutcome) -> Unit)? = null
+    internal var onTextTapListener: ((TextTapOutcome, ReaderTapPosition) -> Unit)? = null
 
     private val textPaint = TextPaint(TextPaint.ANTI_ALIAS_FLAG).apply {
         color = Color.BLACK
@@ -302,16 +303,38 @@ class JustifiedStudyTextView @JvmOverloads constructor(
             return
         }
 
+        val tapPosition = tapPosition(event)
+
         val tapOutcome = if (hadActiveSelectionOnDown && hasActiveSelection()) {
             clearSelection()
             TextTapOutcome.DISMISSED_SELECTION
         } else {
             TextTapOutcome.PLAIN_TEXT
         }
-        onTextTapListener?.invoke(tapOutcome)
+        onTextTapListener?.invoke(tapOutcome, tapPosition)
         if (tapOutcome == TextTapOutcome.PLAIN_TEXT) {
             onHighlightTappedListener?.invoke(null)
         }
+    }
+
+    private fun tapPosition(event: MotionEvent): ReaderTapPosition {
+        val visibleRect = Rect()
+        val hasVisibleRect = getGlobalVisibleRect(visibleRect)
+        if (hasVisibleRect && visibleRect.width() > 0 && visibleRect.height() > 0) {
+            return ReaderTapPosition(
+                xFraction = ((event.rawX - visibleRect.left) / visibleRect.width().toFloat())
+                    .coerceIn(0f, 1f),
+                yFraction = ((event.rawY - visibleRect.top) / visibleRect.height().toFloat())
+                    .coerceIn(0f, 1f)
+            )
+        }
+
+        val safeWidth = width.coerceAtLeast(1)
+        val safeHeight = height.coerceAtLeast(1)
+        return ReaderTapPosition(
+            xFraction = (event.x / safeWidth.toFloat()).coerceIn(0f, 1f),
+            yFraction = (event.y / safeHeight.toFloat()).coerceIn(0f, 1f)
+        )
     }
 
     private fun updateSelectionRange(range: TextRange) {

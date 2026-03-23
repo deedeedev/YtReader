@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
@@ -57,6 +58,7 @@ class ReaderScreenTest {
         private const val READER_FIND_REPLACE_REPLACEMENT_TAG = "reader_find_replace_replacement"
         private const val READER_BRIGHTNESS_GESTURE_TAG = "reader_brightness_gesture"
         private const val READER_BRIGHTNESS_INDICATOR_TAG = "reader_brightness_indicator"
+        private const val READER_PAGE_PROGRESS_TAG = "reader_page_progress"
     }
 
     @get:Rule
@@ -354,6 +356,42 @@ class ReaderScreenTest {
     }
 
     @Test
+    fun fullscreenTapGestures_navigatePagesInAllDirections() {
+        runBlocking {
+            db.subtitleDao().updateStudyContent(subtitleId, longStudyContent())
+        }
+
+        setReaderContent()
+
+        val initialPage = currentTinyIndicatorPage()
+        tapRootFraction(xFraction = 0.9f, yFraction = 0.5f)
+        val pageAfterRightTap = currentTinyIndicatorPage()
+
+        assertTrue(
+            "Expected right-side tap to move forward, but page stayed at $initialPage",
+            pageAfterRightTap > initialPage
+        )
+
+        tapRootFraction(xFraction = 0.1f, yFraction = 0.5f)
+        val pageAfterLeftTap = currentTinyIndicatorPage()
+
+        assertEquals(initialPage, pageAfterLeftTap)
+
+        tapRootFraction(xFraction = 0.5f, yFraction = 0.9f)
+        val pageAfterBottomTap = currentTinyIndicatorPage()
+
+        assertTrue(
+            "Expected bottom-side tap to move forward, but page was $pageAfterBottomTap",
+            pageAfterBottomTap > pageAfterLeftTap
+        )
+
+        tapRootFraction(xFraction = 0.5f, yFraction = 0.1f)
+        val pageAfterTopTap = currentTinyIndicatorPage()
+
+        assertEquals(pageAfterLeftTap, pageAfterTopTap)
+    }
+
+    @Test
     fun backPress_hidesChromeWhenVisible_thenCallsOnBackInFullscreen() {
         var backInvocations = 0
         setReaderContent(onBack = { backInvocations++ })
@@ -599,6 +637,31 @@ class ReaderScreenTest {
             hasSelection = textView.hasActiveSelection()
         }
         return hasSelection
+    }
+
+    private fun tapRootFraction(xFraction: Float, yFraction: Float) {
+        composeTestRule.onRoot().performTouchInput {
+            click(
+                Offset(
+                    x = width * xFraction.coerceIn(0f, 1f),
+                    y = height * yFraction.coerceIn(0f, 1f)
+                )
+            )
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    private fun currentTinyIndicatorPage(): Int {
+        composeTestRule.onNodeWithTag(READER_PAGE_PROGRESS_TAG).assertIsDisplayed()
+        val node = composeTestRule.onNodeWithTag(READER_PAGE_PROGRESS_TAG).fetchSemanticsNode()
+        val textList = if (SemanticsProperties.Text in node.config) {
+            node.config[SemanticsProperties.Text]
+        } else {
+            emptyList()
+        }
+        val text = textList.joinToString(separator = "") { it.text }
+        val pagePart = text.substringAfterLast(' ').substringBefore('/')
+        return pagePart.toInt()
     }
 
     private fun assertTagMissing(tag: String) {

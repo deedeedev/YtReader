@@ -4,6 +4,15 @@ import android.content.Context
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.domain.SubtitleSegment
 
+internal enum class ReaderTapZone {
+    PREVIOUS_PAGE,
+    TOGGLE_UI,
+    NEXT_PAGE
+}
+
+private const val CENTER_ZONE_START = 0.33f
+private const val CENTER_ZONE_END = 0.67f
+
 internal fun currentReaderText(
     readerMode: ReaderMode,
     isEditing: Boolean,
@@ -135,4 +144,56 @@ internal fun formatOriginalModeCopyText(
             segment.text
         }
     }
+}
+
+internal fun classifyReaderTapZone(tapPosition: ReaderTapPosition): ReaderTapZone {
+    val x = tapPosition.xFraction.coerceIn(0f, 1f)
+    val y = tapPosition.yFraction.coerceIn(0f, 1f)
+    val isInHorizontalCenter = x in CENTER_ZONE_START..CENTER_ZONE_END
+    val isInVerticalCenter = y in CENTER_ZONE_START..CENTER_ZONE_END
+    if (isInHorizontalCenter && isInVerticalCenter) {
+        return ReaderTapZone.TOGGLE_UI
+    }
+
+    return when {
+        x < CENTER_ZONE_START -> ReaderTapZone.PREVIOUS_PAGE
+        x > CENTER_ZONE_END -> ReaderTapZone.NEXT_PAGE
+        y < CENTER_ZONE_START -> ReaderTapZone.PREVIOUS_PAGE
+        else -> ReaderTapZone.NEXT_PAGE
+    }
+}
+
+internal fun targetScrollForPageStep(
+    currentValue: Int,
+    maxValue: Int,
+    viewportHeightPx: Int,
+    isForward: Boolean
+): Int {
+    val clampedCurrent = currentValue.coerceIn(0, maxValue.coerceAtLeast(0))
+    if (viewportHeightPx <= 0) {
+        return clampedCurrent
+    }
+    val delta = if (isForward) viewportHeightPx else -viewportHeightPx
+    return (clampedCurrent + delta).coerceIn(0, maxValue.coerceAtLeast(0))
+}
+
+internal fun targetListIndexForPageStep(
+    currentFirstVisibleItemIndex: Int,
+    totalItems: Int,
+    visibleItemsCount: Int,
+    isForward: Boolean
+): Int {
+    if (totalItems <= 0) {
+        return 0
+    }
+
+    val maxIndex = totalItems - 1
+    val clampedCurrent = currentFirstVisibleItemIndex.coerceIn(0, maxIndex)
+    val step = visibleItemsCount.coerceAtLeast(1)
+    val target = if (isForward) {
+        clampedCurrent + step
+    } else {
+        clampedCurrent - step
+    }
+    return target.coerceIn(0, maxIndex)
 }

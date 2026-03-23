@@ -12,6 +12,7 @@ internal const val READER_FIND_REPLACE_INPUT_TAG = "reader_find_replace_input"
 internal const val READER_FIND_REPLACE_REPLACEMENT_TAG = "reader_find_replace_replacement"
 internal const val READER_BRIGHTNESS_GESTURE_TAG = "reader_brightness_gesture"
 internal const val READER_BRIGHTNESS_INDICATOR_TAG = "reader_brightness_indicator"
+internal const val READER_PAGE_PROGRESS_TAG = "reader_page_progress"
 
 internal val READER_BOTTOM_BAR_HEIGHT = 80.dp
 internal const val BRIGHTNESS_SWIPE_FULL_RANGE_PX = 600f

@@ -16,6 +16,11 @@ internal data class SelectionRange(
     val end: Int
 )
 
+internal data class ReaderTapPosition(
+    val xFraction: Float,
+    val yFraction: Float
+)
+
 internal sealed interface PendingFindSelection {
     data class Study(val start: Int, val end: Int) : PendingFindSelection
     data class OriginalSegment(val segmentIndex: Int, val start: Int, val end: Int) : PendingFindSelection

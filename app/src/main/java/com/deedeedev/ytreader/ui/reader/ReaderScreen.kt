@@ -315,6 +315,58 @@ fun ReaderScreen(
         }
     }
 
+    suspend fun scrollOnePage(isForward: Boolean) {
+        when (readerMode) {
+            ReaderMode.STUDY -> {
+                val target = targetScrollForPageStep(
+                    currentValue = studyScrollState.value,
+                    maxValue = studyScrollState.maxValue,
+                    viewportHeightPx = studyViewportHeightPx,
+                    isForward = isForward
+                )
+                studyScrollState.scrollTo(target)
+            }
+
+            ReaderMode.ORIGINAL -> {
+                if (originalSegments.isEmpty()) {
+                    val target = targetScrollForPageStep(
+                        currentValue = originalFallbackScrollState.value,
+                        maxValue = originalFallbackScrollState.maxValue,
+                        viewportHeightPx = originalFallbackViewportHeightPx,
+                        isForward = isForward
+                    )
+                    originalFallbackScrollState.scrollTo(target)
+                } else {
+                    val targetIndex = targetListIndexForPageStep(
+                        currentFirstVisibleItemIndex = originalListState.firstVisibleItemIndex,
+                        totalItems = originalSegments.size,
+                        visibleItemsCount = originalListState.layoutInfo.visibleItemsInfo.size,
+                        isForward = isForward
+                    )
+                    originalListState.scrollToItem(targetIndex)
+                }
+            }
+        }
+    }
+
+    fun handleReaderTap(tapPosition: ReaderTapPosition) {
+        if (isEditing) return
+
+        when (classifyReaderTapZone(tapPosition)) {
+            ReaderTapZone.PREVIOUS_PAGE -> {
+                coroutineScope.launch { scrollOnePage(isForward = false) }
+            }
+
+            ReaderTapZone.TOGGLE_UI -> {
+                isUiVisible = !isUiVisible
+            }
+
+            ReaderTapZone.NEXT_PAGE -> {
+                coroutineScope.launch { scrollOnePage(isForward = true) }
+            }
+        }
+    }
+
     ReaderCoreEffects(
         subtitleId = subtitle.id,
         subtitleLastStudyScroll = subtitle.lastStudyScroll,
@@ -537,7 +589,7 @@ fun ReaderScreen(
         onScheduleHideBrightnessValue = { scheduleHideBrightnessValue() },
         onApplyReaderBrightness = { applyReaderBrightness(activity, it) },
         onPersistBrightnessPreference = { userPreferencesRepository.setAppBrightness(it) },
-        onToggleUi = { isUiVisible = !isUiVisible },
+        onReaderTap = { handleReaderTap(it) },
         onSelectionRangeChanged = { start, end ->
             val normalizedStart = minOf(start, end)
             val normalizedEnd = maxOf(start, end)

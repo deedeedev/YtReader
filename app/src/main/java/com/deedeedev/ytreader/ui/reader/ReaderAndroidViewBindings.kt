@@ -8,7 +8,7 @@ internal fun SelectableHighlightTextView.bindOriginalFallback(
     backgroundColor: Int,
     content: String,
     activeOwner: Int?,
-    onPlainTextTap: () -> Unit,
+    onPlainTextTap: (ReaderTapPosition) -> Unit,
     onSelectionOwnerChanged: (Int?) -> Unit
 ) {
     textSize = fontSize
@@ -16,9 +16,9 @@ internal fun SelectableHighlightTextView.bindOriginalFallback(
     applyTypeface(fontFamily)
     setReadableColors(textColor = textColor, backgroundColor = backgroundColor)
     onHighlightTappedListener = null
-    onTextTapListener = { tapOutcome ->
+    onTextTapListener = { tapOutcome, tapPosition ->
         if (tapOutcome == TextTapOutcome.PLAIN_TEXT && activeOwner == null) {
-            onPlainTextTap()
+            onPlainTextTap(tapPosition)
         }
     }
     onSelectionChangedListener = { start, end ->
@@ -45,7 +45,7 @@ internal fun SelectableHighlightTextView.bindOriginalSegment(
     content: String,
     activeOwner: Int?,
     clearSelectionForOwner: (Int) -> Unit,
-    onPlainTextTap: () -> Unit,
+    onPlainTextTap: (ReaderTapPosition) -> Unit,
     onSelectionOwnerChanged: (Int?) -> Unit
 ) {
     textSize = fontSize
@@ -54,14 +54,14 @@ internal fun SelectableHighlightTextView.bindOriginalSegment(
     setJustificationEnabled(false)
     setReadableColors(textColor = textColor, backgroundColor = backgroundColor)
     onHighlightTappedListener = null
-    onTextTapListener = { tapOutcome ->
+    onTextTapListener = { tapOutcome, tapPosition ->
         if (tapOutcome == TextTapOutcome.PLAIN_TEXT && activeOwner != null) {
             if (activeOwner != segmentIndex) {
                 clearSelectionForOwner(activeOwner)
                 onSelectionOwnerChanged(null)
             }
         } else if (tapOutcome == TextTapOutcome.PLAIN_TEXT) {
-            onPlainTextTap()
+            onPlainTextTap(tapPosition)
         }
     }
     onSelectionChangedListener = { start, end ->
@@ -90,7 +90,7 @@ internal fun JustifiedStudyTextView.bindStudyContent(
     highlights: List<TextHighlight>,
     onSelectionChanged: (start: Int, end: Int) -> Unit,
     onHighlightTapped: (TextHighlight?) -> Unit,
-    onPlainTextTap: () -> Unit,
+    onPlainTextTap: (ReaderTapPosition) -> Unit,
     hasActiveHighlight: () -> Boolean,
     clearActiveHighlight: () -> Unit,
     clearSelectionNow: () -> Unit
@@ -99,9 +99,13 @@ internal fun JustifiedStudyTextView.bindStudyContent(
     setLineHeightMultiplier(lineHeightMultiplier)
     applyTypeface(fontFamily)
     setReadableColors(textColor = textColor, backgroundColor = backgroundColor)
-    onTextTapListener = { tapOutcome ->
-        if (tapOutcome == TextTapOutcome.DISMISSED_SELECTION) {
-            Unit
+    onTextTapListener = { tapOutcome, tapPosition ->
+        if (tapOutcome == TextTapOutcome.PLAIN_TEXT) {
+            if (hasActiveHighlight()) {
+                clearActiveHighlight()
+            } else {
+                onPlainTextTap(tapPosition)
+            }
         }
     }
     onSelectionChangedListener = onSelectionChanged
@@ -109,10 +113,6 @@ internal fun JustifiedStudyTextView.bindStudyContent(
         if (tappedHighlight != null) {
             onHighlightTapped(tappedHighlight)
             clearSelectionNow()
-        } else if (hasActiveHighlight()) {
-            clearActiveHighlight()
-        } else {
-            onPlainTextTap()
         }
     }
     setContentWithHighlights(

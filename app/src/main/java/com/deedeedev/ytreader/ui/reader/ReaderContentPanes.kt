@@ -43,7 +43,7 @@ internal fun ReaderOriginalPane(
     readerTextColor: Int,
     readerBackgroundColor: Int,
     originalSelectionCoordinator: OriginalSelectionCoordinator,
-    onToggleUi: () -> Unit,
+    onReaderTap: (ReaderTapPosition) -> Unit,
     onOriginalFallbackViewportChanged: (Int) -> Unit
 ) {
     if (originalSegments.isEmpty()) {
@@ -57,7 +57,7 @@ internal fun ReaderOriginalPane(
                     top = topContentPadding,
                     bottom = bottomContentPadding
                 )
-                .onUnconsumedTap { onToggleUi() }
+                .onUnconsumedTap { onReaderTap(it) }
                 .onSizeChanged { onOriginalFallbackViewportChanged(it.height) }
                 .verticalScroll(originalFallbackScrollState)
         ) {
@@ -74,7 +74,7 @@ internal fun ReaderOriginalPane(
                             backgroundColor = readerBackgroundColor,
                             content = originalFallbackText,
                             activeOwner = originalSelectionCoordinator.activeOwner,
-                            onPlainTextTap = onToggleUi,
+                            onPlainTextTap = onReaderTap,
                             onSelectionOwnerChanged = { owner ->
                                 val currentOwner = originalSelectionCoordinator.activeOwner
                                 originalSelectionCoordinator.activeOwner = if (owner != null) {
@@ -98,7 +98,7 @@ internal fun ReaderOriginalPane(
                         backgroundColor = readerBackgroundColor,
                         content = originalFallbackText,
                         activeOwner = originalSelectionCoordinator.activeOwner,
-                        onPlainTextTap = onToggleUi,
+                        onPlainTextTap = onReaderTap,
                         onSelectionOwnerChanged = { owner ->
                             val currentOwner = originalSelectionCoordinator.activeOwner
                             originalSelectionCoordinator.activeOwner = if (owner != null) {
@@ -121,7 +121,7 @@ internal fun ReaderOriginalPane(
         modifier = Modifier
             .fillMaxSize()
             .systemBarsPadding()
-            .onUnconsumedTap { onToggleUi() }
+            .onUnconsumedTap { onReaderTap(it) }
             .padding(horizontal = 16.dp),
         contentPadding = PaddingValues(
             top = topContentPadding,
@@ -156,7 +156,7 @@ internal fun ReaderOriginalPane(
                                 clearSelectionForOwner = { ownerIndex ->
                                     originalSelectionCoordinator.textViews[ownerIndex]?.clearSelection()
                                 },
-                                onPlainTextTap = onToggleUi,
+                                onPlainTextTap = onReaderTap,
                                 onSelectionOwnerChanged = { owner ->
                                     val currentOwner = originalSelectionCoordinator.activeOwner
                                     originalSelectionCoordinator.activeOwner = if (owner != null) {
@@ -184,7 +184,7 @@ internal fun ReaderOriginalPane(
                             clearSelectionForOwner = { ownerIndex ->
                                 originalSelectionCoordinator.textViews[ownerIndex]?.clearSelection()
                             },
-                            onPlainTextTap = onToggleUi,
+                            onPlainTextTap = onReaderTap,
                             onSelectionOwnerChanged = { owner ->
                                 val currentOwner = originalSelectionCoordinator.activeOwner
                                 originalSelectionCoordinator.activeOwner = if (owner != null) {
@@ -222,7 +222,7 @@ internal fun ReaderStudyPane(
     editTextFieldTag: String,
     studyScrollState: androidx.compose.foundation.ScrollState,
     onStudyViewportChanged: (Int) -> Unit,
-    onToggleUi: () -> Unit,
+    onReaderTap: (ReaderTapPosition) -> Unit,
     onStudyTextViewReady: (JustifiedStudyTextView) -> Unit,
     onSelectionRangeChanged: (Int, Int) -> Unit,
     onHighlightTapped: (TextHighlight?) -> Unit,
@@ -269,7 +269,7 @@ internal fun ReaderStudyPane(
                 top = topContentPadding,
                 bottom = bottomContentPadding
             )
-            .onUnconsumedTap { onToggleUi() }
+            .onUnconsumedTap { onReaderTap(it) }
             .onSizeChanged { onStudyViewportChanged(it.height) }
             .verticalScroll(studyScrollState)
     ) {
@@ -288,7 +288,7 @@ internal fun ReaderStudyPane(
                         highlights = highlights,
                         onSelectionChanged = onSelectionRangeChanged,
                         onHighlightTapped = onHighlightTapped,
-                        onPlainTextTap = onToggleUi,
+                        onPlainTextTap = onReaderTap,
                         hasActiveHighlight = hasActiveHighlight,
                         clearActiveHighlight = onClearActiveHighlight,
                         clearSelectionNow = { clearSelectionNow() }
@@ -307,7 +307,7 @@ internal fun ReaderStudyPane(
                     highlights = highlights,
                     onSelectionChanged = onSelectionRangeChanged,
                     onHighlightTapped = onHighlightTapped,
-                    onPlainTextTap = onToggleUi,
+                    onPlainTextTap = onReaderTap,
                     hasActiveHighlight = hasActiveHighlight,
                     clearActiveHighlight = onClearActiveHighlight,
                     clearSelectionNow = { clearSelectionNow() }

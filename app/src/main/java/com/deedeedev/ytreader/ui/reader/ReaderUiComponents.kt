@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -120,7 +121,9 @@ internal fun TinyProgressIndicator(
     ) {
         Text(
             text = "$percent% $currentPage/$totalPages",
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            modifier = Modifier
+                .testTag(READER_PAGE_PROGRESS_TAG)
+                .padding(horizontal = 6.dp, vertical = 2.dp),
             fontSize = 10.sp,
             color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.labelSmall

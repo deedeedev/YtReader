@@ -53,7 +53,7 @@ internal fun ReaderScreenMainLayer(
     onScheduleHideBrightnessValue: () -> Unit,
     onApplyReaderBrightness: (Float) -> Unit,
     onPersistBrightnessPreference: (Float) -> Unit,
-    onToggleUi: () -> Unit,
+    onReaderTap: (ReaderTapPosition) -> Unit,
     onSelectionRangeChanged: (Int, Int) -> Unit,
     onHighlightTapped: (TextHighlight?) -> Unit,
     hasActiveHighlight: () -> Boolean,
@@ -105,7 +105,7 @@ internal fun ReaderScreenMainLayer(
                 readerTextColor = readerTextColor,
                 readerBackgroundColor = readerBackgroundColor,
                 originalSelectionCoordinator = originalSelectionCoordinator,
-                onToggleUi = onToggleUi,
+                onReaderTap = onReaderTap,
                 onOriginalFallbackViewportChanged = onOriginalFallbackViewportChanged
             )
         } else {
@@ -127,7 +127,7 @@ internal fun ReaderScreenMainLayer(
                 editTextFieldTag = READER_EDIT_TEXT_FIELD_TAG,
                 studyScrollState = studyScrollState,
                 onStudyViewportChanged = onStudyViewportChanged,
-                onToggleUi = onToggleUi,
+                onReaderTap = onReaderTap,
                 onStudyTextViewReady = onStudyTextViewReady,
                 onSelectionRangeChanged = onSelectionRangeChanged,
                 onHighlightTapped = onHighlightTapped,
