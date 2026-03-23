@@ -5,31 +5,15 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -145,131 +129,26 @@ fun CollectionDetailScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                var expandedFilter by remember { mutableStateOf(false) }
+            LibraryListControls(
+                channels = uniqueChannels,
+                selectedChannelFilter = selectedChannelFilter,
+                sortOption = sortOption,
+                isAscending = isAscending,
+                onChannelFilterChange = { selectedChannelFilter = it },
+                onSortOptionChange = { sortOption = it },
+                onSortDirectionToggle = { isAscending = !isAscending },
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
 
-                Box(modifier = Modifier.weight(1f)) {
-                    ExposedDropdownMenuBox(
-                        expanded = expandedFilter,
-                        onExpandedChange = { expandedFilter = !expandedFilter }
-                    ) {
-                        OutlinedTextField(
-                            value = selectedChannelFilter ?: "All Channels",
-                            onValueChange = {},
-                            readOnly = true,
-                            trailingIcon = {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFilter)
-                            },
-                            modifier = Modifier
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
-                                .fillMaxWidth(),
-                            label = { Text("Filter by Channel") }
-                        )
-                        ExposedDropdownMenu(
-                            expanded = expandedFilter,
-                            onDismissRequest = { expandedFilter = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("All Channels") },
-                                onClick = {
-                                    selectedChannelFilter = null
-                                    expandedFilter = false
-                                }
-                            )
-                            uniqueChannels.forEach { channel ->
-                                DropdownMenuItem(
-                                    text = { Text(channel) },
-                                    onClick = {
-                                        selectedChannelFilter = channel
-                                        expandedFilter = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                var expandedSort by remember { mutableStateOf(false) }
-                Box {
-                    IconButton(onClick = { expandedSort = true }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Sort,
-                            contentDescription = "Sort"
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = expandedSort,
-                        onDismissRequest = { expandedSort = false }
-                    ) {
-                        val sortOptions = mapOf(
-                            SortOption.TITLE to "Title",
-                            SortOption.CHANNEL_NAME to "Channel Name",
-                            SortOption.DATE_PUBLISHED to "Date Published",
-                            SortOption.DOWNLOADED to "Downloaded",
-                            SortOption.LAST_OPENED to "Last opened"
-                        )
-
-                        sortOptions.forEach { (option, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    sortOption = option
-                                    expandedSort = false
-                                },
-                                trailingIcon = {
-                                    if (sortOption == option) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = "Selected"
-                                        )
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-
-                IconButton(onClick = { isAscending = !isAscending }) {
-                    Icon(
-                        imageVector = if (isAscending) {
-                            Icons.Default.ArrowUpward
-                        } else {
-                            Icons.Default.ArrowDownward
-                        },
-                        contentDescription = if (isAscending) "Ascending" else "Descending"
-                    )
-                }
-            }
-
-            LazyColumn(
+            LibraryListSection(
+                items = sortedItems,
+                emptyText = collectionEmptyText(
+                    totalCollectionVideoCount = collection.videoIds.size,
+                    selectedChannelFilter = selectedChannelFilter
+                ),
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (sortedItems.isEmpty()) {
-                    item {
-                        val emptyText = when {
-                            collection.videoIds.isEmpty() -> "No videos in this collection."
-                            selectedChannelFilter != null -> "No videos for this channel."
-                            else -> "No videos found in this collection."
-                        }
-                        Text(
-                            text = emptyText,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                    }
-                } else {
-                    items(
-                        items = sortedItems,
-                        key = { it.videoId }
-                    ) { item ->
+                key = { it.videoId }
+            ) { item ->
                         val dismissState = rememberSwipeToDismissBoxState(
                             confirmValueChange = {
                                 if (it == SwipeToDismissBoxValue.EndToStart) {
@@ -333,8 +212,6 @@ fun CollectionDetailScreen(
                                 downloadingSubtitleIds = uiState.downloadingSubtitleIds
                             )
                         }
-                    }
-                }
             }
         }
     }

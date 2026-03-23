@@ -1,0 +1,135 @@
+package com.deedeedev.ytreader.ui.home
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+
+fun sortLabel(sortOption: SortOption): String = when (sortOption) {
+    SortOption.TITLE -> "Title"
+    SortOption.CHANNEL_NAME -> "Channel Name"
+    SortOption.DATE_PUBLISHED -> "Date Published"
+    SortOption.DOWNLOADED -> "Downloaded"
+    SortOption.LAST_OPENED -> "Last opened"
+}
+
+val sortOptions: List<SortOption> = listOf(
+    SortOption.TITLE,
+    SortOption.CHANNEL_NAME,
+    SortOption.DATE_PUBLISHED,
+    SortOption.DOWNLOADED,
+    SortOption.LAST_OPENED
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LibraryListControls(
+    channels: List<String>,
+    selectedChannelFilter: String?,
+    sortOption: SortOption,
+    isAscending: Boolean,
+    onChannelFilterChange: (String?) -> Unit,
+    onSortOptionChange: (SortOption) -> Unit,
+    onSortDirectionToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        var expandedFilter by remember { mutableStateOf(false) }
+
+        Box(modifier = Modifier.weight(1f)) {
+            ExposedDropdownMenuBox(
+                expanded = expandedFilter,
+                onExpandedChange = { expandedFilter = !expandedFilter }
+            ) {
+                OutlinedTextField(
+                    value = selectedChannelFilter ?: "All Channels",
+                    onValueChange = {},
+                    readOnly = true,
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFilter)
+                    },
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                        .fillMaxWidth(),
+                    label = { Text("Filter by Channel") }
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedFilter,
+                    onDismissRequest = { expandedFilter = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("All Channels") },
+                        onClick = {
+                            onChannelFilterChange(null)
+                            expandedFilter = false
+                        }
+                    )
+                    channels.forEach { channel ->
+                        DropdownMenuItem(
+                            text = { Text(channel) },
+                            onClick = {
+                                onChannelFilterChange(channel)
+                                expandedFilter = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        var expandedSort by remember { mutableStateOf(false) }
+        Box {
+            IconButton(onClick = { expandedSort = true }) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                    contentDescription = "Sort"
+                )
+            }
+            DropdownMenu(
+                expanded = expandedSort,
+                onDismissRequest = { expandedSort = false }
+            ) {
+                sortOptions.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(sortLabel(option)) },
+                        onClick = {
+                            onSortOptionChange(option)
+                            expandedSort = false
+                        },
+                        trailingIcon = {
+                            if (sortOption == option) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected"
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
+        IconButton(onClick = onSortDirectionToggle) {
+            Icon(
+                imageVector = if (isAscending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                contentDescription = if (isAscending) "Ascending" else "Descending"
+            )
+        }
+    }
+}
