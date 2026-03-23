@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import kotlinx.coroutines.delay
@@ -41,9 +42,9 @@ fun LibraryScreen(
     onVideoClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val uniqueChannels by viewModel.libraryChannels.collectAsState()
-    val libraryItems by viewModel.libraryItems.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uniqueChannels by viewModel.libraryChannels.collectAsStateWithLifecycle()
+    val libraryItems by viewModel.libraryItems.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var addToCollectionTargetVideoId by remember { mutableStateOf<String?>(null) }

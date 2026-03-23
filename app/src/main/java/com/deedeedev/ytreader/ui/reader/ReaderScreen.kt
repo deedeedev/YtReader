@@ -78,6 +78,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.AiCleaningRepository
 import com.deedeedev.ytreader.R
@@ -192,7 +193,7 @@ fun ReaderScreen(
             subtitleId
         )
     )
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val subtitle = uiState.subtitle
 
     if (uiState.isLoading || subtitle == null) {
@@ -225,7 +226,7 @@ fun ReaderScreen(
     val readerTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val readerBackgroundColor = Color.Transparent.toArgb()
     val activity = remember(context) { context.findActivity() }
-    val appBrightnessPreference by userPreferencesRepository.appBrightness.collectAsState()
+    val appBrightnessPreference by userPreferencesRepository.appBrightness.collectAsStateWithLifecycle()
 
     var readerMode by rememberSaveable { mutableStateOf(ReaderMode.STUDY) }
     var showTimestamps by rememberSaveable { mutableStateOf(false) }

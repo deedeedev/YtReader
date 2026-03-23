@@ -7,10 +7,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.ui.MainScreen
@@ -28,8 +28,8 @@ class MainActivity : ComponentActivity() {
         val appContainer = (application as YtReaderApplication).container
 
         setContent {
-            val appTheme by appContainer.userPreferencesRepository.appTheme.collectAsState()
-            val appBrightness by appContainer.userPreferencesRepository.appBrightness.collectAsState()
+            val appTheme by appContainer.userPreferencesRepository.appTheme.collectAsStateWithLifecycle()
+            val appBrightness by appContainer.userPreferencesRepository.appBrightness.collectAsStateWithLifecycle()
             val currentIntent = latestIntent
 
             LaunchedEffect(appBrightness) {

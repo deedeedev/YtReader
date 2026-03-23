@@ -6,7 +6,7 @@ This is a status-updated implementation plan focused on Phase 2 scalability work
 
 In scope:
 
-- **Phase 2 (remaining scalability):** lifecycle-aware flow collection and Library/Collection UI extraction.
+- **Phase 2 (remaining scalability):** Library/Collection UI extraction.
 - **Reader maintainability follow-up:** split `ReaderScreen.kt` if kept in active development.
 
 Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
@@ -15,10 +15,6 @@ Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 
 ## Current Gaps (verified against code)
 
-- Lifecycle-aware collection is not yet adopted:
-  - `lifecycle-runtime-compose` is not declared in `gradle/libs.versions.toml` and not added in `app/build.gradle.kts`.
-  - `collectAsStateWithLifecycle()` is not used.
-  - `collectAsState()` is still used in `MainActivity`, `SearchScreen`, `LibraryScreen`, `CollectionDetailScreen`, `CollectionsScreen`, `SettingsScreen`, and `ReaderScreen`.
 - Library/Collection UI extraction is only partially done:
   - Shared rendering pieces already exist (`LibraryItemCard`, `SubtitleChip`, `AddToCollectionDialog`), and are reused by both screens.
   - Filter/sort controls and empty-state scaffolding are still duplicated between `LibraryScreen` and `CollectionDetailScreen`.
@@ -38,40 +34,6 @@ Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 ---
 
 ## Phase 2 — Scalability
-
-## P2-2. Lifecycle-aware flow collection in Compose
-
-**Status**
-- **Not implemented**
-
-**Remaining implementation**
-1. Add `lifecycle-runtime-compose` to version catalog and app dependencies.
-2. Replace long-lived `collectAsState()` usages with `collectAsStateWithLifecycle()`.
-3. Verify behavior when app backgrounds/foregrounds during updates.
-
-**Primary files**
-- `gradle/libs.versions.toml`
-- `app/build.gradle.kts`
-- `app/src/main/java/com/deedeedev/ytreader/MainActivity.kt`
-- `app/src/main/java/com/deedeedev/ytreader/ui/home/SearchScreen.kt`
-- `app/src/main/java/com/deedeedev/ytreader/ui/home/LibraryScreen.kt`
-- `app/src/main/java/com/deedeedev/ytreader/ui/home/CollectionDetailScreen.kt`
-- `app/src/main/java/com/deedeedev/ytreader/ui/home/CollectionsScreen.kt`
-- `app/src/main/java/com/deedeedev/ytreader/ui/settings/SettingsScreen.kt`
-- `app/src/main/java/com/deedeedev/ytreader/ui/reader/ReaderScreen.kt`
-
-**Tests needed**
-- Build and smoke tests.
-- Manual lifecycle checks (foreground/background) during active flows.
-
-**Acceptance criteria**
-- No long-lived UI flows rely on plain `collectAsState()`.
-- No missed updates after returning to foreground.
-
-**Effort**
-- **S**
-
----
 
 ## P2-3. Extract duplicated Library/Collection UI logic
 
@@ -138,9 +100,9 @@ Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 
 ## Suggested Sequence
 
-1. **P2-2** (lifecycle collection).
-2. **P2-3** (Library/Collection UI extraction).
-3. **P2-FU1** (ReaderScreen refactor).
+1. **P2-3** (Library/Collection UI extraction).
+2. **P2-FU1** (ReaderScreen refactor).
+3. **P2-2** manual lifecycle validation (foreground/background updates).
 
 ---
 

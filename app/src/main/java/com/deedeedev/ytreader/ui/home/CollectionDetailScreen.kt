@@ -41,7 +41,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -63,7 +63,7 @@ fun CollectionDetailScreen(
     onVideoClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -82,7 +82,7 @@ fun CollectionDetailScreen(
 
     val uniqueChannels by remember(collectionVideoIds) {
         viewModel.observeCollectionChannels(collectionVideoIds)
-    }.collectAsState(initial = emptyList())
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
 
     val sortedItems by remember(collectionVideoIds, selectedChannelFilter, sortOption, isAscending) {
         viewModel.observeCollectionItems(
@@ -91,11 +91,11 @@ fun CollectionDetailScreen(
             sortOption = sortOption,
             isAscending = isAscending
         )
-    }.collectAsState(initial = emptyList())
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
 
     val availableVideoCount by remember(collectionVideoIds) {
         viewModel.observeCollectionVideoCount(collectionVideoIds)
-    }.collectAsState(initial = 0)
+    }.collectAsStateWithLifecycle(initialValue = 0)
 
     val missingCount = remember(collection, availableVideoCount) {
         if (collection == null) 0 else (collection.videoIds.size - availableVideoCount).coerceAtLeast(0)

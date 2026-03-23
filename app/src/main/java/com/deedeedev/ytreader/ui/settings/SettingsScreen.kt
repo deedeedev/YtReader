@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.AppContainer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
@@ -19,7 +20,7 @@ fun SettingsScreen(
         factory = SettingsViewModel.provideFactory(appContainer.userPreferencesRepository)
     )
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     val selectedFontFamily = when (uiState.fontFamily) {
         "Serif" -> FontFamily.Serif
