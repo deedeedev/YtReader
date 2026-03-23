@@ -4,7 +4,7 @@
 
 This plan covers the roadmap items already agreed for:
 
-- **Phase 1 (stability):** async receiver cancellation, migration testing hardening.
+- **Phase 1 (stability):** migration testing hardening.
 - **Phase 2 (scalability):** Room query/index improvements, lifecycle-aware flow collection, Library/Collection UI extraction.
 
 Out of scope for this plan: ReaderScreen large refactor, DataStore migration, i18n pass, and new product features (Phase 3).
@@ -13,7 +13,6 @@ Out of scope for this plan: ReaderScreen large refactor, DataStore migration, i1
 
 ## Current Baseline (verified)
 
-- `AiCleaningCancelReceiver` uses `runBlocking` in `app/src/main/java/com/deedeedev/ytreader/data/AiCleaningWorker.kt`.
 - DB is Room v11 in `app/src/main/java/com/deedeedev/ytreader/data/local/AppDatabase.kt`, with migrations defined in `app/src/main/java/com/deedeedev/ytreader/AppContainer.kt`.
 - Migration tests currently cover only 8→9 in `app/src/androidTest/java/com/deedeedev/ytreader/data/local/AppDatabaseMigrationTest.kt`.
 - Library/Collection screens do in-memory grouping/filter/sort in:
@@ -33,37 +32,6 @@ Out of scope for this plan: ReaderScreen large refactor, DataStore migration, i1
 ---
 
 ## Phase 1 — Stability
-
-## P1-3. Remove `runBlocking` from cancel receiver (High impact, low effort)
-
-**Goal**
-Eliminate ANR/thread blocking risk in `BroadcastReceiver`.
-
-**Implementation**
-1. Refactor `AiCleaningCancelReceiver.onReceive` to:
-   - call `goAsync()`,
-   - launch coroutine on IO dispatcher,
-   - cancel work + update DB + cancel notification asynchronously,
-   - always call `pendingResult.finish()` in `finally`.
-2. Add defensive UUID parsing and error handling.
-
-**Primary files**
-- `app/src/main/java/com/deedeedev/ytreader/data/AiCleaningWorker.kt`
-
-**Tests**
-- Unit (extracted helper logic) or instrumentation:
-  - valid cancel intent updates DB and cancels notification
-  - malformed `workId` safely exits
-  - no blocking calls in receiver path
-
-**Acceptance criteria**
-- No `runBlocking` remains in receiver.
-- Cancellation path remains functionally equivalent.
-
-**Effort**
-- **S**
-
----
 
 ## P1-4. Migration testing hardening (High impact)
 
@@ -206,11 +174,10 @@ Cut maintenance overhead and keep filter/sort behavior consistent.
 
 ## Suggested Sequence
 
-1. **P1-3** (receiver async) — quick safety win.
-2. **P1-4** (migration test hardening) — lock in migration safety.
-3. **P2-2** (lifecycle collection) — low-risk scalability hygiene.
-4. **P2-1** (Room queries/indexes) — core scalability uplift.
-5. **P2-3** (UI extraction) — maintainability cleanup after data flow stabilizes.
+1. **P1-4** (migration test hardening) — lock in migration safety.
+2. **P2-2** (lifecycle collection) — low-risk scalability hygiene.
+3. **P2-1** (Room queries/indexes) — core scalability uplift.
+4. **P2-3** (UI extraction) — maintainability cleanup after data flow stabilizes.
 
 ---
 

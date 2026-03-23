@@ -23,8 +23,11 @@ import com.deedeedev.ytreader.MainActivity
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.YtReaderApplication
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
@@ -289,24 +292,60 @@ class AiCleaningCancelReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_CANCEL_AI_CLEANING) return
 
-        val subtitleId = intent.getLongExtra(KEY_SUBTITLE_ID, -1L)
-        val workSpecId = intent.getStringExtra(KEY_WORK_ID)
-        if (subtitleId <= 0L || workSpecId.isNullOrBlank()) return
+        val request = parseAiCleaningCancellationRequest(
+            subtitleId = intent.getLongExtra(KEY_SUBTITLE_ID, -1L),
+            workSpecId = intent.getStringExtra(KEY_WORK_ID)
+        ) ?: return
 
+        val pendingResult = goAsync()
         val appContext = context.applicationContext
-        WorkManager.getInstance(appContext).cancelWorkById(UUID.fromString(workSpecId))
-
-        val container = (appContext as YtReaderApplication).container
-        kotlinx.coroutines.runBlocking {
-            container.subtitleDao.cancelAiCleaning(
-                id = subtitleId,
-                updatedAt = System.currentTimeMillis()
-            )
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                cancelAiCleaningWorkAndState(appContext, request)
+            } catch (_: Throwable) {
+                // Defensive: receiver must never crash on cancel action.
+            } finally {
+                pendingResult.finish()
+            }
         }
-
-        val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.cancel(notificationIdFor(subtitleId))
     }
+}
+
+internal data class AiCleaningCancellationRequest(
+    val subtitleId: Long,
+    val workId: UUID
+)
+
+internal fun parseAiCleaningCancellationRequest(
+    subtitleId: Long,
+    workSpecId: String?
+): AiCleaningCancellationRequest? {
+    if (subtitleId <= 0L || workSpecId.isNullOrBlank()) {
+        return null
+    }
+    val workId = runCatching { UUID.fromString(workSpecId) }.getOrNull() ?: return null
+    return AiCleaningCancellationRequest(subtitleId = subtitleId, workId = workId)
+}
+
+internal suspend fun cancelAiCleaningWorkAndState(
+    appContext: Context,
+    request: AiCleaningCancellationRequest,
+    nowProvider: () -> Long = { System.currentTimeMillis() },
+    cancelWork: (Context, UUID) -> Unit = { context, workId ->
+        WorkManager.getInstance(context).cancelWorkById(workId)
+    },
+    cancelSubtitleState: suspend (Context, Long, Long) -> Unit = { context, subtitleId, updatedAt ->
+        val container = (context as YtReaderApplication).container
+        container.subtitleDao.cancelAiCleaning(id = subtitleId, updatedAt = updatedAt)
+    },
+    cancelNotification: (Context, Int) -> Unit = { context, notificationId ->
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(notificationId)
+    }
+) {
+    cancelWork(appContext, request.workId)
+    cancelSubtitleState(appContext, request.subtitleId, nowProvider())
+    cancelNotification(appContext, notificationIdFor(request.subtitleId))
 }
 
 private fun notificationIdFor(subtitleId: Long): Int {
