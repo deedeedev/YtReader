@@ -1,5 +1,6 @@
 package com.deedeedev.ytreader.data
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,7 +8,9 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
+import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
@@ -221,6 +224,10 @@ private fun postCompletionNotification(
     title: String,
     message: String
 ) {
+    if (!canPostCompletionNotifications(context)) {
+        return
+    }
+
     val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     val notification = NotificationCompat.Builder(context, AI_CLEANING_CHANNEL_ID)
         .setSmallIcon(R.mipmap.ic_launcher)
@@ -229,7 +236,21 @@ private fun postCompletionNotification(
         .setAutoCancel(true)
         .setContentIntent(createReaderPendingIntent(context, subtitleId))
         .build()
-    manager.notify(notificationIdFor(subtitleId), notification)
+    try {
+        manager.notify(notificationIdFor(subtitleId), notification)
+    } catch (_: SecurityException) {
+        // Notification permission may have been revoked between check and post.
+    }
+}
+
+private fun canPostCompletionNotifications(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+        return true
+    }
+    return ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.POST_NOTIFICATIONS
+    ) == PackageManager.PERMISSION_GRANTED
 }
 
 private fun createReaderPendingIntent(context: Context, subtitleId: Long): PendingIntent {

@@ -1,6 +1,11 @@
 package com.deedeedev.ytreader.ui.reader
 
 import android.app.Activity
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,6 +71,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.lifecycle.Lifecycle
@@ -73,6 +80,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.AiCleaningRepository
+import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.domain.SubtitleParser
@@ -96,6 +104,8 @@ import kotlinx.coroutines.launch
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.ui.viewinterop.AndroidView
@@ -242,6 +252,7 @@ fun ReaderScreen(
     var isCaseSensitive by rememberSaveable { mutableStateOf(false) }
     var showAiPreviewDialog by remember { mutableStateOf(false) }
     var showAiErrorDialog by remember { mutableStateOf(false) }
+    var pendingAiCleaningSourceText by remember { mutableStateOf<String?>(null) }
     var selectionRange by remember { mutableStateOf<SelectionRange?>(null) }
     var activeHighlight by remember { mutableStateOf<TextHighlight?>(null) }
     var studyTextView by remember { mutableStateOf<JustifiedStudyTextView?>(null) }
@@ -457,6 +468,82 @@ fun ReaderScreen(
                 }
                 readerMode = action.targetMode
             }
+        }
+    }
+
+    suspend fun startAiCleaningJob(sourceText: String) {
+        val result = viewModel.enqueueAiCleaning(sourceText)
+        result.onSuccess {
+            snackbarHostState.showSnackbar(
+                context.getString(R.string.ai_cleaning_started_notification_hint)
+            )
+        }.onFailure { error ->
+            val message = error.message
+                ?.takeIf { it.isNotBlank() }
+                ?: context.getString(R.string.ai_cleaning_failed)
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    fun hasNotificationPermission(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return true
+        }
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    fun openAppNotificationSettings() {
+        val notificationSettingsIntent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val appDetailsIntent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", context.packageName, null)
+        ).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching {
+            context.startActivity(notificationSettingsIntent)
+        }.recoverCatching {
+            context.startActivity(appDetailsIntent)
+        }
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val sourceText = pendingAiCleaningSourceText
+        pendingAiCleaningSourceText = null
+        if (sourceText.isNullOrBlank()) {
+            return@rememberLauncherForActivityResult
+        }
+
+        coroutineScope.launch {
+            if (!granted) {
+                val shouldShowSettingsHint = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    activity != null &&
+                    !ActivityCompat.shouldShowRequestPermissionRationale(
+                        activity,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    )
+                val messageRes = if (shouldShowSettingsHint) {
+                    R.string.notification_permission_denied_settings_hint
+                } else {
+                    R.string.notification_permission_denied_hint
+                }
+                val result = snackbarHostState.showSnackbar(
+                    message = context.getString(messageRes),
+                    actionLabel = context.getString(R.string.open_settings)
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    openAppNotificationSettings()
+                }
+            }
+            startAiCleaningJob(sourceText)
         }
     }
 
@@ -1292,18 +1379,15 @@ fun ReaderScreen(
                                                 return@DropdownMenuItem
                                             }
 
-                                            coroutineScope.launch {
-                                                val result = viewModel.enqueueAiCleaning(sourceText)
-                                                result.onSuccess {
-                                                    snackbarHostState.showSnackbar(
-                                                        "AI cleaning started. Check notifications for progress."
-                                                    )
-                                                }.onFailure { error ->
-                                                    val message = error.message
-                                                        ?.takeIf { it.isNotBlank() }
-                                                        ?: "AI cleaning failed."
-                                                    snackbarHostState.showSnackbar(message)
+                                            if (hasNotificationPermission()) {
+                                                coroutineScope.launch {
+                                                    startAiCleaningJob(sourceText)
                                                 }
+                                            } else {
+                                                pendingAiCleaningSourceText = sourceText
+                                                notificationPermissionLauncher.launch(
+                                                    Manifest.permission.POST_NOTIFICATIONS
+                                                )
                                             }
                                         },
                                         enabled = !uiState.isAiCleaning
