@@ -15,10 +15,10 @@ Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 
 ## Current Baseline (verified against code)
 
-- Room DB is now **v12** in `app/src/main/java/com/deedeedev/ytreader/data/local/AppDatabase.kt`.
-- `SubtitleEntity` currently has a unique index only on `videoId + trackIdentity` in `app/src/main/java/com/deedeedev/ytreader/data/local/SubtitleEntity.kt`.
-- `SubtitleDao` still exposes broad list access (`getAll`) and does not yet provide DAO projections/queries for grouped library rows by video.
-- Library/Collection screens still do in-memory grouping/filtering/sorting in:
+- Room DB is now **v13** in `app/src/main/java/com/deedeedev/ytreader/data/local/AppDatabase.kt`.
+- `SubtitleEntity` now has indexes for `videoId + trackIdentity` (unique), `createdAt`, `lastOpenedAt`, and `channelName` in `app/src/main/java/com/deedeedev/ytreader/data/local/SubtitleEntity.kt`.
+- `SubtitleDao` now provides projection/query APIs for grouped library rows by video, collection-scoped rows, channel lists, and subtitle tracks-per-video.
+- Library/Collection screens now consume ViewModel-provided, DAO-backed precomputed items in:
   - `app/src/main/java/com/deedeedev/ytreader/ui/home/LibraryScreen.kt`
   - `app/src/main/java/com/deedeedev/ytreader/ui/home/CollectionDetailScreen.kt`
 - Lifecycle-aware collection is not yet adopted:
@@ -42,17 +42,13 @@ Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 ## P2-1. Push library filtering/sorting/grouping into Room + add indexes
 
 **Status**
-- **Partially implemented**
-  - Done: identity keying and unique index on `videoId + trackIdentity`.
-  - Remaining: query/index work for scalable library browsing.
+- **Completed**
 
-**Remaining implementation**
-1. Add targeted non-unique indexes for sorting/filtering paths (at minimum `createdAt`, `lastOpenedAt`, `channelName`; retain existing identity index).
-2. Add DAO projection/query models for:
-   - library rows grouped by `videoId`
-   - subtitle tracks per video
-3. Move filter/sort/group logic from `LibraryScreen` and `CollectionDetailScreen` into DAO + ViewModel.
-4. Keep composables render-only with precomputed UI models.
+**Implemented**
+1. Added non-unique indexes for `createdAt`, `lastOpenedAt`, and `channelName` while retaining the unique `videoId + trackIdentity` index.
+2. Added DAO projection/query models for grouped library rows and subtitle tracks per video.
+3. Moved library/collection filter, sort, and grouping logic into DAO + ViewModel flows.
+4. Kept `LibraryScreen` and `CollectionDetailScreen` render-focused with precomputed UI models.
 
 **Primary files**
 - `app/src/main/java/com/deedeedev/ytreader/data/local/SubtitleEntity.kt`
@@ -61,10 +57,9 @@ Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 - `app/src/main/java/com/deedeedev/ytreader/ui/home/LibraryScreen.kt`
 - `app/src/main/java/com/deedeedev/ytreader/ui/home/CollectionDetailScreen.kt`
 
-**Tests needed**
-- DAO/instrumentation tests for sort order, channel filtering, grouping behavior.
-- Regression tests for collection membership + missing-item behavior.
-- Optional performance sanity test with large synthetic subtitle set.
+**Tests added**
+- DAO/instrumentation tests for grouped rows, sort order, channel filtering, and collection missing-item behavior in `app/src/androidTest/java/com/deedeedev/ytreader/data/local/SubtitleDaoTest.kt`.
+- Migration/index assertions updated for v13 in `app/src/androidTest/java/com/deedeedev/ytreader/data/local/AppDatabaseMigrationTest.kt`.
 
 **Acceptance criteria**
 - No large in-memory group/sort remains in `LibraryScreen` / `CollectionDetailScreen`.
@@ -172,9 +167,8 @@ Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 ## Suggested Sequence
 
 1. **P2-2** (lifecycle collection).
-2. **P2-1** (Room query/index scalability).
-3. **P2-3** (Library/Collection UI extraction).
-4. **P2-FU1** (ReaderScreen refactor).
+2. **P2-3** (Library/Collection UI extraction).
+3. **P2-FU1** (ReaderScreen refactor).
 
 ---
 

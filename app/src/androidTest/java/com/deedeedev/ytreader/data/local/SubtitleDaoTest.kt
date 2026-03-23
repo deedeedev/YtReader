@@ -11,6 +11,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -178,5 +179,150 @@ class SubtitleDaoTest {
         assertNull(fetched.aiCleaningErrorSummary)
         assertNull(fetched.aiCleaningErrorLog)
         assertEquals(300L, fetched.aiCleaningUpdatedAt)
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun observeLibraryVideoRows_groupsByVideoAndSortsByDownloaded() = runBlocking {
+        subtitleDao.upsertByIdentity(
+            SubtitleEntity(
+                videoId = "video-a",
+                title = "Alpha Old",
+                channelName = "Channel A",
+                languageCode = "en",
+                subtitleTrackId = "track-a-en",
+                content = "content",
+                createdAt = 100L,
+                lastOpenedAt = 10L,
+                uploadDate = 1_000L
+            )
+        )
+        subtitleDao.upsertByIdentity(
+            SubtitleEntity(
+                videoId = "video-a",
+                title = "Alpha New",
+                channelName = "Channel A",
+                languageCode = "it",
+                subtitleTrackId = "track-a-it",
+                content = "content",
+                createdAt = 200L,
+                lastOpenedAt = 50L,
+                uploadDate = 1_000L
+            )
+        )
+        subtitleDao.upsertByIdentity(
+            SubtitleEntity(
+                videoId = "video-b",
+                title = "Beta",
+                channelName = "Channel B",
+                languageCode = "en",
+                subtitleTrackId = "track-b-en",
+                content = "content",
+                createdAt = 300L,
+                lastOpenedAt = 20L,
+                uploadDate = 2_000L
+            )
+        )
+
+        val rows = subtitleDao.observeLibraryVideoRows(
+            channelName = null,
+            sortOption = "DOWNLOADED",
+            isAscending = false
+        ).first()
+
+        assertEquals(2, rows.size)
+        assertEquals("video-b", rows[0].videoId)
+        assertEquals("video-a", rows[1].videoId)
+        assertEquals("Alpha New", rows[1].title)
+        assertEquals(200L, rows[1].lastDownloaded)
+        assertEquals(50L, rows[1].lastOpenedAt)
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun observeLibraryVideoRows_appliesChannelFilter() = runBlocking {
+        subtitleDao.upsertByIdentity(
+            SubtitleEntity(
+                videoId = "video-a",
+                title = "Alpha",
+                channelName = "One",
+                languageCode = "en",
+                subtitleTrackId = "track-a-en",
+                content = "content"
+            )
+        )
+        subtitleDao.upsertByIdentity(
+            SubtitleEntity(
+                videoId = "video-b",
+                title = "Beta",
+                channelName = "Two",
+                languageCode = "en",
+                subtitleTrackId = "track-b-en",
+                content = "content"
+            )
+        )
+
+        val filtered = subtitleDao.observeLibraryVideoRows(
+            channelName = "One",
+            sortOption = "TITLE",
+            isAscending = true
+        ).first()
+
+        assertEquals(1, filtered.size)
+        assertEquals("video-a", filtered[0].videoId)
+        assertEquals("One", filtered[0].channelName)
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun collectionQueries_ignoreMissingVideoIdsAndReturnTracks() = runBlocking {
+        subtitleDao.upsertByIdentity(
+            SubtitleEntity(
+                videoId = "video-a",
+                title = "Gamma",
+                channelName = "Channel A",
+                languageCode = "it",
+                subtitleTrackId = "track-a-it",
+                content = "content",
+                createdAt = 200L
+            )
+        )
+        subtitleDao.upsertByIdentity(
+            SubtitleEntity(
+                videoId = "video-a",
+                title = "Gamma",
+                channelName = "Channel A",
+                languageCode = "en",
+                subtitleTrackId = "track-a-en",
+                content = "content",
+                createdAt = 201L
+            )
+        )
+        subtitleDao.upsertByIdentity(
+            SubtitleEntity(
+                videoId = "video-b",
+                title = "Delta",
+                channelName = "Channel B",
+                languageCode = "fr",
+                subtitleTrackId = "track-b-fr",
+                content = "content",
+                createdAt = 300L
+            )
+        )
+
+        val collectionIds = listOf("video-a", "missing", "video-b")
+        val rows = subtitleDao.observeCollectionVideoRows(
+            videoIds = collectionIds,
+            channelName = null,
+            sortOption = "TITLE",
+            isAscending = true
+        ).first()
+        val count = subtitleDao.observeCollectionVideoCount(collectionIds).first()
+        val tracks = subtitleDao.observeSubtitleTracksForVideos(listOf("video-a")).first()
+
+        assertEquals(2, rows.size)
+        assertEquals(2, count)
+        assertTrue(rows.none { it.videoId == "missing" })
+        assertEquals(listOf("en", "it"), tracks.map { it.languageCode })
     }
 }

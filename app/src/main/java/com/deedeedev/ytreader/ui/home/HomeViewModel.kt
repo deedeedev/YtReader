@@ -1,21 +1,27 @@
 package com.deedeedev.ytreader.ui.home
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.YoutubeRepository
+import com.deedeedev.ytreader.data.local.LibraryVideoRow
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.domain.SubtitleIdentity
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.stream.StreamInfo
@@ -40,6 +46,7 @@ data class HomeUiState(
     val collections: List<VideoCollection> = emptyList()
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel(
     private val youtubeRepository: YoutubeRepository,
     private val subtitleDao: SubtitleDao,
@@ -48,6 +55,29 @@ class HomeViewModel(
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    val libraryChannels: StateFlow<List<String>> = subtitleDao.observeLibraryChannels()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val libraryItems: StateFlow<List<LibraryItem>> = uiState
+        .map { state ->
+            LibraryQueryParams(
+                channelName = state.selectedChannelFilter,
+                sortOption = state.sortOption,
+                isAscending = state.isAscending
+            )
+        }
+        .distinctUntilChanged()
+        .flatMapLatest { params ->
+            subtitleDao.observeLibraryVideoRows(
+                channelName = params.channelName,
+                sortOption = params.sortOption.name,
+                isAscending = params.isAscending
+            ).flatMapLatest { rows ->
+                observeLibraryItemsForRows(rows)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
         userPreferencesRepository.normalizeCollectionVideoIds()
@@ -221,7 +251,7 @@ class HomeViewModel(
 
     fun deleteSubtitle(subtitle: SubtitleEntity) {
         viewModelScope.launch {
-            val subtitleCountForVideo = _uiState.value.savedSubtitles.count { it.videoId == subtitle.videoId }
+            val subtitleCountForVideo = subtitleDao.countByVideoId(subtitle.videoId)
             if (subtitleCountForVideo <= 1) {
                 userPreferencesRepository.removeVideoFromAllCollections(subtitle.videoId)
             }
@@ -260,6 +290,91 @@ class HomeViewModel(
         }
         return subtitle.videoId
     }
+
+    fun observeCollectionChannels(videoIds: List<String>): Flow<List<String>> {
+        val normalizedIds = normalizeVideoIds(videoIds)
+        if (normalizedIds.isEmpty()) {
+            return flowOf(emptyList())
+        }
+        return subtitleDao.observeCollectionChannels(normalizedIds)
+    }
+
+    fun observeCollectionItems(
+        videoIds: List<String>,
+        channelName: String?,
+        sortOption: SortOption,
+        isAscending: Boolean
+    ): Flow<List<LibraryItem>> {
+        val normalizedIds = normalizeVideoIds(videoIds)
+        if (normalizedIds.isEmpty()) {
+            return flowOf(emptyList())
+        }
+
+        return subtitleDao.observeCollectionVideoRows(
+            videoIds = normalizedIds,
+            channelName = channelName,
+            sortOption = sortOption.name,
+            isAscending = isAscending
+        ).flatMapLatest { rows ->
+            observeLibraryItemsForRows(rows)
+        }
+    }
+
+    fun observeCollectionVideoCount(videoIds: List<String>): Flow<Int> {
+        val normalizedIds = normalizeVideoIds(videoIds)
+        if (normalizedIds.isEmpty()) {
+            return flowOf(0)
+        }
+        return subtitleDao.observeCollectionVideoCount(normalizedIds)
+    }
+
+    private fun observeLibraryItemsForRows(rows: List<LibraryVideoRow>): Flow<List<LibraryItem>> {
+        val videoIds = rows.map { it.videoId }
+        if (videoIds.isEmpty()) {
+            return flowOf(emptyList())
+        }
+
+        return subtitleDao.observeSubtitleTracksForVideos(videoIds)
+            .map { tracks ->
+                val tracksByVideoId = tracks.groupBy { it.videoId }
+                rows.map { row ->
+                    LibraryItem(
+                        videoId = row.videoId,
+                        videoUrl = displayUrlFor(row.videoId, row.videoUrl),
+                        title = row.title,
+                        channelName = row.channelName,
+                        subtitles = tracksByVideoId[row.videoId].orEmpty(),
+                        uploadDate = row.uploadDate,
+                        lastDownloaded = row.lastDownloaded,
+                        lastOpenedAt = row.lastOpenedAt
+                    )
+                }
+            }
+    }
+
+    private fun normalizeVideoIds(videoIds: List<String>): List<String> {
+        return videoIds.map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+
+    private fun displayUrlFor(videoId: String, videoUrl: String): String {
+        val savedUrl = videoUrl.trim()
+        if (savedUrl.isNotBlank()) {
+            return savedUrl
+        }
+        val normalizedVideoId = YouTubeVideoIdNormalizer.extractVideoId(videoId)
+        if (normalizedVideoId != null) {
+            return YouTubeVideoIdNormalizer.canonicalWatchUrl(normalizedVideoId)
+        }
+        return videoId
+    }
+
+    private data class LibraryQueryParams(
+        val channelName: String?,
+        val sortOption: SortOption,
+        val isAscending: Boolean
+    )
 
     companion object {
         fun provideFactory(

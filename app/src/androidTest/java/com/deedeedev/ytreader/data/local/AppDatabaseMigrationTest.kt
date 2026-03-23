@@ -25,7 +25,7 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun latestSchema_isValidatedFromExportedJson() {
-        val expectedIdentityHash = "224ece04571d7eab677dbddb68233c72"
+        val expectedIdentityHash = "e627c9d31dc487417d120526ada9ff1e"
 
         val database = Room.databaseBuilder(context, AppDatabase::class.java, testDbName).build()
         val runtimeIdentityHash = database.openHelper.writableDatabase
@@ -50,6 +50,9 @@ class AppDatabaseMigrationTest {
         }
 
         assertTrue(indexNames.contains("index_subtitles_videoId_trackIdentity"))
+        assertTrue(indexNames.contains("index_subtitles_createdAt"))
+        assertTrue(indexNames.contains("index_subtitles_lastOpenedAt"))
+        assertTrue(indexNames.contains("index_subtitles_channelName"))
         database.close()
     }
 

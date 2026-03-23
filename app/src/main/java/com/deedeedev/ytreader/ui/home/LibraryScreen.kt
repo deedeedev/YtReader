@@ -28,7 +28,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.local.SubtitleEntity
-import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -43,54 +42,11 @@ fun LibraryScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val uniqueChannels by viewModel.libraryChannels.collectAsState()
+    val libraryItems by viewModel.libraryItems.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var addToCollectionTargetVideoId by remember { mutableStateOf<String?>(null) }
-
-    // Extract filtering logic
-    val uniqueChannels = remember(uiState.savedSubtitles) {
-        uiState.savedSubtitles.map { it.channelName }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .sorted()
-    }
-    
-    // Apply filter
-    val filteredSubtitles = if (uiState.selectedChannelFilter == null) {
-        uiState.savedSubtitles
-    } else {
-        uiState.savedSubtitles.filter { it.channelName == uiState.selectedChannelFilter }
-    }
-
-    // Group subtitles by videoId
-    val libraryItems = remember(filteredSubtitles) {
-        filteredSubtitles.groupBy { it.videoId }
-            .map { (_, subtitles) ->
-                val first = subtitles.first()
-                LibraryItem(
-                    videoId = first.videoId,
-                    videoUrl = displayUrlFor(first),
-                    title = first.title,
-                    channelName = first.channelName,
-                    subtitles = subtitles.sortedBy { it.languageCode },
-                    uploadDate = first.uploadDate,
-                    lastDownloaded = subtitles.maxOf { it.createdAt },
-                    lastOpenedAt = subtitles.maxOf { it.lastOpenedAt }
-                )
-            }
-    }
-
-    // Sort library items
-    val sortedLibraryItems = remember(libraryItems, uiState.sortOption, uiState.isAscending) {
-        val sorted = when (uiState.sortOption) {
-            SortOption.TITLE -> libraryItems.sortedBy { it.title }
-            SortOption.CHANNEL_NAME -> libraryItems.sortedBy { it.channelName }
-            SortOption.DATE_PUBLISHED -> libraryItems.sortedBy { it.uploadDate }
-            SortOption.DOWNLOADED -> libraryItems.sortedBy { it.lastDownloaded }
-            SortOption.LAST_OPENED -> libraryItems.sortedBy { it.lastOpenedAt }
-        }
-        if (uiState.isAscending) sorted else sorted.reversed()
-    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -207,7 +163,7 @@ fun LibraryScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (sortedLibraryItems.isEmpty()) {
+                if (libraryItems.isEmpty()) {
                     item {
                         Text(
                             text = "No saved subtitles found.",
@@ -217,7 +173,7 @@ fun LibraryScreen(
                     }
                 } else {
                     items(
-                        items = sortedLibraryItems,
+                        items = libraryItems,
                         key = { it.videoId }
                     ) { item ->
                         val dismissState = rememberSwipeToDismissBoxState(
@@ -333,29 +289,6 @@ fun LibraryScreen(
             }
         )
     }
-}
-
-data class LibraryItem(
-    val videoId: String,
-    val videoUrl: String,
-    val title: String,
-    val channelName: String,
-    val subtitles: List<SubtitleEntity>,
-    val uploadDate: Long,
-    val lastDownloaded: Long,
-    val lastOpenedAt: Long
-)
-
-private fun displayUrlFor(subtitle: SubtitleEntity): String {
-    val savedUrl = subtitle.videoUrl.trim()
-    if (savedUrl.isNotBlank()) {
-        return savedUrl
-    }
-    val normalizedVideoId = YouTubeVideoIdNormalizer.extractVideoId(subtitle.videoId)
-    if (normalizedVideoId != null) {
-        return YouTubeVideoIdNormalizer.canonicalWatchUrl(normalizedVideoId)
-    }
-    return subtitle.videoId
 }
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)

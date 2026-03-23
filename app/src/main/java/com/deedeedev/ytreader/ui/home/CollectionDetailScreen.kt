@@ -52,7 +52,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -77,74 +76,35 @@ fun CollectionDetailScreen(
         uiState.collections.firstOrNull { it.id == collectionId }
     }
 
-    val libraryItemsByVideoId = remember(uiState.savedSubtitles) {
-        uiState.savedSubtitles
-            .groupBy { it.videoId }
-            .mapValues { (_, subtitles) ->
-                val first = subtitles.first()
-                LibraryItem(
-                    videoId = first.videoId,
-                    videoUrl = first.videoUrl.ifBlank {
-                        YouTubeVideoIdNormalizer.extractVideoId(first.videoId)?.let {
-                            YouTubeVideoIdNormalizer.canonicalWatchUrl(it)
-                        } ?: first.videoId
-                    },
-                    title = first.title,
-                    channelName = first.channelName,
-                    subtitles = subtitles.sortedBy { it.languageCode },
-                    uploadDate = first.uploadDate,
-                    lastDownloaded = subtitles.maxOf { it.createdAt },
-                    lastOpenedAt = subtitles.maxOf { it.lastOpenedAt }
-                )
-            }
+    val collectionVideoIds = remember(collection) {
+        collection?.videoIds.orEmpty()
     }
 
-    val collectionItems = remember(collection, libraryItemsByVideoId) {
-        if (collection == null) {
-            emptyList()
-        } else {
-            collection.videoIds.mapNotNull { libraryItemsByVideoId[it] }
-        }
-    }
+    val uniqueChannels by remember(collectionVideoIds) {
+        viewModel.observeCollectionChannels(collectionVideoIds)
+    }.collectAsState(initial = emptyList())
 
-    val missingCount = remember(collection, collectionItems) {
-        if (collection == null) {
-            0
-        } else {
-            collection.videoIds.size - collectionItems.size
-        }
-    }
+    val sortedItems by remember(collectionVideoIds, selectedChannelFilter, sortOption, isAscending) {
+        viewModel.observeCollectionItems(
+            videoIds = collectionVideoIds,
+            channelName = selectedChannelFilter,
+            sortOption = sortOption,
+            isAscending = isAscending
+        )
+    }.collectAsState(initial = emptyList())
 
-    val uniqueChannels = remember(collectionItems) {
-        collectionItems.map { it.channelName }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .sorted()
+    val availableVideoCount by remember(collectionVideoIds) {
+        viewModel.observeCollectionVideoCount(collectionVideoIds)
+    }.collectAsState(initial = 0)
+
+    val missingCount = remember(collection, availableVideoCount) {
+        if (collection == null) 0 else (collection.videoIds.size - availableVideoCount).coerceAtLeast(0)
     }
 
     LaunchedEffect(uniqueChannels, selectedChannelFilter) {
         if (selectedChannelFilter != null && selectedChannelFilter !in uniqueChannels) {
             selectedChannelFilter = null
         }
-    }
-
-    val filteredItems = remember(collectionItems, selectedChannelFilter) {
-        if (selectedChannelFilter == null) {
-            collectionItems
-        } else {
-            collectionItems.filter { it.channelName == selectedChannelFilter }
-        }
-    }
-
-    val sortedItems = remember(filteredItems, sortOption, isAscending) {
-        val sorted = when (sortOption) {
-            SortOption.TITLE -> filteredItems.sortedBy { it.title }
-            SortOption.CHANNEL_NAME -> filteredItems.sortedBy { it.channelName }
-            SortOption.DATE_PUBLISHED -> filteredItems.sortedBy { it.uploadDate }
-            SortOption.DOWNLOADED -> filteredItems.sortedBy { it.lastDownloaded }
-            SortOption.LAST_OPENED -> filteredItems.sortedBy { it.lastOpenedAt }
-        }
-        if (isAscending) sorted else sorted.reversed()
     }
 
     Scaffold(
@@ -296,7 +256,7 @@ fun CollectionDetailScreen(
                     item {
                         val emptyText = when {
                             collection.videoIds.isEmpty() -> "No videos in this collection."
-                            filteredItems.isEmpty() && selectedChannelFilter != null -> "No videos for this channel."
+                            selectedChannelFilter != null -> "No videos for this channel."
                             else -> "No videos found in this collection."
                         }
                         Text(

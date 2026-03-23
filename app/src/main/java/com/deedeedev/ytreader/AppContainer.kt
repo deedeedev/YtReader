@@ -26,6 +26,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             AppDatabase::class.java,
             "ytreader.db"
         )
+            .addMigrations(AppDatabase.MIGRATION_12_13)
             .fallbackToDestructiveMigration(false)
             .build()
     }

@@ -13,11 +13,188 @@ interface SubtitleDao {
     @Query("SELECT * FROM subtitles ORDER BY createdAt DESC")
     fun getAll(): Flow<List<SubtitleEntity>>
 
+    @Query(
+        """
+        SELECT DISTINCT channelName
+        FROM subtitles
+        WHERE channelName != ''
+        ORDER BY channelName COLLATE NOCASE ASC
+        """
+    )
+    fun observeLibraryChannels(): Flow<List<String>>
+
+    @Query(
+        """
+        SELECT
+            agg.videoId AS videoId,
+            COALESCE((
+                SELECT s.videoUrl
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), '') AS videoUrl,
+            COALESCE((
+                SELECT s.title
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), '') AS title,
+            COALESCE((
+                SELECT s.channelName
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), '') AS channelName,
+            COALESCE((
+                SELECT s.uploadDate
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), 0) AS uploadDate,
+            agg.lastDownloaded AS lastDownloaded,
+            agg.lastOpenedAt AS lastOpenedAt
+        FROM (
+            SELECT
+                videoId,
+                MAX(createdAt) AS lastDownloaded,
+                MAX(lastOpenedAt) AS lastOpenedAt
+            FROM subtitles
+            WHERE (:channelName IS NULL OR channelName = :channelName)
+            GROUP BY videoId
+        ) agg
+        ORDER BY
+            CASE WHEN :sortOption = 'TITLE' AND :isAscending = 1 THEN title END COLLATE NOCASE ASC,
+            CASE WHEN :sortOption = 'TITLE' AND :isAscending = 0 THEN title END COLLATE NOCASE DESC,
+            CASE WHEN :sortOption = 'CHANNEL_NAME' AND :isAscending = 1 THEN channelName END COLLATE NOCASE ASC,
+            CASE WHEN :sortOption = 'CHANNEL_NAME' AND :isAscending = 0 THEN channelName END COLLATE NOCASE DESC,
+            CASE WHEN :sortOption = 'DATE_PUBLISHED' AND :isAscending = 1 THEN uploadDate END ASC,
+            CASE WHEN :sortOption = 'DATE_PUBLISHED' AND :isAscending = 0 THEN uploadDate END DESC,
+            CASE WHEN :sortOption = 'DOWNLOADED' AND :isAscending = 1 THEN lastDownloaded END ASC,
+            CASE WHEN :sortOption = 'DOWNLOADED' AND :isAscending = 0 THEN lastDownloaded END DESC,
+            CASE WHEN :sortOption = 'LAST_OPENED' AND :isAscending = 1 THEN lastOpenedAt END ASC,
+            CASE WHEN :sortOption = 'LAST_OPENED' AND :isAscending = 0 THEN lastOpenedAt END DESC,
+            videoId ASC
+        """
+    )
+    fun observeLibraryVideoRows(
+        channelName: String?,
+        sortOption: String,
+        isAscending: Boolean
+    ): Flow<List<LibraryVideoRow>>
+
+    @Query(
+        """
+        SELECT DISTINCT channelName
+        FROM subtitles
+        WHERE channelName != ''
+          AND videoId IN (:videoIds)
+        ORDER BY channelName COLLATE NOCASE ASC
+        """
+    )
+    fun observeCollectionChannels(videoIds: List<String>): Flow<List<String>>
+
+    @Query(
+        """
+        SELECT
+            agg.videoId AS videoId,
+            COALESCE((
+                SELECT s.videoUrl
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND s.videoId IN (:videoIds)
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), '') AS videoUrl,
+            COALESCE((
+                SELECT s.title
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND s.videoId IN (:videoIds)
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), '') AS title,
+            COALESCE((
+                SELECT s.channelName
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND s.videoId IN (:videoIds)
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), '') AS channelName,
+            COALESCE((
+                SELECT s.uploadDate
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND s.videoId IN (:videoIds)
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), 0) AS uploadDate,
+            agg.lastDownloaded AS lastDownloaded,
+            agg.lastOpenedAt AS lastOpenedAt
+        FROM (
+            SELECT
+                videoId,
+                MAX(createdAt) AS lastDownloaded,
+                MAX(lastOpenedAt) AS lastOpenedAt
+            FROM subtitles
+            WHERE videoId IN (:videoIds)
+              AND (:channelName IS NULL OR channelName = :channelName)
+            GROUP BY videoId
+        ) agg
+        ORDER BY
+            CASE WHEN :sortOption = 'TITLE' AND :isAscending = 1 THEN title END COLLATE NOCASE ASC,
+            CASE WHEN :sortOption = 'TITLE' AND :isAscending = 0 THEN title END COLLATE NOCASE DESC,
+            CASE WHEN :sortOption = 'CHANNEL_NAME' AND :isAscending = 1 THEN channelName END COLLATE NOCASE ASC,
+            CASE WHEN :sortOption = 'CHANNEL_NAME' AND :isAscending = 0 THEN channelName END COLLATE NOCASE DESC,
+            CASE WHEN :sortOption = 'DATE_PUBLISHED' AND :isAscending = 1 THEN uploadDate END ASC,
+            CASE WHEN :sortOption = 'DATE_PUBLISHED' AND :isAscending = 0 THEN uploadDate END DESC,
+            CASE WHEN :sortOption = 'DOWNLOADED' AND :isAscending = 1 THEN lastDownloaded END ASC,
+            CASE WHEN :sortOption = 'DOWNLOADED' AND :isAscending = 0 THEN lastDownloaded END DESC,
+            CASE WHEN :sortOption = 'LAST_OPENED' AND :isAscending = 1 THEN lastOpenedAt END ASC,
+            CASE WHEN :sortOption = 'LAST_OPENED' AND :isAscending = 0 THEN lastOpenedAt END DESC,
+            videoId ASC
+        """
+    )
+    fun observeCollectionVideoRows(
+        videoIds: List<String>,
+        channelName: String?,
+        sortOption: String,
+        isAscending: Boolean
+    ): Flow<List<LibraryVideoRow>>
+
+    @Query(
+        """
+        SELECT *
+        FROM subtitles
+        WHERE videoId IN (:videoIds)
+        ORDER BY videoId ASC, languageCode ASC
+        """
+    )
+    fun observeSubtitleTracksForVideos(videoIds: List<String>): Flow<List<SubtitleEntity>>
+
+    @Query("SELECT COUNT(DISTINCT videoId) FROM subtitles WHERE videoId IN (:videoIds)")
+    fun observeCollectionVideoCount(videoIds: List<String>): Flow<Int>
+
     @Query("SELECT * FROM subtitles WHERE id = :id")
     fun observeById(id: Long): Flow<SubtitleEntity?>
 
     @Query("SELECT * FROM subtitles WHERE id = :id")
     suspend fun getById(id: Long): SubtitleEntity?
+
+    @Query("SELECT COUNT(*) FROM subtitles WHERE videoId = :videoId")
+    suspend fun countByVideoId(videoId: String): Int
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertIgnore(subtitle: SubtitleEntity): Long

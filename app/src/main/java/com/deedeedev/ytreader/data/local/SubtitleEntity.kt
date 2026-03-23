@@ -6,7 +6,12 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "subtitles",
-    indices = [Index(value = ["videoId", "trackIdentity"], unique = true)]
+    indices = [
+        Index(value = ["videoId", "trackIdentity"], unique = true),
+        Index(value = ["createdAt"]),
+        Index(value = ["lastOpenedAt"]),
+        Index(value = ["channelName"])
+    ]
 )
 data class SubtitleEntity(
     @PrimaryKey(autoGenerate = true)
