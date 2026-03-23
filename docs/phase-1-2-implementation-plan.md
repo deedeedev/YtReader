@@ -6,26 +6,26 @@ This is a status-updated implementation plan focused on Phase 2 scalability work
 
 In scope:
 
-- **Phase 2 (scalability):** Room query/index improvements, lifecycle-aware flow collection, Library/Collection UI extraction.
+- **Phase 2 (remaining scalability):** lifecycle-aware flow collection and Library/Collection UI extraction.
 - **Reader maintainability follow-up:** split `ReaderScreen.kt` if kept in active development.
 
 Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 
 ---
 
-## Current Baseline (verified against code)
+## Current Gaps (verified against code)
 
-- Room DB is now **v13** in `app/src/main/java/com/deedeedev/ytreader/data/local/AppDatabase.kt`.
-- `SubtitleEntity` now has indexes for `videoId + trackIdentity` (unique), `createdAt`, `lastOpenedAt`, and `channelName` in `app/src/main/java/com/deedeedev/ytreader/data/local/SubtitleEntity.kt`.
-- `SubtitleDao` now provides projection/query APIs for grouped library rows by video, collection-scoped rows, channel lists, and subtitle tracks-per-video.
-- Library/Collection screens now consume ViewModel-provided, DAO-backed precomputed items in:
-  - `app/src/main/java/com/deedeedev/ytreader/ui/home/LibraryScreen.kt`
-  - `app/src/main/java/com/deedeedev/ytreader/ui/home/CollectionDetailScreen.kt`
 - Lifecycle-aware collection is not yet adopted:
+  - `lifecycle-runtime-compose` is not declared in `gradle/libs.versions.toml` and not added in `app/build.gradle.kts`.
   - `collectAsStateWithLifecycle()` is not used.
   - `collectAsState()` is still used in `MainActivity`, `SearchScreen`, `LibraryScreen`, `CollectionDetailScreen`, `CollectionsScreen`, `SettingsScreen`, and `ReaderScreen`.
-- Migration coverage changed: `app/src/androidTest/java/com/deedeedev/ytreader/data/local/AppDatabaseMigrationTest.kt` validates latest schema/hash and index presence, but does not verify upgrade paths across historical versions.
-- `ReaderScreen.kt` is currently very large (~2169 lines), mixing screen orchestration, gesture handling, dialog state, persistence side-effects, and AndroidView configuration.
+- Library/Collection UI extraction is only partially done:
+  - Shared rendering pieces already exist (`LibraryItemCard`, `SubtitleChip`, `AddToCollectionDialog`), and are reused by both screens.
+  - Filter/sort controls and empty-state scaffolding are still duplicated between `LibraryScreen` and `CollectionDetailScreen`.
+- Migration coverage gap: `app/src/androidTest/java/com/deedeedev/ytreader/data/local/AppDatabaseMigrationTest.kt` validates latest schema/hash and index presence, but does not verify upgrade paths across historical versions.
+- Reader refactor is only partially done:
+  - Logic helpers exist in separate files (for example `ReaderFind.kt`), but screen composition/orchestration remains concentrated in `ReaderScreen.kt`.
+  - `ReaderScreen.kt` is still very large (~2169 lines), mixing orchestration, gesture handling, dialog state, persistence side-effects, and AndroidView configuration.
 
 ---
 
@@ -38,37 +38,6 @@ Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 ---
 
 ## Phase 2 — Scalability
-
-## P2-1. Push library filtering/sorting/grouping into Room + add indexes
-
-**Status**
-- **Completed**
-
-**Implemented**
-1. Added non-unique indexes for `createdAt`, `lastOpenedAt`, and `channelName` while retaining the unique `videoId + trackIdentity` index.
-2. Added DAO projection/query models for grouped library rows and subtitle tracks per video.
-3. Moved library/collection filter, sort, and grouping logic into DAO + ViewModel flows.
-4. Kept `LibraryScreen` and `CollectionDetailScreen` render-focused with precomputed UI models.
-
-**Primary files**
-- `app/src/main/java/com/deedeedev/ytreader/data/local/SubtitleEntity.kt`
-- `app/src/main/java/com/deedeedev/ytreader/data/local/SubtitleDao.kt`
-- `app/src/main/java/com/deedeedev/ytreader/ui/home/HomeViewModel.kt`
-- `app/src/main/java/com/deedeedev/ytreader/ui/home/LibraryScreen.kt`
-- `app/src/main/java/com/deedeedev/ytreader/ui/home/CollectionDetailScreen.kt`
-
-**Tests added**
-- DAO/instrumentation tests for grouped rows, sort order, channel filtering, and collection missing-item behavior in `app/src/androidTest/java/com/deedeedev/ytreader/data/local/SubtitleDaoTest.kt`.
-- Migration/index assertions updated for v13 in `app/src/androidTest/java/com/deedeedev/ytreader/data/local/AppDatabaseMigrationTest.kt`.
-
-**Acceptance criteria**
-- No large in-memory group/sort remains in `LibraryScreen` / `CollectionDetailScreen`.
-- Sorting/filtering/grouping behavior remains functionally equivalent.
-
-**Effort**
-- **L**
-
----
 
 ## P2-2. Lifecycle-aware flow collection in Compose
 
@@ -107,11 +76,11 @@ Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 ## P2-3. Extract duplicated Library/Collection UI logic
 
 **Status**
-- **Not implemented**
+- **Partially implemented**
 
 **Remaining implementation**
-1. Extract shared controls (channel filter + sort selector + sort direction).
-2. Extract shared empty-state logic and common list section scaffolding.
+1. Extract shared controls (channel filter + sort selector + sort direction) into reusable home UI components.
+2. Extract shared empty-state logic and common list-section scaffolding.
 3. Keep collection-only behavior local (swipe remove from collection, missing-count text).
 
 **Primary files**
@@ -133,6 +102,9 @@ Still out of scope: DataStore migration, i18n pass, and Phase 3 feature work.
 ---
 
 ## P2-FU1. ReaderScreen refactor (maintainability follow-up)
+
+**Status**
+- **Partially implemented**
 
 **Why this is now needed**
 - `app/src/main/java/com/deedeedev/ytreader/ui/reader/ReaderScreen.kt` has grown very large and mixes many concerns.
