@@ -120,7 +120,7 @@ class ReaderScreenTest {
     fun studyMode_deselectTapDoesNotToggleChrome() {
         setReaderContent()
 
-        val textView = waitForReaderTextViews(count = 1).first()
+        val textView = waitForStudyTextView()
         composeTestRule.runOnUiThread {
             textView.setSelectionRange(0, 5)
         }
@@ -129,14 +129,14 @@ class ReaderScreenTest {
         assertTrue(hasActiveSelection(textView))
         assertTagMissing(READER_TOP_BAR_TAG)
 
-        tapTextAtOffsetViaRoot(textView, offset = 8)
+        tapStudyTextCenterViaRoot(textView)
         composeTestRule.waitForIdle()
 
         assertFalse(hasActiveSelection(textView))
         assertTagMissing(READER_SELECTION_TOOLBAR_TAG)
         assertTagMissing(READER_TOP_BAR_TAG)
 
-        tapTextAtOffsetViaRoot(textView, offset = 8)
+        tapStudyTextCenterViaRoot(textView)
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag(READER_TOP_BAR_TAG).assertIsDisplayed()
@@ -176,9 +176,7 @@ class ReaderScreenTest {
     fun originalMode_overflowMenuShowsFind() {
         setReaderContent()
 
-        showChrome()
-        composeTestRule.onNodeWithContentDescription("Switch to original mode").performClick()
-        composeTestRule.waitForIdle()
+        switchToOriginalModeIfNeeded()
         openOverflowMenu()
 
         composeTestRule.onNodeWithText("Find").assertIsDisplayed()
@@ -243,9 +241,7 @@ class ReaderScreenTest {
     fun originalMode_findResultClosesDialogAndSelectsMatch() {
         setReaderContent()
 
-        showChrome()
-        composeTestRule.onNodeWithContentDescription("Switch to original mode").performClick()
-        composeTestRule.waitForIdle()
+        switchToOriginalModeIfNeeded()
         openFindDialog()
         composeTestRule.onNodeWithTag(READER_FIND_INPUT_TAG).performTextInput("Second")
         composeTestRule.onNodeWithContentDescription("Search").performClick()
@@ -421,6 +417,18 @@ class ReaderScreenTest {
         composeTestRule.waitForIdle()
     }
 
+    private fun switchToOriginalModeIfNeeded() {
+        ensureChromeVisible()
+        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+            composeTestRule.onAllNodesWithContentDescription("Switch to original mode").fetchSemanticsNodes().isNotEmpty() ||
+                composeTestRule.onAllNodesWithContentDescription("Switch to study mode").fetchSemanticsNodes().isNotEmpty()
+        }
+        if (composeTestRule.onAllNodesWithContentDescription("Switch to original mode").fetchSemanticsNodes().isNotEmpty()) {
+            composeTestRule.onNodeWithContentDescription("Switch to original mode").assertIsDisplayed().performClick()
+            composeTestRule.waitForIdle()
+        }
+    }
+
     private fun openFindAndReplaceDialog() {
         ensureChromeVisible()
         openOverflowMenu()
@@ -510,7 +518,32 @@ class ReaderScreenTest {
         }
     }
 
+    private fun tapStudyTextCenterViaRoot(textView: JustifiedStudyTextView) {
+        var rootOffset = Offset.Zero
+        composeTestRule.runOnUiThread {
+            val locationInWindow = IntArray(2)
+            val rootLocationInWindow = IntArray(2)
+            textView.getLocationInWindow(locationInWindow)
+            composeTestRule.activity.window.decorView.rootView.getLocationInWindow(rootLocationInWindow)
+            rootOffset = Offset(
+                x = locationInWindow[0] - rootLocationInWindow[0] + (textView.width / 2f),
+                y = locationInWindow[1] - rootLocationInWindow[1] + (textView.height / 2f)
+            )
+        }
+        composeTestRule.onRoot().performTouchInput {
+            click(rootOffset)
+        }
+    }
+
     private fun hasActiveSelection(textView: SelectableHighlightTextView): Boolean {
+        var hasSelection = false
+        composeTestRule.runOnUiThread {
+            hasSelection = textView.hasActiveSelection()
+        }
+        return hasSelection
+    }
+
+    private fun hasActiveSelection(textView: JustifiedStudyTextView): Boolean {
         var hasSelection = false
         composeTestRule.runOnUiThread {
             hasSelection = textView.hasActiveSelection()
