@@ -4,7 +4,7 @@
 
 This plan covers the roadmap items already agreed for:
 
-- **Phase 1 (stability):** notification permission flow, async receiver cancellation, migration testing hardening.
+- **Phase 1 (stability):** async receiver cancellation, migration testing hardening.
 - **Phase 2 (scalability):** Room query/index improvements, lifecycle-aware flow collection, Library/Collection UI extraction.
 
 Out of scope for this plan: ReaderScreen large refactor, DataStore migration, i18n pass, and new product features (Phase 3).
@@ -13,7 +13,6 @@ Out of scope for this plan: ReaderScreen large refactor, DataStore migration, i1
 
 ## Current Baseline (verified)
 
-- Notification permission exists in manifest but no runtime request flow (`app/src/main/AndroidManifest.xml` and no matching request code in `app/src/main/java`).
 - `AiCleaningCancelReceiver` uses `runBlocking` in `app/src/main/java/com/deedeedev/ytreader/data/AiCleaningWorker.kt`.
 - DB is Room v11 in `app/src/main/java/com/deedeedev/ytreader/data/local/AppDatabase.kt`, with migrations defined in `app/src/main/java/com/deedeedev/ytreader/AppContainer.kt`.
 - Migration tests currently cover only 8→9 in `app/src/androidTest/java/com/deedeedev/ytreader/data/local/AppDatabaseMigrationTest.kt`.
@@ -34,36 +33,6 @@ Out of scope for this plan: ReaderScreen large refactor, DataStore migration, i1
 ---
 
 ## Phase 1 — Stability
-
-## P1-2. Android 13+ notification runtime permission flow (High impact, low effort)
-
-**Goal**
-Ensure AI-clean completion notifications actually appear on Android 13+.
-
-**Implementation**
-1. Add runtime request flow for `POST_NOTIFICATIONS` in UI path where AI cleaning is triggered (prefer context-triggered request in reader flow).
-2. Gate notification posting in worker/helper with permission check; no crash/no-op failure.
-3. Add user feedback when denied (snackbar or settings hint), and continue cleaning job without notification.
-
-**Primary files**
-- `app/src/main/java/com/deedeedev/ytreader/ui/reader/ReaderScreen.kt`
-- `app/src/main/java/com/deedeedev/ytreader/data/AiCleaningWorker.kt`
-- optional helper in `app/src/main/java/com/deedeedev/ytreader/MainActivity.kt`
-
-**Tests**
-- Instrumentation/manual:
-  - Android 13+ fresh install: request shown before first notification attempt
-  - Denied permission: job completes, in-app state updates, no notification crash
-  - Granted permission: completion notification visible and deep-link opens reader
-
-**Acceptance criteria**
-- Runtime request exists on API 33+.
-- Notification behavior deterministic for granted/denied paths.
-
-**Effort**
-- **S-M**
-
----
 
 ## P1-3. Remove `runBlocking` from cancel receiver (High impact, low effort)
 
@@ -238,11 +207,10 @@ Cut maintenance overhead and keep filter/sort behavior consistent.
 ## Suggested Sequence
 
 1. **P1-3** (receiver async) — quick safety win.
-2. **P1-2** (notification permission) — unblock reliable notifications.
-3. **P1-4** (migration test hardening) — lock in migration safety.
-4. **P2-2** (lifecycle collection) — low-risk scalability hygiene.
-5. **P2-1** (Room queries/indexes) — core scalability uplift.
-6. **P2-3** (UI extraction) — maintainability cleanup after data flow stabilizes.
+2. **P1-4** (migration test hardening) — lock in migration safety.
+3. **P2-2** (lifecycle collection) — low-risk scalability hygiene.
+4. **P2-1** (Room queries/indexes) — core scalability uplift.
+5. **P2-3** (UI extraction) — maintainability cleanup after data flow stabilizes.
 
 ---
 
