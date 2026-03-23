@@ -616,7 +616,9 @@ fun ReaderScreen(
     }
 
     BackHandler {
-        if (!uiState.isAiCleaning) {
+        if (isUiVisible) {
+            isUiVisible = false
+        } else {
             requestAction(PendingAction.ExitScreen)
         }
     }

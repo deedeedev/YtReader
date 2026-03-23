@@ -353,7 +353,51 @@ class ReaderScreenTest {
         assertEquals(0.55f, currentWindowBrightness(), 0.001f)
     }
 
-    private fun setReaderContent() {
+    @Test
+    fun backPress_hidesChromeWhenVisible_thenCallsOnBackInFullscreen() {
+        var backInvocations = 0
+        setReaderContent(onBack = { backInvocations++ })
+
+        showChrome()
+        composeTestRule.onNodeWithTag(READER_TOP_BAR_TAG).assertIsDisplayed()
+
+        pressSystemBack()
+        composeTestRule.waitForIdle()
+        assertTagMissing(READER_TOP_BAR_TAG)
+        assertEquals(0, backInvocations)
+
+        pressSystemBack()
+        composeTestRule.waitForIdle()
+        assertEquals(1, backInvocations)
+    }
+
+    @Test
+    fun backPress_hidesChromeWhenVisible_duringAiCleaning_thenCallsOnBackInFullscreen() {
+        runBlocking {
+            db.subtitleDao().markAiCleaningQueued(
+                id = subtitleId,
+                sourceText = "queued text",
+                updatedAt = System.currentTimeMillis()
+            )
+        }
+
+        var backInvocations = 0
+        setReaderContent(onBack = { backInvocations++ })
+
+        showChrome()
+        composeTestRule.onNodeWithTag(READER_TOP_BAR_TAG).assertIsDisplayed()
+
+        pressSystemBack()
+        composeTestRule.waitForIdle()
+        assertTagMissing(READER_TOP_BAR_TAG)
+        assertEquals(0, backInvocations)
+
+        pressSystemBack()
+        composeTestRule.waitForIdle()
+        assertEquals(1, backInvocations)
+    }
+
+    private fun setReaderContent(onBack: () -> Unit = {}) {
         showReaderContent.value = true
         composeTestRule.runOnUiThread {
             WindowCompat.setDecorFitsSystemWindows(composeTestRule.activity.window, false)
@@ -366,7 +410,7 @@ class ReaderScreenTest {
                         subtitleDao = db.subtitleDao(),
                         userPreferencesRepository = preferencesRepository,
                         onChromeReady = {},
-                        onBack = {}
+                        onBack = onBack
                     )
                 } else {
                     Box {}
@@ -375,6 +419,12 @@ class ReaderScreenTest {
         }
 
         composeTestRule.waitForIdle()
+    }
+
+    private fun pressSystemBack() {
+        composeTestRule.runOnUiThread {
+            composeTestRule.activity.onBackPressedDispatcher.onBackPressed()
+        }
     }
 
     private fun showChrome() {
