@@ -258,6 +258,12 @@ class HomeViewModel(
         }
     }
 
+    fun resetVideoProgress(videoId: String) {
+        viewModelScope.launch {
+            subtitleDao.resetReadingProgressForVideo(videoId)
+        }
+    }
+
     fun deleteVideoPermanently(videoId: String) {
         viewModelScope.launch {
             userPreferencesRepository.removeVideoFromAllCollections(videoId)

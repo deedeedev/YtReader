@@ -267,6 +267,64 @@ class SubtitleDaoTest {
 
     @Test
     @Throws(Exception::class)
+    fun resetReadingProgressForVideo_resetsAllTracksAndAggregates() = runBlocking {
+        subtitleDao.upsertByIdentity(
+            SubtitleEntity(
+                videoId = "video-reset",
+                title = "Reset Me",
+                channelName = "Channel A",
+                languageCode = "en",
+                subtitleTrackId = "track-en",
+                content = "content",
+                lastTimestamp = 42L,
+                lastStudyScroll = 5,
+                readingProgressPercent = 35,
+                createdAt = 100L
+            )
+        )
+        subtitleDao.upsertByIdentity(
+            SubtitleEntity(
+                videoId = "video-reset",
+                title = "Reset Me",
+                channelName = "Channel A",
+                languageCode = "it",
+                subtitleTrackId = "track-it",
+                content = "content",
+                lastTimestamp = 99L,
+                lastStudyScroll = 12,
+                readingProgressPercent = 100,
+                createdAt = 200L
+            )
+        )
+
+        subtitleDao.resetReadingProgressForVideo("video-reset")
+
+        val savedTracks = subtitleDao.getAll().first().filter { it.videoId == "video-reset" }
+        assertEquals(2, savedTracks.size)
+        assertTrue(savedTracks.all { it.readingProgressPercent == 0 })
+        assertTrue(savedTracks.all { it.lastTimestamp == 0L })
+        assertTrue(savedTracks.all { it.lastStudyScroll == 0 })
+
+        val libraryRows = subtitleDao.observeLibraryVideoRows(
+            channelName = null,
+            sortOption = "DOWNLOADED",
+            isAscending = false
+        ).first()
+        val libraryRow = libraryRows.first { it.videoId == "video-reset" }
+        assertEquals(0, libraryRow.readingProgressPercent)
+
+        val collectionRows = subtitleDao.observeCollectionVideoRows(
+            videoIds = listOf("video-reset"),
+            channelName = null,
+            sortOption = "DOWNLOADED",
+            isAscending = false
+        ).first()
+        assertEquals(1, collectionRows.size)
+        assertEquals(0, collectionRows[0].readingProgressPercent)
+    }
+
+    @Test
+    @Throws(Exception::class)
     fun observeLibraryVideoRows_appliesChannelFilter() = runBlocking {
         subtitleDao.upsertByIdentity(
             SubtitleEntity(

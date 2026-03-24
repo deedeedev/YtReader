@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Share
@@ -139,6 +140,7 @@ fun LibraryScreen(
                                 onSubtitleClick = onSubtitleClick,
                                 onVideoClick = onVideoClick,
                                 onAddToCollection = { addToCollectionTargetVideoId = item.videoId },
+                                onResetProgress = { viewModel.resetVideoProgress(item.videoId) },
                                 onRemoveFromLibrary = {
                                     viewModel.removeLibraryItem(item.subtitles)
                                 },
@@ -202,6 +204,7 @@ fun LibraryItemCard(
     onSubtitleClick: (Long) -> Unit,
     onVideoClick: (String) -> Unit,
     onAddToCollection: () -> Unit,
+    onResetProgress: () -> Unit,
     showLibraryStatusBadge: Boolean = true,
     showCollectionBadge: Boolean = true,
     onRemoveFromLibrary: (() -> Unit)? = null,
@@ -349,6 +352,19 @@ fun LibraryItemCard(
                 leadingIcon = {
                     Icon(
                         Icons.AutoMirrored.Filled.PlaylistAdd,
+                        contentDescription = null
+                    )
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Reset progress") },
+                onClick = {
+                    onResetProgress()
+                    showMenu = false
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Refresh,
                         contentDescription = null
                     )
                 }

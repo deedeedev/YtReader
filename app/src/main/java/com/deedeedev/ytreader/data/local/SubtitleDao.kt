@@ -303,6 +303,17 @@ interface SubtitleDao {
     )
     suspend fun updateReadingProgressPercent(id: Long, percent: Int)
 
+    @Query(
+        """
+        UPDATE subtitles
+        SET readingProgressPercent = 0,
+            lastTimestamp = 0,
+            lastStudyScroll = 0
+        WHERE videoId = :videoId
+        """
+    )
+    suspend fun resetReadingProgressForVideo(videoId: String)
+
     @Query("UPDATE subtitles SET fontSize = :fontSize WHERE id = :id")
     suspend fun updateFontSize(id: Long, fontSize: Float)
 

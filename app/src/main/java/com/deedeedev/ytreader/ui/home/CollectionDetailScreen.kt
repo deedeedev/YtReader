@@ -214,6 +214,7 @@ fun CollectionDetailScreen(
                                 onSubtitleClick = onSubtitleClick,
                                 onVideoClick = onVideoClick,
                                 onAddToCollection = { addToCollectionTargetVideoId = item.videoId },
+                                onResetProgress = { viewModel.resetVideoProgress(item.videoId) },
                                 showLibraryStatusBadge = false,
                                 showCollectionBadge = false,
                                 onRestoreToLibrary = if (!item.isInLibrary) {
