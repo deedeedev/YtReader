@@ -177,6 +177,7 @@ fun MainScreen(
                     onSubtitleClick = { id ->
                         navController.navigate("reader/$id")
                     },
+                    onBack = { navController.popBackStack() },
                     onVideoClick = { url ->
                         viewModel.onUrlChange(url)
                         viewModel.searchVideo()
