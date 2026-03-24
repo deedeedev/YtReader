@@ -1,6 +1,9 @@
 package com.deedeedev.ytreader.ui.reader
 
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.text.Layout
@@ -34,6 +37,15 @@ class SelectableHighlightTextView @JvmOverloads constructor(
     private var searchResultRange: SelectionRange? = null
     private var hadActiveSelectionOnDown = false
     private var shouldDispatchSingleTap = false
+    private val noteIndicatorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(255, 196, 48, 43)
+        style = Paint.Style.FILL
+    }
+    private val noteIndicatorStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(220, 255, 255, 255)
+        style = Paint.Style.STROKE
+        strokeWidth = dpToPx(1.5f)
+    }
     private val gestureDetector = GestureDetector(
         context,
         object : GestureDetector.SimpleOnGestureListener() {
@@ -76,6 +88,11 @@ class SelectableHighlightTextView @JvmOverloads constructor(
         }
 
         return handled
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        drawHighlightNoteIndicators(canvas)
     }
 
     internal fun setContentWithHighlights(
@@ -121,14 +138,6 @@ class SelectableHighlightTextView @JvmOverloads constructor(
                 highlight.end,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
-            if (highlight.note != null) {
-                spannable.setSpan(
-                    HighlightNoteIndicatorSpan(highlight.start, highlight.end),
-                    highlight.start,
-                    highlight.end,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-            }
         }
 
         this.searchResultRange?.let { range ->
@@ -261,4 +270,30 @@ class SelectableHighlightTextView @JvmOverloads constructor(
             yFraction = (event.y / safeHeight.toFloat()).coerceIn(0f, 1f)
         )
     }
+
+    private fun drawHighlightNoteIndicators(canvas: Canvas) {
+        val textLayout = layout ?: return
+        val textLength = text?.length ?: 0
+        if (textLength == 0) return
+        val radius = dpToPx(4.5f)
+        val horizontalGap = dpToPx(5f)
+        val topInset = dpToPx(4f)
+        highlightsForHitTest.forEach { highlight ->
+            if (highlight.note.isNullOrBlank()) return@forEach
+            val startOffset = highlight.start.coerceIn(0, textLength - 1)
+            val line = textLayout.getLineForOffset(startOffset)
+            val lineRight = textLayout.getLineRight(line)
+            val lineLeft = textLayout.getLineLeft(line)
+            val rangeStartX = textLayout.getPrimaryHorizontal(startOffset)
+            val x = totalPaddingLeft + (rangeStartX - horizontalGap)
+                .coerceAtLeast(lineLeft + radius)
+                .coerceAtMost(lineRight - radius)
+            val y = totalPaddingTop + (textLayout.getLineTop(line) + topInset + radius)
+                .coerceAtMost(textLayout.getLineBottom(line) - radius)
+            canvas.drawCircle(x, y, radius, noteIndicatorPaint)
+            canvas.drawCircle(x, y, radius, noteIndicatorStrokePaint)
+        }
+    }
+
+    private fun dpToPx(value: Float): Float = value * resources.displayMetrics.density
 }

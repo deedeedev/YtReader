@@ -150,6 +150,24 @@ class ReaderScreenTest {
     }
 
     @Test
+    fun tappingHighlightInTopZone_showsHighlightToolbarInsteadOfPaging() = runBlocking {
+        db.subtitleDao().updateHighlights(
+            subtitleId,
+            serializeHighlights(listOf(TextHighlight(start = 0, end = 5, color = HighlightColor.YELLOW)))
+        )
+
+        setReaderContent()
+
+        val textView = waitForStudyTextView()
+
+        tapStudyTextOffsetViaRoot(textView, xInsetPx = 24f, yInsetPx = 24f)
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag(READER_SELECTION_TOOLBAR_TAG).assertIsDisplayed()
+        assertTagMissing(READER_TOP_BAR_TAG)
+    }
+
+    @Test
     fun fullscreenMode_hidesAndShowsSystemBarsWithReaderChrome() {
         setReaderContent()
 
@@ -475,6 +493,7 @@ class ReaderScreenTest {
                     ReaderScreen(
                         subtitleId = subtitleId,
                         subtitleDao = db.subtitleDao(),
+                        highlightNoteDao = db.highlightNoteDao(),
                         userPreferencesRepository = preferencesRepository,
                         onChromeReady = {},
                         onBack = onBack
@@ -645,6 +664,27 @@ class ReaderScreenTest {
             rootOffset = Offset(
                 x = locationInWindow[0] - rootLocationInWindow[0] + (textView.width / 2f),
                 y = locationInWindow[1] - rootLocationInWindow[1] + (textView.height / 2f)
+            )
+        }
+        composeTestRule.onRoot().performTouchInput {
+            click(rootOffset)
+        }
+    }
+
+    private fun tapStudyTextOffsetViaRoot(
+        textView: JustifiedStudyTextView,
+        xInsetPx: Float,
+        yInsetPx: Float
+    ) {
+        var rootOffset = Offset.Zero
+        composeTestRule.runOnUiThread {
+            val locationInWindow = IntArray(2)
+            val rootLocationInWindow = IntArray(2)
+            textView.getLocationInWindow(locationInWindow)
+            composeTestRule.activity.window.decorView.rootView.getLocationInWindow(rootLocationInWindow)
+            rootOffset = Offset(
+                x = locationInWindow[0] - rootLocationInWindow[0] + xInsetPx,
+                y = locationInWindow[1] - rootLocationInWindow[1] + yInsetPx
             )
         }
         composeTestRule.onRoot().performTouchInput {

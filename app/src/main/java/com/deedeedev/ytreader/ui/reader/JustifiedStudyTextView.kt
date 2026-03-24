@@ -37,6 +37,15 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         color = Color.rgb(51, 181, 229)
         style = Paint.Style.FILL
     }
+    private val noteIndicatorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(255, 196, 48, 43)
+        style = Paint.Style.FILL
+    }
+    private val noteIndicatorStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(220, 255, 255, 255)
+        style = Paint.Style.STROKE
+        strokeWidth = dpToPx(1.5f)
+    }
 
     private var content: String = ""
     private var highlights: List<TextHighlight> = emptyList()
@@ -100,6 +109,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         canvas.save()
         canvas.translate(paddingLeft.toFloat(), paddingTop.toFloat())
         textLayout.draw(canvas)
+        drawHighlightNoteIndicators(canvas, textLayout)
         selectionHandleVisuals(textLayout).forEach { handle ->
             drawHandle(canvas, handle)
         }
@@ -373,14 +383,6 @@ class JustifiedStudyTextView @JvmOverloads constructor(
                 highlight.end,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
-            if (highlight.note != null) {
-                spannable.setSpan(
-                    HighlightNoteIndicatorSpan(highlight.start, highlight.end),
-                    highlight.start,
-                    highlight.end,
-                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
-            }
         }
         searchResultRange?.let { range ->
             spannable.setSpan(
@@ -431,6 +433,28 @@ class JustifiedStudyTextView @JvmOverloads constructor(
             handleRadius,
             handlePaint
         )
+    }
+
+    private fun drawHighlightNoteIndicators(canvas: Canvas, textLayout: StaticLayout) {
+        if (content.isEmpty()) return
+        val radius = dpToPx(4.5f)
+        val horizontalGap = dpToPx(5f)
+        val topInset = dpToPx(4f)
+        highlights.forEach { highlight ->
+            if (highlight.note.isNullOrBlank()) return@forEach
+            val startOffset = highlight.start.coerceIn(0, content.lastIndex)
+            val line = textLayout.getLineForOffset(startOffset)
+            val lineRight = textLayout.getLineRight(line)
+            val lineLeft = textLayout.getLineLeft(line)
+            val rangeStartX = textLayout.getPrimaryHorizontal(startOffset)
+            val x = (rangeStartX - horizontalGap)
+                .coerceAtLeast(lineLeft + radius)
+                .coerceAtMost(lineRight - radius)
+            val y = (textLayout.getLineTop(line) + topInset + radius)
+                .coerceAtMost(textLayout.getLineBottom(line) - radius)
+            canvas.drawCircle(x, y, radius, noteIndicatorPaint)
+            canvas.drawCircle(x, y, radius, noteIndicatorStrokePaint)
+        }
     }
 
     private fun hitHandleAt(event: MotionEvent): SelectionHandle? {

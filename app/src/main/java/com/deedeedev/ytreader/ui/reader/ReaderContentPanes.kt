@@ -280,7 +280,6 @@ internal fun ReaderStudyPane(
                 top = topContentPadding,
                 bottom = bottomContentPadding
             )
-            .onUnconsumedTap { onReaderTap(it) }
             .onSizeChanged { onStudyViewportChanged(it.height) }
             .verticalScroll(studyScrollState)
     ) {

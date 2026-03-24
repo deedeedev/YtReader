@@ -25,7 +25,7 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun latestSchema_isValidatedFromExportedJson() {
-        val expectedIdentityHash = "ad9a5defa1af42bf982687460ef53a20"
+        val expectedIdentityHash = "e184049af610ab2f0e58988686c111eb"
 
         val database = Room.databaseBuilder(context, AppDatabase::class.java, testDbName).build()
         val runtimeIdentityHash = database.openHelper.writableDatabase
@@ -54,6 +54,21 @@ class AppDatabaseMigrationTest {
         assertTrue(indexNames.contains("index_subtitles_lastOpenedAt"))
         assertTrue(indexNames.contains("index_subtitles_isInLibrary"))
         assertTrue(indexNames.contains("index_subtitles_channelName"))
+
+        val highlightNoteIndexNames = mutableListOf<String>()
+        database.openHelper.writableDatabase.query("PRAGMA index_list(`highlight_notes`)").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) {
+                highlightNoteIndexNames.add(cursor.getString(nameIndex))
+            }
+        }
+
+        assertTrue(highlightNoteIndexNames.contains("index_highlight_notes_subtitleId"))
+        assertTrue(
+            highlightNoteIndexNames.contains(
+                "index_highlight_notes_subtitleId_highlightStart_highlightEnd"
+            )
+        )
         database.close()
     }
 
