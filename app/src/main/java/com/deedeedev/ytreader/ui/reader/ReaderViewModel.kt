@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.data.AiCleaningWorkScheduler
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.data.local.HighlightNoteDao
+import com.deedeedev.ytreader.data.local.HighlightNoteEntity
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.domain.SubtitleParser
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -34,6 +37,7 @@ data class ReaderUiState(
 class ReaderViewModel(
     private val appContext: Context,
     private val subtitleDao: SubtitleDao,
+    private val highlightNoteDao: HighlightNoteDao,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val subtitleId: Long
 ) : ViewModel() {
@@ -63,11 +67,20 @@ class ReaderViewModel(
 
     private fun loadSubtitle() {
         viewModelScope.launch {
-            subtitleDao.observeById(subtitleId).collectLatest { subtitle ->
+            subtitleDao.observeById(subtitleId)
+                .combine(highlightNoteDao.observeBySubtitleId(subtitleId)) { subtitle, notes ->
+                    subtitle to notes
+                }
+                .collectLatest { (subtitle, notes) ->
                 if (subtitle != null) {
                     val originalParsedText = SubtitleParser.parse(subtitle.content)
                     val content = subtitle.studyContent ?: originalParsedText
-                    val highlights = parseHighlights(subtitle.highlights)
+                    val notesByRange = notes.associateBy { HighlightRangeKey(it.highlightStart, it.highlightEnd) }
+                    val highlights = parseHighlights(subtitle.highlights).map { highlight ->
+                        highlight.copy(
+                            note = notesByRange[HighlightRangeKey(highlight.start, highlight.end)]?.noteText
+                        )
+                    }
 
                     _uiState.update {
                         it.copy(
@@ -140,38 +153,99 @@ class ReaderViewModel(
         viewModelScope.launch {
             subtitleDao.updateStudyContent(subtitleId, content)
             subtitleDao.updateHighlights(subtitleId, "")
+            highlightNoteDao.deleteBySubtitleId(subtitleId)
         }
     }
 
-    fun applyHighlight(start: Int, end: Int, color: HighlightColor) {
+    fun applyHighlight(start: Int, end: Int, color: HighlightColor): TextHighlight? {
+        return applyHighlightInternal(start = start, end = end, color = color, note = null)
+    }
+
+    fun applyHighlightWithNote(
+        start: Int,
+        end: Int,
+        color: HighlightColor,
+        note: String
+    ): TextHighlight? {
+        return applyHighlightInternal(start = start, end = end, color = color, note = note)
+    }
+
+    fun saveHighlightNote(target: TextHighlight, note: String) {
+        val normalizedNote = normalizeHighlightNote(note)
+        val state = _uiState.value
+        val updated = state.highlights.map { highlight ->
+            if (highlight == target) {
+                highlight.copy(note = normalizedNote)
+            } else {
+                highlight
+            }
+        }
+        if (updated == state.highlights) return
+        _uiState.update { it.copy(highlights = updated) }
+
+        viewModelScope.launch {
+            persistNoteForHighlight(
+                highlight = target.copy(note = normalizedNote),
+                timestamp = System.currentTimeMillis()
+            )
+        }
+    }
+
+    fun deleteHighlightNote(target: TextHighlight) {
+        val state = _uiState.value
+        val updated = state.highlights.map { highlight ->
+            if (highlight == target) {
+                highlight.copy(note = null)
+            } else {
+                highlight
+            }
+        }
+        if (updated == state.highlights) return
+        _uiState.update { it.copy(highlights = updated) }
+
+        viewModelScope.launch {
+            highlightNoteDao.deleteByRange(subtitleId, target.start, target.end)
+        }
+    }
+
+    private fun applyHighlightInternal(
+        start: Int,
+        end: Int,
+        color: HighlightColor,
+        note: String?
+    ): TextHighlight? {
         val state = _uiState.value
         val contentLength = state.content.length
-        if (contentLength == 0) return
+        if (contentLength == 0) return null
 
         val boundedStart = start.coerceIn(0, contentLength)
         val boundedEnd = end.coerceIn(0, contentLength)
         val normalizedStart = minOf(boundedStart, boundedEnd)
         val normalizedEnd = maxOf(boundedStart, boundedEnd)
-        if (normalizedStart == normalizedEnd) return
+        if (normalizedStart == normalizedEnd) return null
 
-        val merged = mergeHighlight(
+        val mergeResult = mergeHighlight(
             current = state.highlights,
             start = normalizedStart,
             end = normalizedEnd,
-            color = color
-        )
-        val serialized = serializeHighlights(merged)
+            color = color,
+            note = note
+        ) ?: return null
+        val serialized = serializeHighlights(mergeResult.highlights)
 
         _uiState.update {
             it.copy(
-                highlights = merged,
+                highlights = mergeResult.highlights,
                 subtitle = it.subtitle?.copy(highlights = serialized)
             )
         }
 
         viewModelScope.launch {
             subtitleDao.updateHighlights(subtitleId, serialized)
+            persistMergedHighlightNotes(mergeResult)
         }
+
+        return mergeResult.mergedHighlight
     }
 
     fun updateHighlightColor(target: TextHighlight, newColor: HighlightColor) {
@@ -186,6 +260,9 @@ class ReaderViewModel(
         val updated = deleteHighlightFromList(state.highlights, target)
         if (updated == state.highlights) return
         persistHighlights(updated)
+        viewModelScope.launch {
+            highlightNoteDao.deleteByRange(subtitleId, target.start, target.end)
+        }
     }
 
     suspend fun enqueueAiCleaning(inputText: String): Result<Unit> {
@@ -233,6 +310,32 @@ class ReaderViewModel(
         }
     }
 
+    private suspend fun persistMergedHighlightNotes(result: HighlightMergeResult) {
+        val timestamp = System.currentTimeMillis()
+        result.replacedHighlights.forEach { highlight ->
+            highlightNoteDao.deleteByRange(subtitleId, highlight.start, highlight.end)
+        }
+        persistNoteForHighlight(result.mergedHighlight, timestamp)
+    }
+
+    private suspend fun persistNoteForHighlight(highlight: TextHighlight, timestamp: Long) {
+        val normalizedNote = normalizeHighlightNote(highlight.note)
+        if (normalizedNote == null) {
+            highlightNoteDao.deleteByRange(subtitleId, highlight.start, highlight.end)
+            return
+        }
+        highlightNoteDao.upsert(
+            HighlightNoteEntity(
+                subtitleId = subtitleId,
+                highlightStart = highlight.start,
+                highlightEnd = highlight.end,
+                noteText = normalizedNote,
+                createdAt = timestamp,
+                updatedAt = timestamp
+            )
+        )
+    }
+
     fun clearPendingAiCleaningResult() {
         viewModelScope.launch {
             subtitleDao.clearAiCleaningResult(subtitleId, System.currentTimeMillis())
@@ -249,6 +352,7 @@ class ReaderViewModel(
         fun provideFactory(
             appContext: Context,
             dao: SubtitleDao,
+            highlightNoteDao: HighlightNoteDao,
             userPreferencesRepository: UserPreferencesRepository,
             subtitleId: Long
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
@@ -257,6 +361,7 @@ class ReaderViewModel(
                 return ReaderViewModel(
                     appContext,
                     dao,
+                    highlightNoteDao,
                     userPreferencesRepository,
                     subtitleId
                 ) as T
@@ -264,3 +369,8 @@ class ReaderViewModel(
         }
     }
 }
+
+private data class HighlightRangeKey(
+    val start: Int,
+    val end: Int
+)

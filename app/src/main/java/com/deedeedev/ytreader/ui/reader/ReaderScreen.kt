@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.domain.SubtitleParser
 import kotlinx.coroutines.delay
@@ -59,11 +60,14 @@ internal class OriginalSelectionCoordinator {
     }
 }
 
+private val DEFAULT_NOTE_HIGHLIGHT_COLOR = HighlightColor.YELLOW
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderScreen(
     subtitleId: Long,
     subtitleDao: SubtitleDao,
+    highlightNoteDao: HighlightNoteDao,
     userPreferencesRepository: UserPreferencesRepository,
     onChromeReady: () -> Unit,
     onBack: () -> Unit
@@ -78,6 +82,7 @@ fun ReaderScreen(
         factory = ReaderViewModel.provideFactory(
             context.applicationContext,
             subtitleDao,
+            highlightNoteDao,
             userPreferencesRepository,
             subtitleId
         )
@@ -148,6 +153,10 @@ fun ReaderScreen(
     var pendingAiCleaningSourceText by remember { mutableStateOf<String?>(null) }
     var selectionRange by remember { mutableStateOf<SelectionRange?>(null) }
     var activeHighlight by remember { mutableStateOf<TextHighlight?>(null) }
+    var showHighlightNoteDialog by remember { mutableStateOf(false) }
+    var highlightNoteDraft by remember { mutableStateOf("") }
+    var highlightNoteTarget by remember { mutableStateOf<TextHighlight?>(null) }
+    var highlightNoteSelectionRange by remember { mutableStateOf<SelectionRange?>(null) }
     var studyTextView by remember { mutableStateOf<JustifiedStudyTextView?>(null) }
     val originalSelectionCoordinator = remember { OriginalSelectionCoordinator() }
     var lastKnownStudyScroll by rememberSaveable(subtitle.id) {
@@ -222,6 +231,30 @@ fun ReaderScreen(
         pendingFindSelection = null
     }
 
+    fun dismissHighlightNoteDialog() {
+        showHighlightNoteDialog = false
+        highlightNoteDraft = ""
+        highlightNoteTarget = null
+        highlightNoteSelectionRange = null
+    }
+
+    fun openHighlightNoteDialog() {
+        val selectedHighlight = activeHighlight
+        if (selectedHighlight != null) {
+            highlightNoteTarget = selectedHighlight
+            highlightNoteSelectionRange = null
+            highlightNoteDraft = selectedHighlight.note.orEmpty()
+            showHighlightNoteDialog = true
+            return
+        }
+
+        val selectedRange = selectionRange ?: return
+        highlightNoteTarget = null
+        highlightNoteSelectionRange = selectedRange
+        highlightNoteDraft = ""
+        showHighlightNoteDialog = true
+    }
+
     fun activateSearchResultsMode(mode: SearchResultsMode) {
         searchResultsMode = mode
         pendingFindSelection = activePendingFindSelection(mode)
@@ -268,6 +301,7 @@ fun ReaderScreen(
             clearStudySelection = {
                 selectionRange = null
                 activeHighlight = null
+                dismissHighlightNoteDialog()
                 studyTextView?.clearSelection()
                 clearSearchResultsMode()
             },
@@ -438,6 +472,7 @@ fun ReaderScreen(
         clearSelectionState = {
             selectionRange = null
             activeHighlight = null
+            dismissHighlightNoteDialog()
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
             clearSearchResultsMode()
@@ -455,6 +490,7 @@ fun ReaderScreen(
             isUiVisible = true
             selectionRange = null
             activeHighlight = null
+            dismissHighlightNoteDialog()
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
             clearSearchResultsMode()
@@ -464,6 +500,7 @@ fun ReaderScreen(
         onReaderModeChangedToOriginal = {
             selectionRange = null
             activeHighlight = null
+            dismissHighlightNoteDialog()
             studyTextView?.clearSelection()
             clearSearchResultsMode()
         },
@@ -659,6 +696,7 @@ fun ReaderScreen(
             val normalizedEnd = maxOf(start, end)
             selectionRange = if (normalizedStart >= 0 && normalizedStart < normalizedEnd) {
                 activeHighlight = null
+                dismissHighlightNoteDialog()
                 clearSearchResultsMode()
                 SelectionRange(normalizedStart, normalizedEnd)
             } else {
@@ -667,6 +705,7 @@ fun ReaderScreen(
         },
         onHighlightTapped = { tappedHighlight ->
             clearSearchResultsMode()
+            dismissHighlightNoteDialog()
             activeHighlight = tappedHighlight
             selectionRange = null
         },
@@ -754,11 +793,14 @@ fun ReaderScreen(
                 studyTextView?.clearSelection()
             }
         },
+        onSelectionNoteClick = { openHighlightNoteDialog() },
+        selectionHasNote = activeHighlight?.note != null,
         onDeleteHighlight = {
             val selectedHighlight = activeHighlight ?: return@ReaderScreenMainLayer
             viewModel.deleteHighlight(selectedHighlight)
             activeHighlight = null
             selectionRange = null
+            dismissHighlightNoteDialog()
             studyTextView?.clearSelection()
         },
         showSearchResultsToolbar = showSearchResultsToolbar,
@@ -805,6 +847,7 @@ fun ReaderScreen(
             showFindDialog = false
             selectionRange = null
             activeHighlight = null
+            dismissHighlightNoteDialog()
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
             activateSearchResultsMode(
@@ -818,6 +861,7 @@ fun ReaderScreen(
             showFindDialog = false
             selectionRange = null
             activeHighlight = null
+            dismissHighlightNoteDialog()
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
             activateSearchResultsMode(
@@ -831,6 +875,7 @@ fun ReaderScreen(
             showFindDialog = false
             selectionRange = null
             activeHighlight = null
+            dismissHighlightNoteDialog()
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
             activateSearchResultsMode(
@@ -901,6 +946,53 @@ fun ReaderScreen(
         },
         showEmptyDialog = showEmptyDialog,
         onDismissEmptyDialog = { showEmptyDialog = false },
+        showHighlightNoteDialog = showHighlightNoteDialog,
+        highlightNoteText = highlightNoteDraft,
+        hasExistingHighlightNote = highlightNoteTarget?.note != null,
+        onHighlightNoteTextChange = { highlightNoteDraft = it },
+        onSaveHighlightNote = {
+            val existingHighlight = highlightNoteTarget
+            val normalizedNote = normalizeHighlightNote(highlightNoteDraft)
+            when {
+                existingHighlight != null && normalizedNote != null -> {
+                    viewModel.saveHighlightNote(existingHighlight, normalizedNote)
+                    activeHighlight = existingHighlight.copy(note = normalizedNote)
+                    coroutineScope.launch { snackbarHostState.showSnackbar("Note saved.") }
+                }
+
+                existingHighlight != null -> {
+                    viewModel.deleteHighlightNote(existingHighlight)
+                    activeHighlight = existingHighlight.copy(note = null)
+                    coroutineScope.launch { snackbarHostState.showSnackbar("Note removed.") }
+                }
+
+                normalizedNote != null -> {
+                    val range = highlightNoteSelectionRange
+                    if (range != null) {
+                        val createdHighlight = viewModel.applyHighlightWithNote(
+                            start = range.start,
+                            end = range.end,
+                            color = DEFAULT_NOTE_HIGHLIGHT_COLOR,
+                            note = normalizedNote
+                        )
+                        activeHighlight = createdHighlight
+                        selectionRange = null
+                        studyTextView?.clearSelection()
+                        coroutineScope.launch { snackbarHostState.showSnackbar("Note saved.") }
+                    }
+                }
+            }
+            dismissHighlightNoteDialog()
+        },
+        onDismissHighlightNote = { dismissHighlightNoteDialog() },
+        onDeleteHighlightNote = {
+            highlightNoteTarget?.let { target ->
+                viewModel.deleteHighlightNote(target)
+                activeHighlight = target.copy(note = null)
+                coroutineScope.launch { snackbarHostState.showSnackbar("Note removed.") }
+            }
+            dismissHighlightNoteDialog()
+        },
         snackbarHostState = snackbarHostState,
         coroutineScope = coroutineScope
     )

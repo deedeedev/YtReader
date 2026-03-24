@@ -26,6 +26,7 @@ class TextHighlightTest {
         )
 
         val merged = mergeHighlight(current, start = 8, end = 10, color = HighlightColor.BLUE)
+            ?: error("Expected merge result")
 
         assertEquals(
             listOf(
@@ -33,7 +34,7 @@ class TextHighlightTest {
                 TextHighlight(start = 5, end = 7, color = HighlightColor.GREEN),
                 TextHighlight(start = 8, end = 10, color = HighlightColor.BLUE)
             ),
-            merged
+            merged.highlights
         )
     }
 
@@ -45,10 +46,11 @@ class TextHighlightTest {
         )
 
         val merged = mergeHighlight(current, start = 3, end = 8, color = HighlightColor.BLUE)
+            ?: error("Expected merge result")
 
         assertEquals(
             listOf(TextHighlight(start = 0, end = 10, color = HighlightColor.BLUE)),
-            merged
+            merged.highlights
         )
     }
 
@@ -57,13 +59,51 @@ class TextHighlightTest {
         val current = listOf(TextHighlight(start = 0, end = 3, color = HighlightColor.RED))
 
         val merged = mergeHighlight(current, start = 3, end = 6, color = HighlightColor.GREEN)
+            ?: error("Expected merge result")
 
         assertEquals(
             listOf(
                 TextHighlight(start = 0, end = 3, color = HighlightColor.RED),
                 TextHighlight(start = 3, end = 6, color = HighlightColor.GREEN)
             ),
-            merged
+            merged.highlights
+        )
+    }
+
+    @Test
+    fun mergeHighlight_concatenatesNotesWithBlankLine() {
+        val current = listOf(
+            TextHighlight(start = 0, end = 4, color = HighlightColor.RED, note = "First note"),
+            TextHighlight(start = 6, end = 10, color = HighlightColor.GREEN, note = "Second note")
+        )
+
+        val merged = mergeHighlight(current, start = 3, end = 8, color = HighlightColor.BLUE)
+            ?: error("Expected merge result")
+
+        assertEquals(
+            TextHighlight(
+                start = 0,
+                end = 10,
+                color = HighlightColor.BLUE,
+                note = "First note\n\nSecond note"
+            ),
+            merged.mergedHighlight
+        )
+    }
+
+    @Test
+    fun mergeHighlight_includesNewNoteWhenCreatingHighlightFromSelection() {
+        val merged = mergeHighlight(
+            current = emptyList(),
+            start = 2,
+            end = 6,
+            color = HighlightColor.YELLOW,
+            note = "Fresh note"
+        ) ?: error("Expected merge result")
+
+        assertEquals(
+            TextHighlight(start = 2, end = 6, color = HighlightColor.YELLOW, note = "Fresh note"),
+            merged.mergedHighlight
         )
     }
 

@@ -48,6 +48,7 @@ fun MainScreen(
         factory = HomeViewModel.provideFactory(
             appContainer.youtubeRepository,
             appContainer.subtitleDao,
+            appContainer.highlightNoteDao,
             appContainer.userPreferencesRepository
         )
     )
@@ -204,6 +205,7 @@ fun MainScreen(
                 ReaderScreen(
                     subtitleId = subtitleId,
                     subtitleDao = appContainer.subtitleDao,
+                    highlightNoteDao = appContainer.highlightNoteDao,
                     userPreferencesRepository = appContainer.userPreferencesRepository,
                     onChromeReady = {},
                     onBack = { navController.popBackStack() }

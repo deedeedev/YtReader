@@ -351,3 +351,46 @@ internal fun EmptyTextDialog(onOk: () -> Unit) {
         }
     )
 }
+
+@Composable
+internal fun HighlightNoteDialog(
+    noteText: String,
+    hasExistingNote: Boolean,
+    onNoteTextChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Highlight note") },
+        text = {
+            TextField(
+                value = noteText,
+                onValueChange = onNoteTextChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 120.dp),
+                label = { Text("Note") },
+                maxLines = 8
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onSave) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (hasExistingNote) {
+                    TextButton(onClick = onDelete) {
+                        Text("Remove note")
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        }
+    )
+}

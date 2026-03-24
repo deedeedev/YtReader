@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
                     factory = HomeViewModel.provideFactory(
                         appContainer.youtubeRepository,
                         appContainer.subtitleDao,
+                        appContainer.highlightNoteDao,
                         appContainer.userPreferencesRepository
                     )
                 )

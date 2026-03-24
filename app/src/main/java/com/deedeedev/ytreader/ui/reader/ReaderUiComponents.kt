@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.StickyNote2
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -35,6 +36,8 @@ import androidx.compose.ui.unit.sp
 internal fun HighlightSelectionToolbar(
     modifier: Modifier = Modifier,
     onColorSelected: (HighlightColor) -> Unit,
+    onNoteClick: () -> Unit,
+    hasNote: Boolean,
     showDelete: Boolean,
     onDeleteHighlight: () -> Unit
 ) {
@@ -52,6 +55,29 @@ internal fun HighlightSelectionToolbar(
             HighlightColorButton(color = HighlightColor.BLUE, onClick = onColorSelected)
             HighlightColorButton(color = HighlightColor.GREEN, onClick = onColorSelected)
             HighlightColorButton(color = HighlightColor.YELLOW, onClick = onColorSelected)
+            FilledTonalButton(
+                onClick = onNoteClick,
+                modifier = Modifier.size(44.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = if (hasNote) {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    contentColor = if (hasNote) {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                ),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.StickyNote2,
+                    contentDescription = "Edit note"
+                )
+            }
             if (showDelete) {
                 FilledTonalButton(
                     onClick = onDeleteHighlight,

@@ -20,6 +20,8 @@ internal fun BoxScope.ReaderOverlayHost(
     isEditing: Boolean,
     showSelectionToolbar: Boolean,
     onSelectionColorSelected: (HighlightColor) -> Unit,
+    onSelectionNoteClick: () -> Unit,
+    selectionHasNote: Boolean,
     onDeleteHighlight: () -> Unit,
     hasActiveHighlight: Boolean,
     showSearchResultsToolbar: Boolean,
@@ -52,6 +54,8 @@ internal fun BoxScope.ReaderOverlayHost(
         HighlightSelectionToolbar(
             modifier = Modifier.testTag(READER_SELECTION_TOOLBAR_TAG),
             onColorSelected = onSelectionColorSelected,
+            onNoteClick = onSelectionNoteClick,
+            hasNote = selectionHasNote,
             showDelete = hasActiveHighlight,
             onDeleteHighlight = onDeleteHighlight
         )

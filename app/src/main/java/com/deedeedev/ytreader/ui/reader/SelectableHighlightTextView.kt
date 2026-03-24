@@ -121,6 +121,14 @@ class SelectableHighlightTextView @JvmOverloads constructor(
                 highlight.end,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
+            if (highlight.note != null) {
+                spannable.setSpan(
+                    HighlightNoteIndicatorSpan(highlight.start, highlight.end),
+                    highlight.start,
+                    highlight.end,
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+            }
         }
 
         this.searchResultRange?.let { range ->

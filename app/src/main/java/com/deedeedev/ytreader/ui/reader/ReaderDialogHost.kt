@@ -49,6 +49,13 @@ internal fun ReaderDialogHost(
     onDismissAiError: () -> Unit,
     showEmptyDialog: Boolean,
     onDismissEmptyDialog: () -> Unit,
+    showHighlightNoteDialog: Boolean,
+    highlightNoteText: String,
+    hasExistingHighlightNote: Boolean,
+    onHighlightNoteTextChange: (String) -> Unit,
+    onSaveHighlightNote: () -> Unit,
+    onDismissHighlightNote: () -> Unit,
+    onDeleteHighlightNote: () -> Unit,
     snackbarHostState: SnackbarHostState,
     coroutineScope: CoroutineScope
 ) {
@@ -128,5 +135,16 @@ internal fun ReaderDialogHost(
 
     if (showEmptyDialog) {
         EmptyTextDialog(onOk = onDismissEmptyDialog)
+    }
+
+    if (showHighlightNoteDialog) {
+        HighlightNoteDialog(
+            noteText = highlightNoteText,
+            hasExistingNote = hasExistingHighlightNote,
+            onNoteTextChange = onHighlightNoteTextChange,
+            onSave = onSaveHighlightNote,
+            onDismiss = onDismissHighlightNote,
+            onDelete = onDeleteHighlightNote
+        )
     }
 }
