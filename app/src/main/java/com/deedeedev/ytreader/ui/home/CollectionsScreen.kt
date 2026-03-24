@@ -70,6 +70,11 @@ fun CollectionsScreen(
             .groupBy { it.videoId }
             .mapValues { (_, subtitles) -> subtitles.any { !it.isInLibrary } }
     }
+    val readVideosById = remember(uiState.savedSubtitles) {
+        uiState.savedSubtitles
+            .groupBy { it.videoId }
+            .mapValues { (_, subtitles) -> subtitles.maxOfOrNull { it.readingProgressPercent } ?: 0 }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -117,8 +122,12 @@ fun CollectionsScreen(
                         val onlyInCollectionsCount = collection.videoIds.count {
                             videosOnlyInCollections[it] == true
                         }
+                        val readCount = collection.videoIds.count {
+                            (readVideosById[it] ?: 0) >= 100
+                        }
                         CollectionCard(
                             collection = collection,
+                            readCount = readCount,
                             onlyInCollectionsCount = onlyInCollectionsCount,
                             onOpen = { onCollectionClick(collection.id) },
                             onRename = { renameTarget = collection },
@@ -196,6 +205,7 @@ fun CollectionsScreen(
 @Composable
 private fun CollectionCard(
     collection: VideoCollection,
+    readCount: Int,
     onlyInCollectionsCount: Int,
     onOpen: () -> Unit,
     onRename: () -> Unit,
@@ -226,6 +236,11 @@ private fun CollectionCard(
                     )
                     Text(
                         text = "${collection.videoIds.size} videos",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Text(
+                        text = "Read: $readCount/${collection.videoIds.size}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary
                     )

@@ -16,12 +16,16 @@ data class LibraryItem(
     val uploadDate: Long,
     val lastDownloaded: Long,
     val lastOpenedAt: Long,
+    val readingProgressPercent: Int,
     val isInLibrary: Boolean,
     val collectionCount: Int
 )
 
 val LibraryItem.isInCollections: Boolean
     get() = collectionCount > 0
+
+val LibraryItem.isRead: Boolean
+    get() = readingProgressPercent >= 100
 
 internal fun collectionCountsByVideoId(collections: List<VideoCollection>): Map<String, Int> {
     val counts = LinkedHashMap<String, Int>()

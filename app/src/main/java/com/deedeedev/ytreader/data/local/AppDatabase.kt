@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [SubtitleEntity::class], version = 14, exportSchema = true)
+@Database(entities = [SubtitleEntity::class], version = 15, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun subtitleDao(): SubtitleDao
 
@@ -31,6 +31,14 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_subtitles_isInLibrary` ON `subtitles` (`isInLibrary`)"
+                )
+            }
+        }
+
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `subtitles` ADD COLUMN `readingProgressPercent` INTEGER NOT NULL DEFAULT 0"
                 )
             }
         }

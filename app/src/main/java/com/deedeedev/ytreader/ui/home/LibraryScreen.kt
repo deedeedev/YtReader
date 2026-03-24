@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.data.VideoCollection
@@ -267,6 +268,22 @@ fun LibraryItemCard(
                     }
                 }
 
+                if (item.isRead) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ReadingStatusBadge(text = "Read")
+                    }
+                } else {
+                    LibraryReadingProgress(
+                        percent = item.readingProgressPercent,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 FlowRow(
@@ -382,6 +399,52 @@ fun LibraryItemCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ReadingStatusBadge(text: String) {
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.secondaryContainer
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun ReadingProgressText(percent: Int) {
+    Text(
+        text = "$percent%",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.secondary,
+        modifier = Modifier.padding(vertical = 6.dp)
+    )
+}
+
+@Composable
+private fun LibraryReadingProgress(
+    percent: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        ReadingProgressText(percent = percent)
+        LinearProgressIndicator(
+            progress = { percent.coerceIn(0, 100) / 100f },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp),
+            color = MaterialTheme.colorScheme.secondary,
+            trackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.18f),
+            drawStopIndicator = {}
+        )
     }
 }
 

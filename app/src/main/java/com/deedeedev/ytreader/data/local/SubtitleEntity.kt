@@ -33,6 +33,7 @@ data class SubtitleEntity(
     val studyContent: String? = null,
     val lastTimestamp: Long = 0L,
     val lastOpenedAt: Long = 0L,
+    val readingProgressPercent: Int = 0,
     val isInLibrary: Boolean = true,
     val lastStudyScroll: Int = 0,
     val fontSize: Float = 16f,

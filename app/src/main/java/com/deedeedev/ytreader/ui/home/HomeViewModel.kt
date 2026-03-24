@@ -367,6 +367,7 @@ class HomeViewModel(
                         uploadDate = row.uploadDate,
                         lastDownloaded = row.lastDownloaded,
                         lastOpenedAt = row.lastOpenedAt,
+                        readingProgressPercent = row.readingProgressPercent,
                         isInLibrary = row.isInLibrary,
                         collectionCount = collectionCounts[row.videoId] ?: 0
                     )

@@ -113,6 +113,7 @@ class SubtitleDaoTest {
             languageCode = "en",
             content = "old raw content",
             studyContent = "edited study content",
+            readingProgressPercent = 84,
             lastTimestamp = 42L,
             lastStudyScroll = 7,
             highlights = "0,4,YELLOW"
@@ -135,6 +136,7 @@ class SubtitleDaoTest {
         assertEquals("", fetched?.highlights)
         assertEquals(0L, fetched?.lastTimestamp)
         assertEquals(0, fetched?.lastStudyScroll)
+        assertEquals(0, fetched?.readingProgressPercent)
     }
 
     @Test
@@ -194,6 +196,7 @@ class SubtitleDaoTest {
                 content = "content",
                 createdAt = 100L,
                 lastOpenedAt = 10L,
+                readingProgressPercent = 35,
                 uploadDate = 1_000L
             )
         )
@@ -207,6 +210,7 @@ class SubtitleDaoTest {
                 content = "content",
                 createdAt = 200L,
                 lastOpenedAt = 50L,
+                readingProgressPercent = 100,
                 uploadDate = 1_000L
             )
         )
@@ -220,6 +224,7 @@ class SubtitleDaoTest {
                 content = "content",
                 createdAt = 300L,
                 lastOpenedAt = 20L,
+                readingProgressPercent = 10,
                 uploadDate = 2_000L
             )
         )
@@ -236,6 +241,28 @@ class SubtitleDaoTest {
         assertEquals("Alpha New", rows[1].title)
         assertEquals(200L, rows[1].lastDownloaded)
         assertEquals(50L, rows[1].lastOpenedAt)
+        assertEquals(100, rows[1].readingProgressPercent)
+    }
+
+    @Test
+    @Throws(Exception::class)
+    fun updateReadingProgressPercent_keepsMaximumValue() = runBlocking {
+        val subtitle = SubtitleEntity(
+            videoId = "progress-123",
+            title = "Progress Test",
+            languageCode = "en",
+            content = "content"
+        )
+        subtitleDao.upsertByIdentity(subtitle)
+
+        val inserted = subtitleDao.getAll().first().first()
+
+        subtitleDao.updateReadingProgressPercent(inserted.id, 45)
+        subtitleDao.updateReadingProgressPercent(inserted.id, 30)
+        subtitleDao.updateReadingProgressPercent(inserted.id, 100)
+
+        val fetched = subtitleDao.getById(inserted.id)
+        assertEquals(100, fetched?.readingProgressPercent)
     }
 
     @Test

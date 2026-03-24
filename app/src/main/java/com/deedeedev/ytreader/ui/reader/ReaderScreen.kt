@@ -555,6 +555,10 @@ fun ReaderScreen(
         }
     }
 
+    LaunchedEffect(fullscreenProgressPercent) {
+        viewModel.updateReadingProgressPercent(fullscreenProgressPercent)
+    }
+
     ReaderScreenMainLayer(
         readerMode = readerMode,
         isUiVisible = isUiVisible,

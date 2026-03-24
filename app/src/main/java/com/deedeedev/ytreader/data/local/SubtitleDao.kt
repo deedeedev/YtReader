@@ -62,12 +62,14 @@ interface SubtitleDao {
             ), 0) AS uploadDate,
             agg.lastDownloaded AS lastDownloaded,
             agg.lastOpenedAt AS lastOpenedAt,
+            agg.readingProgressPercent AS readingProgressPercent,
             agg.isInLibrary AS isInLibrary
         FROM (
             SELECT
                 videoId,
                 MAX(createdAt) AS lastDownloaded,
                 MAX(lastOpenedAt) AS lastOpenedAt,
+                MAX(readingProgressPercent) AS readingProgressPercent,
                 MAX(isInLibrary) AS isInLibrary
             FROM subtitles
             WHERE isInLibrary = 1
@@ -147,12 +149,14 @@ interface SubtitleDao {
             ), 0) AS uploadDate,
             agg.lastDownloaded AS lastDownloaded,
             agg.lastOpenedAt AS lastOpenedAt,
+            agg.readingProgressPercent AS readingProgressPercent,
             agg.isInLibrary AS isInLibrary
         FROM (
             SELECT
                 videoId,
                 MAX(createdAt) AS lastDownloaded,
                 MAX(lastOpenedAt) AS lastOpenedAt,
+                MAX(readingProgressPercent) AS readingProgressPercent,
                 MAX(isInLibrary) AS isInLibrary
             FROM subtitles
             WHERE videoId IN (:videoIds)
@@ -290,6 +294,15 @@ interface SubtitleDao {
     @Query("UPDATE subtitles SET lastStudyScroll = :scroll WHERE id = :id")
     suspend fun updateLastStudyScroll(id: Long, scroll: Int)
 
+    @Query(
+        """
+        UPDATE subtitles
+        SET readingProgressPercent = MAX(readingProgressPercent, :percent)
+        WHERE id = :id
+        """
+    )
+    suspend fun updateReadingProgressPercent(id: Long, percent: Int)
+
     @Query("UPDATE subtitles SET fontSize = :fontSize WHERE id = :id")
     suspend fun updateFontSize(id: Long, fontSize: Float)
 
@@ -390,7 +403,8 @@ interface SubtitleDao {
             studyContent = NULL,
             highlights = '',
             lastTimestamp = 0,
-            lastStudyScroll = 0
+            lastStudyScroll = 0,
+            readingProgressPercent = 0
         WHERE id = :id
         """
     )

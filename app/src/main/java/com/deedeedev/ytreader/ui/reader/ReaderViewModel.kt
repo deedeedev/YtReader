@@ -103,6 +103,15 @@ class ReaderViewModel(
         }
     }
 
+    fun updateReadingProgressPercent(percent: Int) {
+        viewModelScope.launch {
+            subtitleDao.updateReadingProgressPercent(
+                id = subtitleId,
+                percent = percent.coerceIn(0, 100)
+            )
+        }
+    }
+
     fun updateFontSize(fontSize: Float) {
         _uiState.update { it.copy(fontSize = fontSize) }
         viewModelScope.launch {
