@@ -10,6 +10,7 @@ import androidx.room.PrimaryKey
         Index(value = ["videoId", "trackIdentity"], unique = true),
         Index(value = ["createdAt"]),
         Index(value = ["lastOpenedAt"]),
+        Index(value = ["isInLibrary"]),
         Index(value = ["channelName"])
     ]
 )
@@ -32,6 +33,7 @@ data class SubtitleEntity(
     val studyContent: String? = null,
     val lastTimestamp: Long = 0L,
     val lastOpenedAt: Long = 0L,
+    val isInLibrary: Boolean = true,
     val lastStudyScroll: Int = 0,
     val fontSize: Float = 16f,
     val createdAt: Long = System.currentTimeMillis(),

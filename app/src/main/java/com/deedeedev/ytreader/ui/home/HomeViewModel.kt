@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -40,6 +41,7 @@ data class HomeUiState(
     val selectedSubtitle: SubtitleEntity? = null,
     val favoriteLanguages: Set<String> = emptySet(),
     val selectedChannelFilter: String? = null,
+    val libraryVisibilityFilter: LibraryVisibilityFilter = LibraryVisibilityFilter.ALL,
     val sortOption: SortOption = SortOption.DOWNLOADED,
     val isAscending: Boolean = false,
     val downloadingSubtitleIds: Set<Long> = emptySet(),
@@ -63,6 +65,7 @@ class HomeViewModel(
         .map { state ->
             LibraryQueryParams(
                 channelName = state.selectedChannelFilter,
+                visibilityFilter = state.libraryVisibilityFilter,
                 sortOption = state.sortOption,
                 isAscending = state.isAscending
             )
@@ -75,6 +78,7 @@ class HomeViewModel(
                 isAscending = params.isAscending
             ).flatMapLatest { rows ->
                 observeLibraryItemsForRows(rows)
+                    .map { items -> items.filterByVisibility(params.visibilityFilter) }
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -116,6 +120,10 @@ class HomeViewModel(
 
     fun setChannelFilter(channelName: String?) {
         _uiState.update { it.copy(selectedChannelFilter = channelName) }
+    }
+
+    fun setLibraryVisibilityFilter(visibilityFilter: LibraryVisibilityFilter) {
+        _uiState.update { it.copy(libraryVisibilityFilter = visibilityFilter) }
     }
 
     fun setSortOption(sortOption: SortOption) {
@@ -232,20 +240,28 @@ class HomeViewModel(
             }
         }
     }
-
-
-    fun deleteLibraryItem(subtitle: SubtitleEntity) {
+    fun removeLibraryItem(subtitles: List<SubtitleEntity>) {
         viewModelScope.launch {
-            userPreferencesRepository.removeVideoFromAllCollections(subtitle.videoId)
-            subtitleDao.deleteByVideoId(subtitle.videoId)
+            val videoId = subtitles.firstOrNull()?.videoId ?: return@launch
+            subtitleDao.updateLibraryVisibility(videoId, false)
+            deleteVideoIfUnreferenced(videoId)
         }
     }
 
     fun restoreLibraryItem(subtitles: List<SubtitleEntity>) {
         viewModelScope.launch {
+            val videoId = subtitles.firstOrNull()?.videoId ?: return@launch
             subtitles.forEach { subtitle ->
-                subtitleDao.upsertByIdentity(subtitle)
+                subtitleDao.upsertByIdentity(subtitle.copy(isInLibrary = true))
             }
+            subtitleDao.updateLibraryVisibility(videoId, true)
+        }
+    }
+
+    fun deleteVideoPermanently(videoId: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.removeVideoFromAllCollections(videoId)
+            subtitleDao.deleteByVideoId(videoId)
         }
     }
 
@@ -277,6 +293,9 @@ class HomeViewModel(
 
     fun removeVideoFromCollection(collectionId: String, videoId: String) {
         userPreferencesRepository.removeVideoFromCollection(collectionId, videoId)
+        viewModelScope.launch {
+            deleteVideoIfUnreferenced(videoId)
+        }
     }
 
     private fun resolveVideoLookupUrl(subtitle: SubtitleEntity): String {
@@ -335,8 +354,9 @@ class HomeViewModel(
         }
 
         return subtitleDao.observeSubtitleTracksForVideos(videoIds)
-            .map { tracks ->
+            .combine(userPreferencesRepository.videoCollections) { tracks, collections ->
                 val tracksByVideoId = tracks.groupBy { it.videoId }
+                val collectionCounts = collectionCountsByVideoId(collections)
                 rows.map { row ->
                     LibraryItem(
                         videoId = row.videoId,
@@ -346,10 +366,19 @@ class HomeViewModel(
                         subtitles = tracksByVideoId[row.videoId].orEmpty(),
                         uploadDate = row.uploadDate,
                         lastDownloaded = row.lastDownloaded,
-                        lastOpenedAt = row.lastOpenedAt
+                        lastOpenedAt = row.lastOpenedAt,
+                        isInLibrary = row.isInLibrary,
+                        collectionCount = collectionCounts[row.videoId] ?: 0
                     )
                 }
             }
+    }
+
+    private suspend fun deleteVideoIfUnreferenced(videoId: String) {
+        val hasLibraryEntry = subtitleDao.countLibraryEntriesByVideoId(videoId) > 0
+        if (!hasLibraryEntry && !userPreferencesRepository.isVideoInAnyCollection(videoId)) {
+            subtitleDao.deleteByVideoId(videoId)
+        }
     }
 
     private fun normalizeVideoIds(videoIds: List<String>): List<String> {
@@ -372,6 +401,7 @@ class HomeViewModel(
 
     private data class LibraryQueryParams(
         val channelName: String?,
+        val visibilityFilter: LibraryVisibilityFilter,
         val sortOption: SortOption,
         val isAscending: Boolean
     )

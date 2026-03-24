@@ -24,6 +24,18 @@ fun sortLabel(sortOption: SortOption): String = when (sortOption) {
     SortOption.LAST_OPENED -> "Last opened"
 }
 
+fun visibilityLabel(filter: LibraryVisibilityFilter): String = when (filter) {
+    LibraryVisibilityFilter.ALL -> "All"
+    LibraryVisibilityFilter.NOT_IN_COLLECTIONS -> "Only not in collections"
+    LibraryVisibilityFilter.IN_COLLECTIONS -> "Only in collections"
+}
+
+val libraryVisibilityFilters: List<LibraryVisibilityFilter> = listOf(
+    LibraryVisibilityFilter.ALL,
+    LibraryVisibilityFilter.NOT_IN_COLLECTIONS,
+    LibraryVisibilityFilter.IN_COLLECTIONS
+)
+
 val sortOptions: List<SortOption> = listOf(
     SortOption.TITLE,
     SortOption.CHANNEL_NAME,
@@ -37,99 +49,149 @@ val sortOptions: List<SortOption> = listOf(
 fun LibraryListControls(
     channels: List<String>,
     selectedChannelFilter: String?,
+    visibilityFilter: LibraryVisibilityFilter? = null,
     sortOption: SortOption,
     isAscending: Boolean,
     onChannelFilterChange: (String?) -> Unit,
+    onVisibilityFilterChange: ((LibraryVisibilityFilter) -> Unit)? = null,
     onSortOptionChange: (SortOption) -> Unit,
     onSortDirectionToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    Column(
         modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        var expandedFilter by remember { mutableStateOf(false) }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            var expandedFilter by remember { mutableStateOf(false) }
 
-        Box(modifier = Modifier.weight(1f)) {
-            ExposedDropdownMenuBox(
-                expanded = expandedFilter,
-                onExpandedChange = { expandedFilter = !expandedFilter }
-            ) {
-                OutlinedTextField(
-                    value = selectedChannelFilter ?: "All Channels",
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFilter)
-                    },
-                    modifier = Modifier
-                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
-                        .fillMaxWidth(),
-                    label = { Text("Filter by Channel") }
-                )
-                ExposedDropdownMenu(
+            Box(modifier = Modifier.weight(1f)) {
+                ExposedDropdownMenuBox(
                     expanded = expandedFilter,
-                    onDismissRequest = { expandedFilter = false }
+                    onExpandedChange = { expandedFilter = !expandedFilter }
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("All Channels") },
-                        onClick = {
-                            onChannelFilterChange(null)
-                            expandedFilter = false
-                        }
+                    OutlinedTextField(
+                        value = selectedChannelFilter ?: "All Channels",
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFilter)
+                        },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                            .fillMaxWidth(),
+                        label = { Text("Filter by Channel") }
                     )
-                    channels.forEach { channel ->
+                    ExposedDropdownMenu(
+                        expanded = expandedFilter,
+                        onDismissRequest = { expandedFilter = false }
+                    ) {
                         DropdownMenuItem(
-                            text = { Text(channel) },
+                            text = { Text("All Channels") },
                             onClick = {
-                                onChannelFilterChange(channel)
+                                onChannelFilterChange(null)
                                 expandedFilter = false
+                            }
+                        )
+                        channels.forEach { channel ->
+                            DropdownMenuItem(
+                                text = { Text(channel) },
+                                onClick = {
+                                    onChannelFilterChange(channel)
+                                    expandedFilter = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            var expandedSort by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { expandedSort = true }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Sort,
+                        contentDescription = "Sort"
+                    )
+                }
+                DropdownMenu(
+                    expanded = expandedSort,
+                    onDismissRequest = { expandedSort = false }
+                ) {
+                    sortOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(sortLabel(option)) },
+                            onClick = {
+                                onSortOptionChange(option)
+                                expandedSort = false
+                            },
+                            trailingIcon = {
+                                if (sortOption == option) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected"
+                                    )
+                                }
                             }
                         )
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.width(8.dp))
-
-        var expandedSort by remember { mutableStateOf(false) }
-        Box {
-            IconButton(onClick = { expandedSort = true }) {
+            IconButton(onClick = onSortDirectionToggle) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Sort,
-                    contentDescription = "Sort"
+                    imageVector = if (isAscending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                    contentDescription = if (isAscending) "Ascending" else "Descending"
                 )
             }
-            DropdownMenu(
-                expanded = expandedSort,
-                onDismissRequest = { expandedSort = false }
-            ) {
-                sortOptions.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(sortLabel(option)) },
-                        onClick = {
-                            onSortOptionChange(option)
-                            expandedSort = false
-                        },
-                        trailingIcon = {
-                            if (sortOption == option) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Selected"
-                                )
-                            }
-                        }
-                    )
-                }
-            }
         }
 
-        IconButton(onClick = onSortDirectionToggle) {
-            Icon(
-                imageVector = if (isAscending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                contentDescription = if (isAscending) "Ascending" else "Descending"
-            )
+        if (visibilityFilter != null && onVisibilityFilterChange != null) {
+            var expandedVisibility by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(
+                expanded = expandedVisibility,
+                onExpandedChange = { expandedVisibility = !expandedVisibility }
+            ) {
+                OutlinedTextField(
+                    value = visibilityLabel(visibilityFilter),
+                    onValueChange = {},
+                    readOnly = true,
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedVisibility)
+                    },
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                        .fillMaxWidth(),
+                    label = { Text("Visibility") }
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedVisibility,
+                    onDismissRequest = { expandedVisibility = false }
+                ) {
+                    libraryVisibilityFilters.forEach { filter ->
+                        DropdownMenuItem(
+                            text = { Text(visibilityLabel(filter)) },
+                            onClick = {
+                                onVisibilityFilterChange(filter)
+                                expandedVisibility = false
+                            },
+                            trailingIcon = {
+                                if (filter == visibilityFilter) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected"
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }

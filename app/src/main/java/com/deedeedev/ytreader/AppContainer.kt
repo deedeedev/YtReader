@@ -27,6 +27,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             "ytreader.db"
         )
             .addMigrations(AppDatabase.MIGRATION_12_13)
+            .addMigrations(AppDatabase.MIGRATION_13_14)
             .fallbackToDestructiveMigration(false)
             .build()
     }

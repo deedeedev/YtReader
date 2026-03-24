@@ -18,6 +18,7 @@ interface SubtitleDao {
         SELECT DISTINCT channelName
         FROM subtitles
         WHERE channelName != ''
+          AND isInLibrary = 1
         ORDER BY channelName COLLATE NOCASE ASC
         """
     )
@@ -60,14 +61,17 @@ interface SubtitleDao {
                 LIMIT 1
             ), 0) AS uploadDate,
             agg.lastDownloaded AS lastDownloaded,
-            agg.lastOpenedAt AS lastOpenedAt
+            agg.lastOpenedAt AS lastOpenedAt,
+            agg.isInLibrary AS isInLibrary
         FROM (
             SELECT
                 videoId,
                 MAX(createdAt) AS lastDownloaded,
-                MAX(lastOpenedAt) AS lastOpenedAt
+                MAX(lastOpenedAt) AS lastOpenedAt,
+                MAX(isInLibrary) AS isInLibrary
             FROM subtitles
-            WHERE (:channelName IS NULL OR channelName = :channelName)
+            WHERE isInLibrary = 1
+              AND (:channelName IS NULL OR channelName = :channelName)
             GROUP BY videoId
         ) agg
         ORDER BY
@@ -142,12 +146,14 @@ interface SubtitleDao {
                 LIMIT 1
             ), 0) AS uploadDate,
             agg.lastDownloaded AS lastDownloaded,
-            agg.lastOpenedAt AS lastOpenedAt
+            agg.lastOpenedAt AS lastOpenedAt,
+            agg.isInLibrary AS isInLibrary
         FROM (
             SELECT
                 videoId,
                 MAX(createdAt) AS lastDownloaded,
-                MAX(lastOpenedAt) AS lastOpenedAt
+                MAX(lastOpenedAt) AS lastOpenedAt,
+                MAX(isInLibrary) AS isInLibrary
             FROM subtitles
             WHERE videoId IN (:videoIds)
               AND (:channelName IS NULL OR channelName = :channelName)
@@ -274,6 +280,12 @@ interface SubtitleDao {
 
     @Query("UPDATE subtitles SET lastOpenedAt = :openedAt WHERE id = :id")
     suspend fun updateLastOpenedAt(id: Long, openedAt: Long)
+
+    @Query("UPDATE subtitles SET isInLibrary = :isInLibrary WHERE videoId = :videoId")
+    suspend fun updateLibraryVisibility(videoId: String, isInLibrary: Boolean)
+
+    @Query("SELECT COUNT(*) FROM subtitles WHERE videoId = :videoId AND isInLibrary = 1")
+    suspend fun countLibraryEntriesByVideoId(videoId: String): Int
 
     @Query("UPDATE subtitles SET lastStudyScroll = :scroll WHERE id = :id")
     suspend fun updateLastStudyScroll(id: Long, scroll: Int)

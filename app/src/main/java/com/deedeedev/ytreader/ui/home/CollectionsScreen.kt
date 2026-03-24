@@ -65,8 +65,10 @@ fun CollectionsScreen(
     var renameTarget by remember { mutableStateOf<VideoCollection?>(null) }
     var deleteTarget by remember { mutableStateOf<VideoCollection?>(null) }
 
-    val availableVideoIds = remember(uiState.savedSubtitles) {
-        uiState.savedSubtitles.map { it.videoId }.toSet()
+    val videosOnlyInCollections = remember(uiState.savedSubtitles) {
+        uiState.savedSubtitles
+            .groupBy { it.videoId }
+            .mapValues { (_, subtitles) -> subtitles.any { !it.isInLibrary } }
     }
 
     Scaffold(
@@ -112,10 +114,12 @@ fun CollectionsScreen(
                     }
                 } else {
                     items(items = uiState.collections, key = { it.id }) { collection ->
-                        val missingCount = collection.videoIds.count { it !in availableVideoIds }
+                        val onlyInCollectionsCount = collection.videoIds.count {
+                            videosOnlyInCollections[it] == true
+                        }
                         CollectionCard(
                             collection = collection,
-                            missingCount = missingCount,
+                            onlyInCollectionsCount = onlyInCollectionsCount,
                             onOpen = { onCollectionClick(collection.id) },
                             onRename = { renameTarget = collection },
                             onDelete = { deleteTarget = collection }
@@ -192,7 +196,7 @@ fun CollectionsScreen(
 @Composable
 private fun CollectionCard(
     collection: VideoCollection,
-    missingCount: Int,
+    onlyInCollectionsCount: Int,
     onOpen: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit
@@ -225,9 +229,9 @@ private fun CollectionCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
-                    if (missingCount > 0) {
+                    if (onlyInCollectionsCount > 0) {
                         Text(
-                            text = "$missingCount removed from library",
+                            text = "$onlyInCollectionsCount only in collections",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.tertiary
                         )

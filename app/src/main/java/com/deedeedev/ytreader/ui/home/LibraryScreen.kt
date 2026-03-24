@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.*
@@ -63,9 +64,11 @@ fun LibraryScreen(
             LibraryListControls(
                 channels = uniqueChannels,
                 selectedChannelFilter = uiState.selectedChannelFilter,
+                visibilityFilter = uiState.libraryVisibilityFilter,
                 sortOption = uiState.sortOption,
                 isAscending = uiState.isAscending,
                 onChannelFilterChange = viewModel::setChannelFilter,
+                onVisibilityFilterChange = viewModel::setLibraryVisibilityFilter,
                 onSortOptionChange = viewModel::setSortOption,
                 onSortDirectionToggle = viewModel::toggleSortOrder,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -81,7 +84,7 @@ fun LibraryScreen(
                             confirmValueChange = {
                                 if (it == SwipeToDismissBoxValue.EndToStart) {
                                     val deletedSubtitles = item.subtitles
-                                    viewModel.deleteLibraryItem(deletedSubtitles.first())
+                                    viewModel.removeLibraryItem(deletedSubtitles)
 
                                     coroutineScope.launch {
                                         val autoDismissJob = launch {
@@ -89,7 +92,7 @@ fun LibraryScreen(
                                             snackbarHostState.currentSnackbarData?.dismiss()
                                         }
                                         val result = snackbarHostState.showSnackbar(
-                                            message = "Video removed",
+                                            message = "Removed from Library",
                                             actionLabel = "Undo",
                                             duration = SnackbarDuration.Indefinite
                                         )
@@ -135,8 +138,8 @@ fun LibraryScreen(
                                 onSubtitleClick = onSubtitleClick,
                                 onVideoClick = onVideoClick,
                                 onAddToCollection = { addToCollectionTargetVideoId = item.videoId },
-                                onDelete = {
-                                    viewModel.deleteLibraryItem(item.subtitles.first())
+                                onRemoveFromLibrary = {
+                                    viewModel.removeLibraryItem(item.subtitles)
                                 },
                                 onSubtitleDelete = { subtitle ->
                                     viewModel.deleteSubtitle(subtitle)
@@ -188,6 +191,7 @@ fun LibraryScreen(
             }
         )
     }
+
 }
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
@@ -197,7 +201,11 @@ fun LibraryItemCard(
     onSubtitleClick: (Long) -> Unit,
     onVideoClick: (String) -> Unit,
     onAddToCollection: () -> Unit,
-    onDelete: () -> Unit,
+    showLibraryStatusBadge: Boolean = true,
+    showCollectionBadge: Boolean = true,
+    onRemoveFromLibrary: (() -> Unit)? = null,
+    onRestoreToLibrary: (() -> Unit)? = null,
+    onRemoveFromCollection: (() -> Unit)? = null,
     onSubtitleDelete: (SubtitleEntity) -> Unit,
     onSubtitleDownloadAgain: (SubtitleEntity) -> Unit,
     downloadingSubtitleIds: Set<Long>
@@ -232,6 +240,31 @@ fun LibraryItemCard(
                         color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
+                }
+
+                if ((showLibraryStatusBadge && !item.isInLibrary) || (showCollectionBadge && item.isInCollections)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        if (showLibraryStatusBadge && !item.isInLibrary) {
+                            Text(
+                                text = "Removed from Library",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
+                        }
+                        if (showCollectionBadge && item.isInCollections) {
+                            Text(
+                                text = if (item.collectionCount == 1) "In 1 collection"
+                                else "In ${item.collectionCount} collections",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -303,19 +336,51 @@ fun LibraryItemCard(
                     )
                 }
             )
-            DropdownMenuItem(
-                text = { Text("Delete entry") },
-                onClick = {
-                    onDelete()
-                    showMenu = false
-                },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = null
-                    )
-                }
-            )
+            onRestoreToLibrary?.let { restoreToLibrary ->
+                DropdownMenuItem(
+                    text = { Text("Restore to Library") },
+                    onClick = {
+                        restoreToLibrary()
+                        showMenu = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Restore,
+                            contentDescription = null
+                        )
+                    }
+                )
+            }
+            onRemoveFromLibrary?.let { removeFromLibrary ->
+                DropdownMenuItem(
+                    text = { Text("Remove from Library") },
+                    onClick = {
+                        removeFromLibrary()
+                        showMenu = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null
+                        )
+                    }
+                )
+            }
+            onRemoveFromCollection?.let { removeFromCollection ->
+                DropdownMenuItem(
+                    text = { Text("Remove from this collection") },
+                    onClick = {
+                        removeFromCollection()
+                        showMenu = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null
+                        )
+                    }
+                )
+            }
         }
     }
 }

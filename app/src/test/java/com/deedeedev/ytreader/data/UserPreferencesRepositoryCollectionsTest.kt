@@ -91,6 +91,18 @@ class UserPreferencesRepositoryCollectionsTest {
         assertEquals(listOf("dQw4w9WgXcQ", "9bZkp7q19f0"), ids)
     }
 
+    @Test
+    fun isVideoInAnyCollection_returnsTrueOnlyWhenPresent() {
+        val repository = createRepository()
+        assertTrue(repository.createCollection("Favorites"))
+
+        val collectionId = repository.videoCollections.value.first().id
+        repository.addVideoToCollection(collectionId, "video-42")
+
+        assertTrue(repository.isVideoInAnyCollection("video-42"))
+        assertFalse(repository.isVideoInAnyCollection("video-99"))
+    }
+
     private fun createRepository(initialCollectionsJson: String? = null): UserPreferencesRepository {
         val context = mock<Context>()
         val sharedPreferences = mock<SharedPreferences>()

@@ -78,12 +78,12 @@ fun CollectionDetailScreen(
         )
     }.collectAsStateWithLifecycle(initialValue = emptyList())
 
-    val availableVideoCount by remember(collectionVideoIds) {
-        viewModel.observeCollectionVideoCount(collectionVideoIds)
-    }.collectAsStateWithLifecycle(initialValue = 0)
-
-    val missingCount = remember(collection, availableVideoCount) {
-        if (collection == null) 0 else (collection.videoIds.size - availableVideoCount).coerceAtLeast(0)
+    val onlyInCollectionsCount = remember(collection, uiState.savedSubtitles) {
+        collection?.videoIds?.count { videoId ->
+            uiState.savedSubtitles.any { subtitle ->
+                subtitle.videoId == videoId && !subtitle.isInLibrary
+            }
+        } ?: 0
     }
 
     LaunchedEffect(uniqueChannels, selectedChannelFilter) {
@@ -121,9 +121,9 @@ fun CollectionDetailScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.secondary
             )
-            if (missingCount > 0) {
+            if (onlyInCollectionsCount > 0) {
                 Text(
-                    text = "$missingCount removed from library",
+                    text = "$onlyInCollectionsCount only in collections",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.tertiary
                 )
@@ -202,7 +202,14 @@ fun CollectionDetailScreen(
                                 onSubtitleClick = onSubtitleClick,
                                 onVideoClick = onVideoClick,
                                 onAddToCollection = { addToCollectionTargetVideoId = item.videoId },
-                                onDelete = {
+                                showLibraryStatusBadge = false,
+                                showCollectionBadge = false,
+                                onRestoreToLibrary = if (!item.isInLibrary) {
+                                    { viewModel.restoreLibraryItem(item.subtitles) }
+                                } else {
+                                    null
+                                },
+                                onRemoveFromCollection = {
                                     viewModel.removeVideoFromCollection(collection.id, item.videoId)
                                 },
                                 onSubtitleDelete = { subtitle ->
@@ -255,4 +262,5 @@ fun CollectionDetailScreen(
             }
         )
     }
+
 }

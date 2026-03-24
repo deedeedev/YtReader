@@ -214,6 +214,10 @@ class UserPreferencesRepository(context: Context) {
         persistCollections(updated)
     }
 
+    fun isVideoInAnyCollection(videoId: String): Boolean {
+        return _videoCollections.value.any { collection -> videoId in collection.videoIds }
+    }
+
     fun normalizeCollectionVideoIds() {
         if (prefs.getBoolean(KEY_COLLECTION_IDS_NORMALIZED, false)) {
             return

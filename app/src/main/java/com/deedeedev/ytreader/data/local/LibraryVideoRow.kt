@@ -7,5 +7,6 @@ data class LibraryVideoRow(
     val channelName: String,
     val uploadDate: Long,
     val lastDownloaded: Long,
-    val lastOpenedAt: Long
+    val lastOpenedAt: Long,
+    val isInLibrary: Boolean
 )
