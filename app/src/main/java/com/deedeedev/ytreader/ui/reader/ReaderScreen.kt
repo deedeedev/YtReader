@@ -138,6 +138,7 @@ fun ReaderScreen(
     var hasSearchedFind by remember { mutableStateOf(false) }
     var findIsCaseSensitive by rememberSaveable { mutableStateOf(false) }
     var pendingFindSelection by remember { mutableStateOf<PendingFindSelection?>(null) }
+    var searchResultsMode by remember { mutableStateOf<SearchResultsMode?>(null) }
     var findReplaceErrorMessage by remember { mutableStateOf<String?>(null) }
     var findText by rememberSaveable { mutableStateOf("") }
     var replaceText by rememberSaveable { mutableStateOf("") }
@@ -216,7 +217,32 @@ fun ReaderScreen(
         findIsCaseSensitive = false
     }
 
+    fun clearSearchResultsMode() {
+        searchResultsMode = null
+        pendingFindSelection = null
+    }
+
+    fun activateSearchResultsMode(mode: SearchResultsMode) {
+        searchResultsMode = mode
+        pendingFindSelection = activePendingFindSelection(mode)
+    }
+
+    fun moveSearchResultsBackward() {
+        val currentMode = searchResultsMode ?: return
+        val updated = moveToPreviousSearchResult(currentMode)
+        searchResultsMode = updated
+        pendingFindSelection = activePendingFindSelection(updated)
+    }
+
+    fun moveSearchResultsForward() {
+        val currentMode = searchResultsMode ?: return
+        val updated = moveToNextSearchResult(currentMode)
+        searchResultsMode = updated
+        pendingFindSelection = activePendingFindSelection(updated)
+    }
+
     fun runFindSearch() {
+        clearSearchResultsMode()
         executeReaderFindSearch(
             query = findQuery,
             isCaseSensitive = findIsCaseSensitive,
@@ -243,6 +269,7 @@ fun ReaderScreen(
                 selectionRange = null
                 activeHighlight = null
                 studyTextView?.clearSelection()
+                clearSearchResultsMode()
             },
             setReaderMode = { readerMode = it }
         )
@@ -349,6 +376,31 @@ fun ReaderScreen(
         }
     }
 
+    val activeStudySearchRange = remember(searchResultsMode) {
+        when (val mode = searchResultsMode) {
+            is SearchResultsMode.Study -> mode.results.getOrNull(mode.activeIndex)?.let {
+                SelectionRange(start = it.start, end = it.end)
+            }
+
+            else -> null
+        }
+    }
+    val activeOriginalFallbackSearchRange = remember(searchResultsMode) {
+        when (val mode = searchResultsMode) {
+            is SearchResultsMode.OriginalFallback -> mode.results.getOrNull(mode.activeIndex)?.let {
+                SelectionRange(start = it.start, end = it.end)
+            }
+
+            else -> null
+        }
+    }
+    val activeOriginalSegmentSearchResult = remember(searchResultsMode) {
+        when (val mode = searchResultsMode) {
+            is SearchResultsMode.OriginalSegment -> mode.results.getOrNull(mode.activeIndex)
+            else -> null
+        }
+    }
+
     fun handleReaderTap(tapPosition: ReaderTapPosition) {
         if (isEditing) return
 
@@ -388,7 +440,7 @@ fun ReaderScreen(
             activeHighlight = null
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
-            pendingFindSelection = null
+            clearSearchResultsMode()
         },
         onResetAiDialogs = {
             showAiPreviewDialog = false
@@ -405,6 +457,7 @@ fun ReaderScreen(
             activeHighlight = null
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
+            clearSearchResultsMode()
         },
         onShowAiPreviewDialog = { showAiPreviewDialog = true },
         onShowAiErrorDialog = { showAiErrorDialog = true },
@@ -412,15 +465,16 @@ fun ReaderScreen(
             selectionRange = null
             activeHighlight = null
             studyTextView?.clearSelection()
+            clearSearchResultsMode()
         },
         onReaderModeChangedToStudy = {
             originalSelectionCoordinator.clearAllSelections()
+            clearSearchResultsMode()
         },
         clearPendingFindSelection = { pendingFindSelection = null },
         onOriginalTimestampVisible = { viewModel.updateLastTimestamp(it) },
         onSelectStudyFindMatch = { selection ->
             val textView = studyTextView ?: return@ReaderCoreEffects
-            textView.setSelectionRange(selection.start, selection.end)
             val targetScroll = textView.verticalOffsetForSelection(selection.start)
                 .coerceIn(0, studyScrollState.maxValue)
             studyScrollState.animateScrollTo(targetScroll)
@@ -428,7 +482,6 @@ fun ReaderScreen(
         },
         onSelectOriginalFallbackFindMatch = { selection ->
             val textView = originalSelectionCoordinator.textViews[-1] ?: return@ReaderCoreEffects
-            textView.setSelectionRange(selection.start, selection.end)
             val targetScroll = textView.verticalOffsetForSelection(selection.start)
                 .coerceIn(0, originalFallbackScrollState.maxValue)
             originalFallbackScrollState.animateScrollTo(targetScroll)
@@ -439,7 +492,6 @@ fun ReaderScreen(
             repeat(10) {
                 val textView = originalSelectionCoordinator.textViews[selection.segmentIndex]
                 if (textView != null && textView.isShown) {
-                    textView.setSelectionRange(selection.start, selection.end)
                     pendingFindSelection = null
                     return@ReaderCoreEffects
                 }
@@ -450,7 +502,9 @@ fun ReaderScreen(
     )
 
     BackHandler {
-        if (isUiVisible) {
+        if (searchResultsMode != null) {
+            clearSearchResultsMode()
+        } else if (isUiVisible) {
             isUiVisible = false
         } else {
             requestAction(PendingAction.ExitScreen)
@@ -459,13 +513,16 @@ fun ReaderScreen(
 
     val showSelectionToolbar = readerMode == ReaderMode.STUDY &&
         !isEditing &&
+        searchResultsMode == null &&
         (selectionRange != null || activeHighlight != null)
+    val showSearchResultsToolbar = !isEditing && searchResultsMode != null
     val topContentPadding by animateDpAsState(
         targetValue = if (isUiVisible) TopAppBarDefaults.TopAppBarExpandedHeight else 0.dp,
         label = "readerTopContentPadding"
     )
     val bottomContentPadding by animateDpAsState(
-        targetValue = if (isUiVisible) READER_BOTTOM_BAR_HEIGHT else 0.dp,
+        targetValue = (if (isUiVisible) READER_BOTTOM_BAR_HEIGHT else 0.dp) +
+            (if (showSearchResultsToolbar) READER_SEARCH_RESULTS_BAR_HEIGHT else 0.dp),
         label = "readerBottomContentPadding"
     )
 
@@ -576,6 +633,9 @@ fun ReaderScreen(
         originalFallbackText = originalFallbackText,
         studyContent = uiState.content,
         highlights = uiState.highlights,
+        activeStudySearchRange = activeStudySearchRange,
+        activeOriginalFallbackSearchRange = activeOriginalFallbackSearchRange,
+        activeOriginalSegmentSearchResult = activeOriginalSegmentSearchResult,
         editText = editText,
         topContentPadding = topContentPadding,
         bottomContentPadding = bottomContentPadding,
@@ -599,12 +659,14 @@ fun ReaderScreen(
             val normalizedEnd = maxOf(start, end)
             selectionRange = if (normalizedStart >= 0 && normalizedStart < normalizedEnd) {
                 activeHighlight = null
+                clearSearchResultsMode()
                 SelectionRange(normalizedStart, normalizedEnd)
             } else {
                 null
             }
         },
         onHighlightTapped = { tappedHighlight ->
+            clearSearchResultsMode()
             activeHighlight = tappedHighlight
             selectionRange = null
         },
@@ -650,10 +712,12 @@ fun ReaderScreen(
             applyTextUpdate(cleaned)
         },
         onShowFind = {
+            clearSearchResultsMode()
             resetFindDialogState()
             showFindDialog = true
         },
         onShowFindAndReplace = {
+            clearSearchResultsMode()
             resetFindReplaceDialogState()
             showFindReplaceDialog = true
         },
@@ -697,6 +761,14 @@ fun ReaderScreen(
             selectionRange = null
             studyTextView?.clearSelection()
         },
+        showSearchResultsToolbar = showSearchResultsToolbar,
+        searchResultsCurrentIndex = (searchResultsMode?.activeIndex ?: 0) + 1,
+        searchResultsTotalCount = searchResultsMode?.totalResults ?: 0,
+        canNavigateToPreviousSearchResult = canNavigateToPreviousSearchResult(searchResultsMode),
+        canNavigateToNextSearchResult = canNavigateToNextSearchResult(searchResultsMode),
+        onNavigateToPreviousSearchResult = { moveSearchResultsBackward() },
+        onNavigateToNextSearchResult = { moveSearchResultsForward() },
+        onCloseSearchResults = { clearSearchResultsMode() },
         fullscreenProgressPercent = fullscreenProgressPercent,
         fullscreenPageProgress = fullscreenPageProgress,
         showBrightnessIndicator = showBrightnessIndicator,
@@ -735,7 +807,12 @@ fun ReaderScreen(
             activeHighlight = null
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
-            pendingFindSelection = PendingFindSelection.Study(start = result.start, end = result.end)
+            activateSearchResultsMode(
+                SearchResultsMode.Study(
+                    results = findResults,
+                    activeIndex = (result.number - 1).coerceAtLeast(0)
+                )
+            )
         },
         onSelectOriginalFallbackFindResult = { result ->
             showFindDialog = false
@@ -743,7 +820,12 @@ fun ReaderScreen(
             activeHighlight = null
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
-            pendingFindSelection = PendingFindSelection.OriginalFallback(start = result.start, end = result.end)
+            activateSearchResultsMode(
+                SearchResultsMode.OriginalFallback(
+                    results = findResults,
+                    activeIndex = (result.number - 1).coerceAtLeast(0)
+                )
+            )
         },
         onSelectOriginalSegmentFindResult = { result ->
             showFindDialog = false
@@ -751,10 +833,11 @@ fun ReaderScreen(
             activeHighlight = null
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
-            pendingFindSelection = PendingFindSelection.OriginalSegment(
-                segmentIndex = result.segmentIndex,
-                start = result.start,
-                end = result.end
+            activateSearchResultsMode(
+                SearchResultsMode.OriginalSegment(
+                    results = originalSegmentFindResults,
+                    activeIndex = (result.number - 1).coerceAtLeast(0)
+                )
             )
         },
         isOriginalMode = readerMode == ReaderMode.ORIGINAL,

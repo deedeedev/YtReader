@@ -148,4 +148,45 @@ class ReaderScreenActionsTest {
         assertEquals(1, outcome.findResults.size)
         assertEquals(0, outcome.originalSegmentFindResults.size)
     }
+
+    @Test
+    fun `search results navigation clamps at edges`() {
+        val initial = SearchResultsMode.Study(
+            results = listOf(
+                ReaderFindResult(0, 4, 1, "first", 0),
+                ReaderFindResult(10, 14, 2, "second", 50)
+            ),
+            activeIndex = 0
+        )
+
+        assertEquals(false, canNavigateToPreviousSearchResult(initial))
+        assertEquals(true, canNavigateToNextSearchResult(initial))
+
+        val next = moveToNextSearchResult(initial)
+        assertEquals(1, next.activeIndex)
+        assertEquals(false, canNavigateToNextSearchResult(next))
+
+        val clampedNext = moveToNextSearchResult(next)
+        val clampedPrevious = moveToPreviousSearchResult(initial)
+
+        assertEquals(1, clampedNext.activeIndex)
+        assertEquals(0, clampedPrevious.activeIndex)
+    }
+
+    @Test
+    fun `activePendingFindSelection mirrors active search result`() {
+        val segmentMode = SearchResultsMode.OriginalSegment(
+            results = listOf(
+                OriginalSegmentFindResult(3, 2, 8, 1, "match", 40)
+            ),
+            activeIndex = 0
+        )
+
+        val selection = activePendingFindSelection(segmentMode)
+
+        assertEquals(
+            PendingFindSelection.OriginalSegment(segmentIndex = 3, start = 2, end = 8),
+            selection
+        )
+    }
 }

@@ -84,6 +84,7 @@ class LibraryListSectionTest {
             uploadDate = 0L,
             lastDownloaded = 0L,
             lastOpenedAt = 0L,
+            readingProgressPercent = 0,
             isInLibrary = true,
             collectionCount = collectionCount
         )

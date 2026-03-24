@@ -44,11 +44,13 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     private var blueColor: Int = 0
     private var greenColor: Int = 0
     private var yellowColor: Int = 0
+    private var searchResultColor: Int = 0
     private var backgroundColorInt: Int = Color.TRANSPARENT
     private var lineSpacingMultiplier: Float = 1f
     private var layout: StaticLayout? = null
     private var displayText: CharSequence = ""
     private var selectionRange: TextRange? = null
+    private var searchResultRange: TextRange? = null
     private var selectionAnchor: TextRange? = null
     private var isSelecting = false
     private var activeHandle: SelectionHandle? = null
@@ -158,13 +160,15 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         return true
     }
 
-    fun setContentWithHighlights(
+    internal fun setContentWithHighlights(
         content: String,
         highlights: List<TextHighlight>,
+        searchResultRange: SelectionRange?,
         redColor: Int,
         blueColor: Int,
         greenColor: Int,
-        yellowColor: Int
+        yellowColor: Int,
+        searchResultColor: Int
     ) {
         this.content = content
         this.highlights = highlights
@@ -177,6 +181,12 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         this.blueColor = blueColor
         this.greenColor = greenColor
         this.yellowColor = yellowColor
+        this.searchResultColor = searchResultColor
+        this.searchResultRange = searchResultRange?.let { range ->
+            val start = range.start.coerceIn(0, content.length)
+            val end = range.end.coerceIn(0, content.length)
+            if (end <= start) null else TextRange(start, end)
+        }
         selectionRange = selectionRange?.let { range ->
             val start = range.start.coerceIn(0, content.length)
             val end = range.end.coerceIn(0, content.length)
@@ -361,6 +371,14 @@ class JustifiedStudyTextView @JvmOverloads constructor(
                 ),
                 highlight.start,
                 highlight.end,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        searchResultRange?.let { range ->
+            spannable.setSpan(
+                BackgroundColorSpan(searchResultColor),
+                range.start,
+                range.end,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
         }

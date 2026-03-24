@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
@@ -17,6 +20,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -154,6 +158,56 @@ internal fun TinyValueIndicator(
 }
 
 @Composable
+internal fun SearchResultsToolbar(
+    currentIndex: Int,
+    totalResults: Int,
+    canGoPrevious: Boolean,
+    canGoNext: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.extraLarge,
+        tonalElevation = 4.dp,
+        shadowElevation = 6.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onPrevious, enabled = canGoPrevious) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Previous search result"
+                )
+            }
+            Text(
+                text = "$currentIndex/$totalResults",
+                modifier = Modifier.testTag(READER_SEARCH_RESULTS_COUNT_TAG),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+            IconButton(onClick = onNext, enabled = canGoNext) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Next search result"
+                )
+            }
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Close search results"
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun HighlightColorButton(
     color: HighlightColor,
     onClick: (HighlightColor) -> Unit
@@ -184,3 +238,5 @@ internal fun highlightSpanColor(color: HighlightColor): Int = when (color) {
     HighlightColor.GREEN -> AndroidColor.parseColor("#6681C784")
     HighlightColor.YELLOW -> AndroidColor.parseColor("#66FFF176")
 }
+
+internal fun searchResultSpanColor(): Int = AndroidColor.parseColor("#99FFB300")

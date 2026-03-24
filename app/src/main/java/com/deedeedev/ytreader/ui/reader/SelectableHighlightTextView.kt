@@ -31,6 +31,7 @@ class SelectableHighlightTextView @JvmOverloads constructor(
     var onHighlightTappedListener: ((TextHighlight?) -> Unit)? = null
     internal var onTextTapListener: ((TextTapOutcome, ReaderTapPosition) -> Unit)? = null
     private var highlightsForHitTest: List<TextHighlight> = emptyList()
+    private var searchResultRange: SelectionRange? = null
     private var hadActiveSelectionOnDown = false
     private var shouldDispatchSingleTap = false
     private val gestureDetector = GestureDetector(
@@ -77,16 +78,23 @@ class SelectableHighlightTextView @JvmOverloads constructor(
         return handled
     }
 
-    fun setContentWithHighlights(
+    internal fun setContentWithHighlights(
         content: String,
         highlights: List<TextHighlight>,
+        searchResultRange: SelectionRange?,
         redColor: Int,
         blueColor: Int,
         greenColor: Int,
-        yellowColor: Int
+        yellowColor: Int,
+        searchResultColor: Int
     ) {
         val spannable = SpannableString(content)
         val contentLength = content.length
+        this.searchResultRange = searchResultRange?.let { range ->
+            val start = range.start.coerceIn(0, contentLength)
+            val end = range.end.coerceIn(0, contentLength)
+            if (end <= start) null else SelectionRange(start = start, end = end)
+        }
         highlightsForHitTest = highlights
             .mapNotNull { highlight ->
                 val start = highlight.start.coerceIn(0, contentLength)
@@ -111,6 +119,15 @@ class SelectableHighlightTextView @JvmOverloads constructor(
                 BackgroundColorSpan(spanColor),
                 highlight.start,
                 highlight.end,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+
+        this.searchResultRange?.let { range ->
+            spannable.setSpan(
+                BackgroundColorSpan(searchResultColor),
+                range.start,
+                range.end,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
             )
         }

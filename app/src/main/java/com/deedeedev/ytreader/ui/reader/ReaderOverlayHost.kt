@@ -22,6 +22,14 @@ internal fun BoxScope.ReaderOverlayHost(
     onSelectionColorSelected: (HighlightColor) -> Unit,
     onDeleteHighlight: () -> Unit,
     hasActiveHighlight: Boolean,
+    showSearchResultsToolbar: Boolean,
+    searchResultsCurrentIndex: Int,
+    searchResultsTotalCount: Int,
+    canNavigateToPreviousSearchResult: Boolean,
+    canNavigateToNextSearchResult: Boolean,
+    onNavigateToPreviousSearchResult: () -> Unit,
+    onNavigateToNextSearchResult: () -> Unit,
+    onCloseSearchResults: () -> Unit,
     fullscreenProgressPercent: Int,
     fullscreenPageProgress: PageProgress,
     showBrightnessIndicator: Boolean,
@@ -46,6 +54,31 @@ internal fun BoxScope.ReaderOverlayHost(
             onColorSelected = onSelectionColorSelected,
             showDelete = hasActiveHighlight,
             onDeleteHighlight = onDeleteHighlight
+        )
+    }
+
+    AnimatedVisibility(
+        visible = showSearchResultsToolbar,
+        enter = slideInVertically(initialOffsetY = { it }),
+        exit = slideOutVertically(targetOffsetY = { it }),
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(
+                start = 16.dp,
+                end = 16.dp,
+                bottom = if (isUiVisible) 84.dp else 16.dp
+            )
+            .navigationBarsPadding()
+    ) {
+        SearchResultsToolbar(
+            currentIndex = searchResultsCurrentIndex,
+            totalResults = searchResultsTotalCount,
+            canGoPrevious = canNavigateToPreviousSearchResult,
+            canGoNext = canNavigateToNextSearchResult,
+            onPrevious = onNavigateToPreviousSearchResult,
+            onNext = onNavigateToNextSearchResult,
+            onClose = onCloseSearchResults,
+            modifier = Modifier.testTag(READER_SEARCH_RESULTS_BAR_TAG)
         )
     }
 

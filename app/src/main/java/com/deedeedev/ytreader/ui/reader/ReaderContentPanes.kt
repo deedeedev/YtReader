@@ -42,6 +42,8 @@ internal fun ReaderOriginalPane(
     fontFamily: FontFamily,
     readerTextColor: Int,
     readerBackgroundColor: Int,
+    activeOriginalFallbackSearchRange: SelectionRange?,
+    activeOriginalSegmentSearchResult: OriginalSegmentFindResult?,
     originalSelectionCoordinator: OriginalSelectionCoordinator,
     onReaderTap: (ReaderTapPosition) -> Unit,
     onOriginalFallbackViewportChanged: (Int) -> Unit
@@ -73,6 +75,7 @@ internal fun ReaderOriginalPane(
                             textColor = readerTextColor,
                             backgroundColor = readerBackgroundColor,
                             content = originalFallbackText,
+                            searchResultRange = activeOriginalFallbackSearchRange,
                             activeOwner = originalSelectionCoordinator.activeOwner,
                             onPlainTextTap = onReaderTap,
                             onSelectionOwnerChanged = { owner ->
@@ -97,6 +100,7 @@ internal fun ReaderOriginalPane(
                         textColor = readerTextColor,
                         backgroundColor = readerBackgroundColor,
                         content = originalFallbackText,
+                        searchResultRange = activeOriginalFallbackSearchRange,
                         activeOwner = originalSelectionCoordinator.activeOwner,
                         onPlainTextTap = onReaderTap,
                         onSelectionOwnerChanged = { owner ->
@@ -152,6 +156,9 @@ internal fun ReaderOriginalPane(
                                 textColor = readerTextColor,
                                 backgroundColor = readerBackgroundColor,
                                 content = segment.text,
+                                searchResultRange = activeOriginalSegmentSearchResult
+                                    ?.takeIf { it.segmentIndex == index }
+                                    ?.let { SelectionRange(start = it.start, end = it.end) },
                                 activeOwner = originalSelectionCoordinator.activeOwner,
                                 clearSelectionForOwner = { ownerIndex ->
                                     originalSelectionCoordinator.textViews[ownerIndex]?.clearSelection()
@@ -180,6 +187,9 @@ internal fun ReaderOriginalPane(
                             textColor = readerTextColor,
                             backgroundColor = readerBackgroundColor,
                             content = segment.text,
+                            searchResultRange = activeOriginalSegmentSearchResult
+                                ?.takeIf { it.segmentIndex == index }
+                                ?.let { SelectionRange(start = it.start, end = it.end) },
                             activeOwner = originalSelectionCoordinator.activeOwner,
                             clearSelectionForOwner = { ownerIndex ->
                                 originalSelectionCoordinator.textViews[ownerIndex]?.clearSelection()
@@ -210,6 +220,7 @@ internal fun ReaderStudyPane(
     onEditTextChange: (String) -> Unit,
     readOnlyContent: String,
     highlights: List<TextHighlight>,
+    activeStudySearchRange: SelectionRange?,
     topContentPadding: Dp,
     bottomContentPadding: Dp,
     fontSize: Float,
@@ -286,6 +297,7 @@ internal fun ReaderStudyPane(
                         backgroundColor = readerBackgroundColor,
                         content = readOnlyContent,
                         highlights = highlights,
+                        searchResultRange = activeStudySearchRange,
                         onSelectionChanged = onSelectionRangeChanged,
                         onHighlightTapped = onHighlightTapped,
                         onPlainTextTap = onReaderTap,
@@ -305,6 +317,7 @@ internal fun ReaderStudyPane(
                     backgroundColor = readerBackgroundColor,
                     content = readOnlyContent,
                     highlights = highlights,
+                    searchResultRange = activeStudySearchRange,
                     onSelectionChanged = onSelectionRangeChanged,
                     onHighlightTapped = onHighlightTapped,
                     onPlainTextTap = onReaderTap,

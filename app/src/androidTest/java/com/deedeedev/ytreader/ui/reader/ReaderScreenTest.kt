@@ -10,6 +10,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -56,6 +59,8 @@ class ReaderScreenTest {
         private const val READER_FIND_RESULTS_TAG = "reader_find_results"
         private const val READER_FIND_REPLACE_INPUT_TAG = "reader_find_replace_input"
         private const val READER_FIND_REPLACE_REPLACEMENT_TAG = "reader_find_replace_replacement"
+        private const val READER_SEARCH_RESULTS_BAR_TAG = "reader_search_results_bar"
+        private const val READER_SEARCH_RESULTS_COUNT_TAG = "reader_search_results_count"
         private const val READER_BRIGHTNESS_GESTURE_TAG = "reader_brightness_gesture"
         private const val READER_BRIGHTNESS_INDICATOR_TAG = "reader_brightness_indicator"
         private const val READER_PAGE_PROGRESS_TAG = "reader_page_progress"
@@ -220,7 +225,7 @@ class ReaderScreenTest {
     }
 
     @Test
-    fun studyMode_findResultClosesDialogAndSelectsMatch() {
+    fun studyMode_findResultClosesDialogAndShowsSearchToolbar() {
         setReaderContent()
 
         openFindDialog()
@@ -231,16 +236,45 @@ class ReaderScreenTest {
 
         assertTagMissing(READER_FIND_DIALOG_TAG)
 
+        composeTestRule.onNodeWithTag(READER_SEARCH_RESULTS_BAR_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun studyMode_findResultEntersSearchResultsModeWithoutTextSelection() {
+        setReaderContent()
+
+        openFindDialog()
+        composeTestRule.onNodeWithTag(READER_FIND_INPUT_TAG).performTextInput("line")
+        composeTestRule.onNodeWithContentDescription("Search").performClick()
+        composeTestRule.onNodeWithText("1.").assertIsDisplayed().performClick()
+        composeTestRule.waitForIdle()
+
+        assertTagMissing(READER_FIND_DIALOG_TAG)
+        composeTestRule.onNodeWithTag(READER_SEARCH_RESULTS_BAR_TAG).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(READER_SEARCH_RESULTS_COUNT_TAG).assertTextEquals("1/2")
+        composeTestRule.onNodeWithContentDescription("Previous search result").assertIsNotEnabled()
+        composeTestRule.onNodeWithContentDescription("Next search result").assertIsEnabled()
+
         val studyTextView = waitForStudyTextView()
         var selectedText: String? = null
         composeTestRule.runOnUiThread {
             selectedText = studyTextView.selectedText()
         }
-        assertEquals("line", selectedText)
+        assertEquals(null, selectedText)
+
+        composeTestRule.onNodeWithContentDescription("Next search result").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag(READER_SEARCH_RESULTS_COUNT_TAG).assertTextEquals("2/2")
+        composeTestRule.onNodeWithContentDescription("Previous search result").assertIsEnabled()
+        composeTestRule.onNodeWithContentDescription("Next search result").assertIsNotEnabled()
+
+        composeTestRule.onNodeWithContentDescription("Close search results").performClick()
+        composeTestRule.waitForIdle()
+        assertTagMissing(READER_SEARCH_RESULTS_BAR_TAG)
     }
 
     @Test
-    fun originalMode_findResultClosesDialogAndSelectsMatch() {
+    fun originalMode_findResultClosesDialogAndShowsSearchToolbar() {
         setReaderContent()
 
         switchToOriginalModeIfNeeded()
@@ -252,12 +286,7 @@ class ReaderScreenTest {
 
         assertTagMissing(READER_FIND_DIALOG_TAG)
 
-        val textViews = waitForReaderTextViews(count = 2)
-        var selectedText: String? = null
-        composeTestRule.runOnUiThread {
-            selectedText = textViews.firstNotNullOfOrNull { it.selectedText() }
-        }
-        assertEquals("Second", selectedText)
+        composeTestRule.onNodeWithTag(READER_SEARCH_RESULTS_BAR_TAG).assertIsDisplayed()
     }
 
     @Test

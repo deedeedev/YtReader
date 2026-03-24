@@ -7,6 +7,7 @@ internal fun SelectableHighlightTextView.bindOriginalFallback(
     textColor: Int,
     backgroundColor: Int,
     content: String,
+    searchResultRange: SelectionRange?,
     activeOwner: Int?,
     onPlainTextTap: (ReaderTapPosition) -> Unit,
     onSelectionOwnerChanged: (Int?) -> Unit
@@ -28,10 +29,12 @@ internal fun SelectableHighlightTextView.bindOriginalFallback(
     setContentWithHighlights(
         content = content,
         highlights = emptyList(),
+        searchResultRange = searchResultRange,
         redColor = 0,
         blueColor = 0,
         greenColor = 0,
-        yellowColor = 0
+        yellowColor = 0,
+        searchResultColor = searchResultSpanColor()
     )
 }
 
@@ -43,6 +46,7 @@ internal fun SelectableHighlightTextView.bindOriginalSegment(
     textColor: Int,
     backgroundColor: Int,
     content: String,
+    searchResultRange: SelectionRange?,
     activeOwner: Int?,
     clearSelectionForOwner: (Int) -> Unit,
     onPlainTextTap: (ReaderTapPosition) -> Unit,
@@ -73,10 +77,12 @@ internal fun SelectableHighlightTextView.bindOriginalSegment(
     setContentWithHighlights(
         content = content,
         highlights = emptyList(),
+        searchResultRange = searchResultRange,
         redColor = 0,
         blueColor = 0,
         greenColor = 0,
-        yellowColor = 0
+        yellowColor = 0,
+        searchResultColor = searchResultSpanColor()
     )
 }
 
@@ -88,6 +94,7 @@ internal fun JustifiedStudyTextView.bindStudyContent(
     backgroundColor: Int,
     content: String,
     highlights: List<TextHighlight>,
+    searchResultRange: SelectionRange?,
     onSelectionChanged: (start: Int, end: Int) -> Unit,
     onHighlightTapped: (TextHighlight?) -> Unit,
     onPlainTextTap: (ReaderTapPosition) -> Unit,
@@ -118,9 +125,11 @@ internal fun JustifiedStudyTextView.bindStudyContent(
     setContentWithHighlights(
         content = content,
         highlights = highlights,
+        searchResultRange = searchResultRange,
         redColor = highlightSpanColor(HighlightColor.RED),
         blueColor = highlightSpanColor(HighlightColor.BLUE),
         greenColor = highlightSpanColor(HighlightColor.GREEN),
-        yellowColor = highlightSpanColor(HighlightColor.YELLOW)
+        yellowColor = highlightSpanColor(HighlightColor.YELLOW),
+        searchResultColor = searchResultSpanColor()
     )
 }
