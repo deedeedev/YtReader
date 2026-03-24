@@ -84,40 +84,64 @@ fun LibraryScreen(
             ) { item ->
                         val dismissState = rememberSwipeToDismissBoxState(
                             confirmValueChange = {
-                                if (it == SwipeToDismissBoxValue.EndToStart) {
-                                    val deletedSubtitles = item.subtitles
-                                    viewModel.removeLibraryItem(deletedSubtitles)
-
-                                    coroutineScope.launch {
-                                        val autoDismissJob = launch {
-                                            delay(5_000)
-                                            snackbarHostState.currentSnackbarData?.dismiss()
+                                when (it) {
+                                    SwipeToDismissBoxValue.StartToEnd -> {
+                                        viewModel.markVideoAsRead(item.videoId)
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                message = "Marked as read",
+                                                duration = SnackbarDuration.Short
+                                            )
                                         }
-                                        val result = snackbarHostState.showSnackbar(
-                                            message = "Removed from Library",
-                                            actionLabel = "Undo",
-                                            duration = SnackbarDuration.Indefinite
-                                        )
-                                        autoDismissJob.cancel()
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            viewModel.restoreLibraryItem(deletedSubtitles)
-                                        }
+                                        false
                                     }
-                                    true
-                                } else {
-                                    false
+                                    SwipeToDismissBoxValue.EndToStart -> {
+                                        val deletedSubtitles = item.subtitles
+                                        viewModel.removeLibraryItem(deletedSubtitles)
+
+                                        coroutineScope.launch {
+                                            val autoDismissJob = launch {
+                                                delay(5_000)
+                                                snackbarHostState.currentSnackbarData?.dismiss()
+                                            }
+                                            val result = snackbarHostState.showSnackbar(
+                                                message = "Removed from Library",
+                                                actionLabel = "Undo",
+                                                duration = SnackbarDuration.Indefinite
+                                            )
+                                            autoDismissJob.cancel()
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                viewModel.restoreLibraryItem(deletedSubtitles)
+                                            }
+                                        }
+                                        true
+                                    }
+                                    SwipeToDismissBoxValue.Settled -> false
                                 }
                             }
                         )
 
                         SwipeToDismissBox(
                             state = dismissState,
-                            enableDismissFromStartToEnd = false,
+                            enableDismissFromStartToEnd = true,
                             backgroundContent = {
-                                val color = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
-                                    MaterialTheme.colorScheme.errorContainer
-                                } else {
-                                    Color.Transparent
+                                val isStartToEnd = dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd
+                                val isEndToStart = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
+                                val color = when {
+                                    isStartToEnd -> MaterialTheme.colorScheme.secondaryContainer
+                                    isEndToStart -> MaterialTheme.colorScheme.errorContainer
+                                    else -> Color.Transparent
+                                }
+                                val icon = when {
+                                    isStartToEnd -> Icons.Default.Check
+                                    isEndToStart -> Icons.Default.Delete
+                                    else -> null
+                                }
+                                val alignment = if (isStartToEnd) Alignment.CenterStart else Alignment.CenterEnd
+                                val tint = when {
+                                    isStartToEnd -> MaterialTheme.colorScheme.onSecondaryContainer
+                                    isEndToStart -> MaterialTheme.colorScheme.onErrorContainer
+                                    else -> Color.Transparent
                                 }
 
                                 Box(
@@ -125,13 +149,15 @@ fun LibraryScreen(
                                         .fillMaxSize()
                                         .background(color)
                                         .padding(horizontal = 20.dp),
-                                    contentAlignment = Alignment.CenterEnd
+                                    contentAlignment = alignment
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Delete",
-                                        tint = MaterialTheme.colorScheme.onErrorContainer
-                                    )
+                                    icon?.let {
+                                        Icon(
+                                            imageVector = it,
+                                            contentDescription = null,
+                                            tint = tint
+                                        )
+                                    }
                                 }
                             }
                         ) {

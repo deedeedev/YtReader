@@ -264,6 +264,12 @@ class HomeViewModel(
         }
     }
 
+    fun markVideoAsRead(videoId: String) {
+        viewModelScope.launch {
+            subtitleDao.markVideoAsRead(videoId)
+        }
+    }
+
     fun deleteVideoPermanently(videoId: String) {
         viewModelScope.launch {
             userPreferencesRepository.removeVideoFromAllCollections(videoId)
