@@ -71,7 +71,7 @@ fun MainScreen(
             // Hide bottom bar on Reader screen
             if (currentRoute?.startsWith("reader") != true) {
                 NavigationBar {
-                    val items = listOf(Screen.Search, Screen.Library, Screen.Collections, Screen.Settings)
+                    val items = listOf(Screen.Library, Screen.Search, Screen.Collections, Screen.Settings)
                     items.forEach { screen ->
                         NavigationBarItem(
                             icon = { Icon(screen.icon, contentDescription = null) },
@@ -94,7 +94,7 @@ fun MainScreen(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Search.route,
+            startDestination = Screen.Library.route,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(
