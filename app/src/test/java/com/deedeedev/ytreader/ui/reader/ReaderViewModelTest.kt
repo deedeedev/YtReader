@@ -3,6 +3,8 @@ package com.deedeedev.ytreader.ui.reader
 import android.content.Context
 import android.content.SharedPreferences
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.data.local.BookmarkDao
+import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.HighlightNoteEntity
 import com.deedeedev.ytreader.data.local.SubtitleDao
@@ -39,18 +41,23 @@ class ReaderViewModelTest {
 
     private lateinit var subtitleDao: SubtitleDao
     private lateinit var highlightNoteDao: HighlightNoteDao
+    private lateinit var bookmarkDao: BookmarkDao
     private lateinit var subtitleFlow: MutableStateFlow<SubtitleEntity?>
     private lateinit var noteFlow: MutableStateFlow<List<HighlightNoteEntity>>
+    private lateinit var bookmarkFlow: MutableStateFlow<List<BookmarkEntity>>
 
     @Before
     fun setUp() {
         subtitleDao = mock()
         highlightNoteDao = mock()
+        bookmarkDao = mock()
         subtitleFlow = MutableStateFlow(baseSubtitle(highlights = emptyList()))
         noteFlow = MutableStateFlow(emptyList())
+        bookmarkFlow = MutableStateFlow(emptyList())
 
         whenever(subtitleDao.observeById(SUBTITLE_ID)).thenReturn(subtitleFlow)
         whenever(highlightNoteDao.observeBySubtitleId(SUBTITLE_ID)).thenReturn(noteFlow)
+        whenever(bookmarkDao.observeBySubtitleId(SUBTITLE_ID)).thenReturn(bookmarkFlow)
     }
 
     @Test
@@ -211,6 +218,7 @@ class ReaderViewModelTest {
             appContext = mock(),
             subtitleDao = subtitleDao,
             highlightNoteDao = highlightNoteDao,
+            bookmarkDao = bookmarkDao,
             userPreferencesRepository = createUserPreferencesRepository(),
             subtitleId = SUBTITLE_ID
         )

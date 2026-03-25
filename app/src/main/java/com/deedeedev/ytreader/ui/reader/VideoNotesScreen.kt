@@ -1,7 +1,5 @@
 package com.deedeedev.ytreader.ui.reader
 
-import android.content.Intent
-import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +26,8 @@ import androidx.compose.material.icons.filled.FormatColorText
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -109,6 +109,7 @@ private fun VideoNotesScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedTypes by remember { mutableStateOf(setOf<VideoAnnotationType>()) }
+    var showExportMenu by remember { mutableStateOf(false) }
 
     val filteredItems = remember(uiState.items, selectedTypes) {
         if (selectedTypes.isEmpty()) {
@@ -152,17 +153,38 @@ private fun VideoNotesScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/markdown"
-                                putExtra(Intent.EXTRA_TEXT, markdownExport)
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, "Export annotations"))
-                        },
-                        enabled = filteredItems.isNotEmpty()
-                    ) {
-                        Icon(Icons.Default.IosShare, contentDescription = "Export annotations")
+                    Box {
+                        IconButton(
+                            onClick = { showExportMenu = true },
+                            enabled = filteredItems.isNotEmpty()
+                        ) {
+                            Icon(Icons.Default.IosShare, contentDescription = "Export annotations")
+                        }
+                        DropdownMenu(
+                            expanded = showExportMenu,
+                            onDismissRequest = { showExportMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Markdown") },
+                                onClick = {
+                                    showExportMenu = false
+                                    shareVideoNotesMarkdown(context, markdownExport)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("PDF") },
+                                onClick = {
+                                    showExportMenu = false
+                                    shareVideoNotesPdf(
+                                        context = context,
+                                        title = uiState.title,
+                                        videoId = videoId,
+                                        selectedTypes = selectedTypes,
+                                        items = filteredItems
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -436,75 +458,6 @@ private fun VideoAnnotationCard(
             }
         }
     }
-}
-
-private fun buildVideoNotesMarkdown(
-    title: String,
-    videoId: String,
-    selectedTypes: Set<VideoAnnotationType>,
-    items: List<VideoAnnotationItem>
-): String {
-    val exportTitle = title.ifBlank { videoId }
-    return buildString {
-        append("# ")
-        append(exportTitle)
-        append("\n\n")
-        append("- Video ID: ")
-        append(videoId)
-        append("\n")
-        append("- Filter: ")
-        append(annotationFilterLabel(selectedTypes))
-        append("\n")
-        append("- Exported items: ")
-        append(items.size)
-        append("\n\n")
-
-        items.forEachIndexed { index, item ->
-            append("## ")
-            append(index + 1)
-            append(". ")
-            append(annotationTypeLabel(item.type))
-            append("\n\n")
-            append("- Title: ")
-            append(item.title)
-            append("\n")
-            append("- Updated: ")
-            append(formatVideoAnnotationUpdatedAt(item.updatedAt))
-            append("\n")
-            append("- Position: ")
-            append(item.progressPercent)
-            append("%\n")
-            item.note?.let { note ->
-                append("- Note: ")
-                append(note.replace("\n", " "))
-                append("\n")
-            }
-            append("\n")
-        }
-    }
-}
-
-private fun formatVideoAnnotationUpdatedAt(updatedAt: Long): String {
-    return if (updatedAt > 0L) {
-        DateFormat.format("yyyy-MM-dd HH:mm", updatedAt).toString()
-    } else {
-        ""
-    }
-}
-
-private fun annotationTypeLabel(type: VideoAnnotationType): String = when (type) {
-    VideoAnnotationType.BOOKMARK -> "Bookmark"
-    VideoAnnotationType.NOTE -> "Note"
-    VideoAnnotationType.HIGHLIGHT -> "Highlight"
-}
-
-private fun annotationFilterLabel(selectedTypes: Set<VideoAnnotationType>): String {
-    if (selectedTypes.isEmpty()) return "All"
-    return buildList {
-        if (VideoAnnotationType.BOOKMARK in selectedTypes) add("Bookmarks")
-        if (VideoAnnotationType.HIGHLIGHT in selectedTypes) add("Highlights")
-        if (VideoAnnotationType.NOTE in selectedTypes) add("Notes")
-    }.joinToString(", ")
 }
 
 private fun annotationFilterIcon(type: VideoAnnotationType) = when (type) {
