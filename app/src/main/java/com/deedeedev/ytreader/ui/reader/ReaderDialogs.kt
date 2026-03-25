@@ -394,3 +394,40 @@ internal fun HighlightNoteDialog(
         }
     )
 }
+
+@Composable
+internal fun BookmarkTitleDialog(
+    titleText: String,
+    onTitleTextChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add bookmark") },
+        text = {
+            TextField(
+                value = titleText,
+                onValueChange = onTitleTextChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 96.dp),
+                label = { Text("Title") },
+                supportingText = {
+                    Text("Leave empty to use the current top line.")
+                },
+                maxLines = 4
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onSave) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}

@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -23,6 +24,7 @@ internal fun ReaderCoreEffects(
     subtitleId: Long,
     subtitleLastStudyScroll: Int,
     subtitleLastTimestamp: Long,
+    hasInitialNavigationTarget: Boolean,
     uiContent: String,
     pendingAiCleanedText: String?,
     aiCleaningErrorLog: String?,
@@ -74,6 +76,10 @@ internal fun ReaderCoreEffects(
 
     LaunchedEffect(subtitleId, studyScrollState.maxValue, hasRestoredStudyScroll) {
         if (hasRestoredStudyScroll) return@LaunchedEffect
+        if (hasInitialNavigationTarget) {
+            setHasRestoredStudyScroll(true)
+            return@LaunchedEffect
+        }
         val targetScroll = subtitleLastStudyScroll.coerceAtLeast(0)
         val maxValue = studyScrollState.maxValue
         if (targetScroll == 0 || maxValue > 0) {
@@ -182,9 +188,10 @@ internal fun ReaderSystemBarsEffect(
     isUiVisible: Boolean,
     isEditing: Boolean
 ) {
-    DisposableEffect(activity, view, isUiVisible, isEditing) {
-        val window = activity?.window
-        val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
+    val window = activity?.window
+    val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
+
+    SideEffect {
         if (insetsController != null) {
             insetsController.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -193,6 +200,15 @@ internal fun ReaderSystemBarsEffect(
             } else {
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
             }
+        }
+    }
+
+    DisposableEffect(activity, view) {
+        val window = activity?.window
+        val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
+        if (insetsController != null) {
+            insetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
         onDispose {

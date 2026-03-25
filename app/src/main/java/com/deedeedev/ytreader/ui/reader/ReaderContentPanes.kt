@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.domain.SubtitleSegment
 
 @Composable
@@ -220,6 +221,7 @@ internal fun ReaderStudyPane(
     onEditTextChange: (String) -> Unit,
     readOnlyContent: String,
     highlights: List<TextHighlight>,
+    bookmarks: List<BookmarkEntity>,
     activeStudySearchRange: SelectionRange?,
     topContentPadding: Dp,
     bottomContentPadding: Dp,
@@ -296,6 +298,7 @@ internal fun ReaderStudyPane(
                         backgroundColor = readerBackgroundColor,
                         content = readOnlyContent,
                         highlights = highlights,
+                        bookmarks = bookmarks,
                         searchResultRange = activeStudySearchRange,
                         onSelectionChanged = onSelectionRangeChanged,
                         onHighlightTapped = onHighlightTapped,
@@ -316,6 +319,7 @@ internal fun ReaderStudyPane(
                     backgroundColor = readerBackgroundColor,
                     content = readOnlyContent,
                     highlights = highlights,
+                    bookmarks = bookmarks,
                     searchResultRange = activeStudySearchRange,
                     onSelectionChanged = onSelectionRangeChanged,
                     onHighlightTapped = onHighlightTapped,

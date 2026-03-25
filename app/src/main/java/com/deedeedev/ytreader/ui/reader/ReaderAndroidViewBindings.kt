@@ -1,5 +1,7 @@
 package com.deedeedev.ytreader.ui.reader
 
+import com.deedeedev.ytreader.data.local.BookmarkEntity
+
 internal fun SelectableHighlightTextView.bindOriginalFallback(
     fontSize: Float,
     lineHeightMultiplier: Float,
@@ -94,6 +96,7 @@ internal fun JustifiedStudyTextView.bindStudyContent(
     backgroundColor: Int,
     content: String,
     highlights: List<TextHighlight>,
+    bookmarks: List<BookmarkEntity>,
     searchResultRange: SelectionRange?,
     onSelectionChanged: (start: Int, end: Int) -> Unit,
     onHighlightTapped: (TextHighlight?) -> Unit,
@@ -108,7 +111,7 @@ internal fun JustifiedStudyTextView.bindStudyContent(
     setReadableColors(textColor = textColor, backgroundColor = backgroundColor)
     onTextTapListener = { tapOutcome, tapPosition ->
         if (tapOutcome == TextTapOutcome.PLAIN_TEXT) {
-            if (hasActiveHighlight()) {
+            if (hasActiveHighlight() && !isBookmarkCornerTap(tapPosition)) {
                 clearActiveHighlight()
             } else {
                 onPlainTextTap(tapPosition)
@@ -125,6 +128,7 @@ internal fun JustifiedStudyTextView.bindStudyContent(
     setContentWithHighlights(
         content = content,
         highlights = highlights,
+        bookmarks = bookmarks,
         searchResultRange = searchResultRange,
         redColor = highlightSpanColor(HighlightColor.RED),
         blueColor = highlightSpanColor(HighlightColor.BLUE),

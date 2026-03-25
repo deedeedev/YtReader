@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.data.AiCleaningWorkScheduler
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.data.local.BookmarkDao
+import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.HighlightNoteEntity
 import com.deedeedev.ytreader.data.local.SubtitleDao
@@ -24,6 +26,7 @@ data class ReaderUiState(
     val content: String = "",
     val originalParsedText: String = "",
     val highlights: List<TextHighlight> = emptyList(),
+    val bookmarks: List<BookmarkEntity> = emptyList(),
     val fontSize: Float = 16f,
     val fontFamily: String = "Default",
     val lineHeightMultiplier: Float = 1.5f,
@@ -38,6 +41,7 @@ class ReaderViewModel(
     private val appContext: Context,
     private val subtitleDao: SubtitleDao,
     private val highlightNoteDao: HighlightNoteDao,
+    private val bookmarkDao: BookmarkDao,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val subtitleId: Long
 ) : ViewModel() {
@@ -71,7 +75,10 @@ class ReaderViewModel(
                 .combine(highlightNoteDao.observeBySubtitleId(subtitleId)) { subtitle, notes ->
                     subtitle to notes
                 }
-                .collectLatest { (subtitle, notes) ->
+                .combine(bookmarkDao.observeBySubtitleId(subtitleId)) { (subtitle, notes), bookmarks ->
+                    Triple(subtitle, notes, bookmarks)
+                }
+                .collectLatest { (subtitle, notes, bookmarks) ->
                 if (subtitle != null) {
                     val originalParsedText = SubtitleParser.parse(subtitle.content)
                     val content = subtitle.studyContent ?: originalParsedText
@@ -88,6 +95,7 @@ class ReaderViewModel(
                             content = content,
                             originalParsedText = originalParsedText,
                             highlights = highlights,
+                            bookmarks = bookmarks,
                             fontSize = subtitle.fontSize,
                             fontFamily = subtitle.fontFamily,
                             isAiCleaning = subtitle.aiCleaningInProgress,
@@ -154,6 +162,38 @@ class ReaderViewModel(
             subtitleDao.updateStudyContent(subtitleId, content)
             subtitleDao.updateHighlights(subtitleId, "")
             highlightNoteDao.deleteBySubtitleId(subtitleId)
+            bookmarkDao.deleteBySubtitleId(subtitleId)
+        }
+    }
+
+    fun saveBookmark(anchorStart: Int, title: String) {
+        val normalizedTitle = title.trim()
+        if (normalizedTitle.isEmpty()) return
+        val state = _uiState.value
+        val contentLength = state.content.length
+        if (contentLength == 0) return
+
+        val boundedAnchor = anchorStart.coerceIn(0, contentLength - 1)
+        val timestamp = System.currentTimeMillis()
+        val updatedBookmark = BookmarkEntity(
+            subtitleId = subtitleId,
+            anchorStart = boundedAnchor,
+            title = normalizedTitle,
+            createdAt = state.bookmarks.firstOrNull { it.anchorStart == boundedAnchor }?.createdAt ?: timestamp,
+            updatedAt = timestamp
+        )
+
+        _uiState.update { current ->
+            current.copy(
+                bookmarks = current.bookmarks
+                    .filterNot { it.anchorStart == boundedAnchor }
+                    .plus(updatedBookmark)
+                    .sortedBy { it.anchorStart }
+            )
+        }
+
+        viewModelScope.launch {
+            bookmarkDao.upsert(updatedBookmark)
         }
     }
 
@@ -353,6 +393,7 @@ class ReaderViewModel(
             appContext: Context,
             dao: SubtitleDao,
             highlightNoteDao: HighlightNoteDao,
+            bookmarkDao: BookmarkDao,
             userPreferencesRepository: UserPreferencesRepository,
             subtitleId: Long
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
@@ -362,6 +403,7 @@ class ReaderViewModel(
                     appContext,
                     dao,
                     highlightNoteDao,
+                    bookmarkDao,
                     userPreferencesRepository,
                     subtitleId
                 ) as T

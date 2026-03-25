@@ -12,6 +12,14 @@ internal enum class ReaderTapZone {
 
 private const val CENTER_ZONE_START = 0.33f
 private const val CENTER_ZONE_END = 0.67f
+private const val BOOKMARK_CORNER_X_START = 0.88f
+private const val BOOKMARK_CORNER_Y_END = 0.14f
+
+internal fun isBookmarkCornerTap(tapPosition: ReaderTapPosition): Boolean {
+    val x = tapPosition.xFraction.coerceIn(0f, 1f)
+    val y = tapPosition.yFraction.coerceIn(0f, 1f)
+    return x >= BOOKMARK_CORNER_X_START && y <= BOOKMARK_CORNER_Y_END
+}
 
 internal fun currentReaderText(
     readerMode: ReaderMode,

@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
                         appContainer.youtubeRepository,
                         appContainer.subtitleDao,
                         appContainer.highlightNoteDao,
+                        appContainer.bookmarkDao,
                         appContainer.userPreferencesRepository
                     )
                 )

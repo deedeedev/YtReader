@@ -40,14 +40,15 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     object CollectionDetail : Screen("collection/{collectionId}", "Collection", Icons.Default.CollectionsBookmark)
     object Settings : Screen("settings", "Settings", Icons.Default.Settings)
     object Reader : Screen(
-        "reader/{subtitleId}?highlightStart={highlightStart}&highlightEnd={highlightEnd}",
+        "reader/{subtitleId}?highlightStart={highlightStart}&highlightEnd={highlightEnd}&bookmarkStart={bookmarkStart}",
         "Reader",
         Icons.AutoMirrored.Filled.MenuBook
     ) {
         fun createRoute(
             subtitleId: Long,
             highlightStart: Int? = null,
-            highlightEnd: Int? = null
+            highlightEnd: Int? = null,
+            bookmarkStart: Int? = null
         ): String {
             return buildString {
                 append("reader/")
@@ -57,6 +58,9 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
                     append(highlightStart)
                     append("&highlightEnd=")
                     append(highlightEnd)
+                } else if (bookmarkStart != null) {
+                    append("?bookmarkStart=")
+                    append(bookmarkStart)
                 }
             }
         }
@@ -76,6 +80,7 @@ fun MainScreen(
             appContainer.youtubeRepository,
             appContainer.subtitleDao,
             appContainer.highlightNoteDao,
+            appContainer.bookmarkDao,
             appContainer.userPreferencesRepository
         )
     )
@@ -242,6 +247,10 @@ fun MainScreen(
                     navArgument("highlightEnd") {
                         type = NavType.IntType
                         defaultValue = -1
+                    },
+                    navArgument("bookmarkStart") {
+                        type = NavType.IntType
+                        defaultValue = -1
                     }
                 ),
                 enterTransition = { null },
@@ -252,17 +261,20 @@ fun MainScreen(
                 val subtitleId = backStackEntry.arguments?.getLong("subtitleId") ?: return@composable
                 val highlightStart = backStackEntry.arguments?.getInt("highlightStart") ?: -1
                 val highlightEnd = backStackEntry.arguments?.getInt("highlightEnd") ?: -1
+                val bookmarkStart = backStackEntry.arguments?.getInt("bookmarkStart") ?: -1
                 
                 ReaderScreen(
                     subtitleId = subtitleId,
                     subtitleDao = appContainer.subtitleDao,
                     highlightNoteDao = appContainer.highlightNoteDao,
+                    bookmarkDao = appContainer.bookmarkDao,
                     userPreferencesRepository = appContainer.userPreferencesRepository,
                     initialHighlightRange = if (highlightStart >= 0 && highlightEnd > highlightStart) {
                         highlightStart to highlightEnd
                     } else {
                         null
                     },
+                    initialBookmarkStart = bookmarkStart.takeIf { it >= 0 },
                     onOpenVideoNotes = { videoId ->
                         navController.navigate("video_notes/$videoId") {
                             launchSingleTop = true
@@ -286,12 +298,14 @@ fun MainScreen(
                     videoId = videoId,
                     subtitleDao = appContainer.subtitleDao,
                     highlightNoteDao = appContainer.highlightNoteDao,
-                    onOpenSubtitle = { targetSubtitleId, targetStart, targetEnd ->
+                    bookmarkDao = appContainer.bookmarkDao,
+                    onOpenAnnotation = { target ->
                         navController.navigate(
                             Screen.Reader.createRoute(
-                                subtitleId = targetSubtitleId,
-                                highlightStart = targetStart,
-                                highlightEnd = targetEnd
+                                subtitleId = target.subtitleId,
+                                highlightStart = target.highlightStart,
+                                highlightEnd = target.highlightEnd,
+                                bookmarkStart = target.bookmarkStart
                             )
                         ) {
                             navController.previousBackStackEntry?.destination?.id?.let { previousDestinationId ->

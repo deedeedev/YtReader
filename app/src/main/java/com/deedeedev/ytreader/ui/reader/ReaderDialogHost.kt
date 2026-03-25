@@ -56,6 +56,11 @@ internal fun ReaderDialogHost(
     onSaveHighlightNote: () -> Unit,
     onDismissHighlightNote: () -> Unit,
     onDeleteHighlightNote: () -> Unit,
+    showBookmarkDialog: Boolean,
+    bookmarkTitleText: String,
+    onBookmarkTitleTextChange: (String) -> Unit,
+    onSaveBookmark: () -> Unit,
+    onDismissBookmark: () -> Unit,
     snackbarHostState: SnackbarHostState,
     coroutineScope: CoroutineScope
 ) {
@@ -145,6 +150,15 @@ internal fun ReaderDialogHost(
             onSave = onSaveHighlightNote,
             onDismiss = onDismissHighlightNote,
             onDelete = onDeleteHighlightNote
+        )
+    }
+
+    if (showBookmarkDialog) {
+        BookmarkTitleDialog(
+            titleText = bookmarkTitleText,
+            onTitleTextChange = onBookmarkTitleTextChange,
+            onSave = onSaveBookmark,
+            onDismiss = onDismissBookmark
         )
     }
 }

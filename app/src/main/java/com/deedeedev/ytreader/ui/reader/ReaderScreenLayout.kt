@@ -18,6 +18,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.domain.SubtitleSegment
 
 @Composable
@@ -38,6 +39,7 @@ internal fun ReaderScreenMainLayer(
     originalFallbackText: String,
     studyContent: String,
     highlights: List<TextHighlight>,
+    bookmarks: List<BookmarkEntity>,
     activeStudySearchRange: SelectionRange?,
     activeOriginalFallbackSearchRange: SelectionRange?,
     activeOriginalSegmentSearchResult: OriginalSegmentFindResult?,
@@ -131,6 +133,7 @@ internal fun ReaderScreenMainLayer(
                 onEditTextChange = onEditTextChange,
                 readOnlyContent = studyContent,
                 highlights = highlights,
+                bookmarks = bookmarks,
                 activeStudySearchRange = activeStudySearchRange,
                 topContentPadding = topContentPadding,
                 bottomContentPadding = bottomContentPadding,

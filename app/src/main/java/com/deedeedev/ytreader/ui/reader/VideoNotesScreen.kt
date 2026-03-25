@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -52,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
 
@@ -66,7 +66,8 @@ fun VideoNotesSheetRoute(
     videoId: String,
     subtitleDao: SubtitleDao,
     highlightNoteDao: HighlightNoteDao,
-    onOpenSubtitle: (Long, Int, Int) -> Unit,
+    bookmarkDao: BookmarkDao,
+    onOpenAnnotation: (ReaderAnnotationTarget) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -80,7 +81,8 @@ fun VideoNotesSheetRoute(
             videoId = videoId,
             subtitleDao = subtitleDao,
             highlightNoteDao = highlightNoteDao,
-            onOpenSubtitle = onOpenSubtitle,
+            bookmarkDao = bookmarkDao,
+            onOpenAnnotation = onOpenAnnotation,
             onDismiss = onDismiss
         )
     }
@@ -92,13 +94,15 @@ private fun VideoNotesScreen(
     videoId: String,
     subtitleDao: SubtitleDao,
     highlightNoteDao: HighlightNoteDao,
-    onOpenSubtitle: (Long, Int, Int) -> Unit,
+    bookmarkDao: BookmarkDao,
+    onOpenAnnotation: (ReaderAnnotationTarget) -> Unit,
     onDismiss: () -> Unit,
     viewModel: VideoNotesViewModel = viewModel(
         key = "VideoNotes_$videoId",
         factory = VideoNotesViewModel.provideFactory(
             subtitleDao = subtitleDao,
             highlightNoteDao = highlightNoteDao,
+            bookmarkDao = bookmarkDao,
             videoId = videoId
         )
     )
@@ -109,8 +113,8 @@ private fun VideoNotesScreen(
 
     val filteredItems = remember(uiState.items, selectedFilter) {
         when (selectedFilter) {
-            VideoNotesFilter.WITH_NOTES -> uiState.items.filter { item -> item.note != null }
             VideoNotesFilter.ALL -> uiState.items
+            VideoNotesFilter.WITH_NOTES -> uiState.items.filter { item -> item.type == VideoAnnotationType.NOTE }
         }
     }
 
@@ -154,11 +158,11 @@ private fun VideoNotesScreen(
                                 type = "text/markdown"
                                 putExtra(Intent.EXTRA_TEXT, markdownExport)
                             }
-                            context.startActivity(Intent.createChooser(shareIntent, "Export notes"))
+                            context.startActivity(Intent.createChooser(shareIntent, "Export annotations"))
                         },
                         enabled = filteredItems.isNotEmpty()
                     ) {
-                        Icon(Icons.Default.IosShare, contentDescription = "Export notes")
+                        Icon(Icons.Default.IosShare, contentDescription = "Export annotations")
                     }
                 }
             )
@@ -171,6 +175,7 @@ private fun VideoNotesScreen(
                 .padding(bottom = 16.dp)
         ) {
             VideoNotesSummary(
+                totalBookmarks = uiState.totalBookmarks,
                 totalHighlights = uiState.totalHighlights,
                 totalNotes = uiState.totalNotes,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -186,11 +191,11 @@ private fun VideoNotesScreen(
 
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Loading notes...")
+                    Text("Loading annotations...")
                 }
             } else if (filteredItems.isEmpty()) {
                 VideoNotesEmptyState(
-                    hasAnyNotes = uiState.items.isNotEmpty(),
+                    hasAnyAnnotations = uiState.items.isNotEmpty(),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 24.dp)
@@ -201,12 +206,10 @@ private fun VideoNotesScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(filteredItems, key = { item -> item.key }) { item ->
-                        VideoNoteCard(
+                        VideoAnnotationCard(
                             item = item,
                             modifier = Modifier.padding(horizontal = 16.dp),
-                            onOpenSubtitle = {
-                                onOpenSubtitle(item.subtitleId, item.highlightStart, item.highlightEnd)
-                            }
+                            onOpenAnnotation = { onOpenAnnotation(item.navigationTarget) }
                         )
                     }
                 }
@@ -217,6 +220,7 @@ private fun VideoNotesScreen(
 
 @Composable
 private fun VideoNotesSummary(
+    totalBookmarks: Int,
     totalHighlights: Int,
     totalNotes: Int,
     modifier: Modifier = Modifier
@@ -227,6 +231,7 @@ private fun VideoNotesSummary(
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        VideoNotesStatChip(text = "$totalBookmarks bookmarks")
         VideoNotesStatChip(text = "$totalHighlights highlights")
         VideoNotesStatChip(text = "$totalNotes notes")
     }
@@ -276,7 +281,7 @@ private fun VideoNotesFilterRow(
 
 @Composable
 private fun VideoNotesEmptyState(
-    hasAnyNotes: Boolean,
+    hasAnyAnnotations: Boolean,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -285,16 +290,16 @@ private fun VideoNotesEmptyState(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = if (hasAnyNotes) "No notes match this filter." else "No highlights yet.",
+                text = if (hasAnyAnnotations) "No annotations match this filter." else "No annotations yet.",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = if (hasAnyNotes) {
-                    "Switch to All to review every highlight in this video."
+                text = if (hasAnyAnnotations) {
+                    "Switch to All to review every bookmark, highlight, and note."
                 } else {
-                    "Create highlights in the reader to review and export them here."
+                    "Create bookmarks, highlights, or notes in the reader to review them here."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary
@@ -304,16 +309,16 @@ private fun VideoNotesEmptyState(
 }
 
 @Composable
-private fun VideoNoteCard(
-    item: VideoNoteItem,
-    onOpenSubtitle: () -> Unit,
+private fun VideoAnnotationCard(
+    item: VideoAnnotationItem,
+    onOpenAnnotation: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        onClick = onOpenSubtitle
+        onClick = onOpenAnnotation
     ) {
         Row(
             modifier = Modifier
@@ -324,7 +329,7 @@ private fun VideoNoteCard(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(8.dp)
-                    .background(videoNoteColor(item.color))
+                    .background(annotationBarColor(item))
             )
             Column(
                 modifier = Modifier
@@ -337,7 +342,13 @@ private fun VideoNoteCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = formatVideoNoteUpdatedAt(item.updatedAt),
+                        text = annotationTypeLabel(item.type),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = formatVideoAnnotationUpdatedAt(item.updatedAt),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.secondary
                     )
@@ -346,7 +357,7 @@ private fun VideoNoteCard(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = item.highlightedText,
+                    text = item.title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 3,
@@ -363,7 +374,9 @@ private fun VideoNoteCard(
                             text = noteText,
                             modifier = Modifier.padding(12.dp),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            maxLines = 4,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -380,7 +393,7 @@ private fun VideoNoteCard(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.secondary
                     )
-                    TextButton(onClick = onOpenSubtitle) {
+                    TextButton(onClick = onOpenAnnotation) {
                         Text("Open")
                     }
                 }
@@ -393,7 +406,7 @@ private fun buildVideoNotesMarkdown(
     title: String,
     videoId: String,
     filter: VideoNotesFilter,
-    items: List<VideoNoteItem>
+    items: List<VideoAnnotationItem>
 ): String {
     val exportTitle = title.ifBlank { videoId }
     return buildString {
@@ -406,8 +419,8 @@ private fun buildVideoNotesMarkdown(
         append("- Filter: ")
         append(
             when (filter) {
-                VideoNotesFilter.WITH_NOTES -> "With notes"
                 VideoNotesFilter.ALL -> "All"
+                VideoNotesFilter.WITH_NOTES -> "With notes"
             }
         )
         append("\n")
@@ -418,12 +431,14 @@ private fun buildVideoNotesMarkdown(
         items.forEachIndexed { index, item ->
             append("## ")
             append(index + 1)
+            append(". ")
+            append(annotationTypeLabel(item.type))
             append("\n\n")
-            append("- Highlight: ")
-            append(item.highlightedText)
-            append("\n\n")
+            append("- Title: ")
+            append(item.title)
+            append("\n")
             append("- Updated: ")
-            append(formatVideoNoteUpdatedAt(item.updatedAt))
+            append(formatVideoAnnotationUpdatedAt(item.updatedAt))
             append("\n")
             append("- Position: ")
             append(item.progressPercent)
@@ -438,7 +453,7 @@ private fun buildVideoNotesMarkdown(
     }
 }
 
-private fun formatVideoNoteUpdatedAt(updatedAt: Long): String {
+private fun formatVideoAnnotationUpdatedAt(updatedAt: Long): String {
     return if (updatedAt > 0L) {
         DateFormat.format("yyyy-MM-dd HH:mm", updatedAt).toString()
     } else {
@@ -446,9 +461,19 @@ private fun formatVideoNoteUpdatedAt(updatedAt: Long): String {
     }
 }
 
-private fun videoNoteColor(color: HighlightColor): Color = when (color) {
-    HighlightColor.RED -> Color(0xFFE57373)
-    HighlightColor.BLUE -> Color(0xFF64B5F6)
-    HighlightColor.GREEN -> Color(0xFF81C784)
-    HighlightColor.YELLOW -> Color(0xFFFFF176)
+private fun annotationTypeLabel(type: VideoAnnotationType): String = when (type) {
+    VideoAnnotationType.BOOKMARK -> "Bookmark"
+    VideoAnnotationType.NOTE -> "Note"
+    VideoAnnotationType.HIGHLIGHT -> "Highlight"
+}
+
+private fun annotationBarColor(item: VideoAnnotationItem): Color = when (item.type) {
+    VideoAnnotationType.BOOKMARK -> Color(0xFFC4302B)
+    VideoAnnotationType.NOTE,
+    VideoAnnotationType.HIGHLIGHT -> when (item.color) {
+        HighlightColor.RED -> Color(0xFFE57373)
+        HighlightColor.BLUE -> Color(0xFF64B5F6)
+        HighlightColor.GREEN -> Color(0xFF81C784)
+        HighlightColor.YELLOW, null -> Color(0xFFFFF176)
+    }
 }

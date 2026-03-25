@@ -5,10 +5,15 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [SubtitleEntity::class, HighlightNoteEntity::class], version = 16, exportSchema = true)
+@Database(
+    entities = [SubtitleEntity::class, HighlightNoteEntity::class, BookmarkEntity::class],
+    version = 17,
+    exportSchema = true
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun subtitleDao(): SubtitleDao
     abstract fun highlightNoteDao(): HighlightNoteDao
+    abstract fun bookmarkDao(): BookmarkDao
 
     companion object {
         val MIGRATION_12_13 = object : Migration(12, 13) {
@@ -65,6 +70,30 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "CREATE UNIQUE INDEX IF NOT EXISTS `index_highlight_notes_subtitleId_highlightStart_highlightEnd` ON `highlight_notes` (`subtitleId`, `highlightStart`, `highlightEnd`)"
+                )
+            }
+        }
+
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `bookmarks` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `subtitleId` INTEGER NOT NULL,
+                        `anchorStart` INTEGER NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        FOREIGN KEY(`subtitleId`) REFERENCES `subtitles`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_bookmarks_subtitleId` ON `bookmarks` (`subtitleId`)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_bookmarks_subtitleId_anchorStart` ON `bookmarks` (`subtitleId`, `anchorStart`)"
                 )
             }
         }

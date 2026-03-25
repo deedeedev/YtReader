@@ -7,6 +7,7 @@ import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
+import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.LibraryVideoRow
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
@@ -54,6 +55,7 @@ class HomeViewModel(
     private val youtubeRepository: YoutubeRepository,
     private val subtitleDao: SubtitleDao,
     private val highlightNoteDao: HighlightNoteDao,
+    private val bookmarkDao: BookmarkDao,
     private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
@@ -233,6 +235,7 @@ class HomeViewModel(
                     createdAt = System.currentTimeMillis()
                 )
                 highlightNoteDao.deleteBySubtitleId(subtitle.id)
+                bookmarkDao.deleteBySubtitleId(subtitle.id)
                 _uiState.update { it.copy(isLoading = false, error = null) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, error = e.message ?: "Download failed") }
@@ -427,11 +430,18 @@ class HomeViewModel(
             repository: YoutubeRepository,
             dao: SubtitleDao,
             highlightNoteDao: HighlightNoteDao,
+            bookmarkDao: BookmarkDao,
             userPreferencesRepository: UserPreferencesRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return HomeViewModel(repository, dao, highlightNoteDao, userPreferencesRepository) as T
+                return HomeViewModel(
+                    repository,
+                    dao,
+                    highlightNoteDao,
+                    bookmarkDao,
+                    userPreferencesRepository
+                ) as T
             }
         }
     }

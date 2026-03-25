@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.domain.SubtitleParser
@@ -68,8 +69,10 @@ fun ReaderScreen(
     subtitleId: Long,
     subtitleDao: SubtitleDao,
     highlightNoteDao: HighlightNoteDao,
+    bookmarkDao: BookmarkDao,
     userPreferencesRepository: UserPreferencesRepository,
     initialHighlightRange: Pair<Int, Int>? = null,
+    initialBookmarkStart: Int? = null,
     onOpenVideoNotes: (String) -> Unit,
     onChromeReady: () -> Unit,
     onBack: () -> Unit
@@ -85,6 +88,7 @@ fun ReaderScreen(
             context.applicationContext,
             subtitleDao,
             highlightNoteDao,
+            bookmarkDao,
             userPreferencesRepository,
             subtitleId
         )
@@ -159,6 +163,11 @@ fun ReaderScreen(
     var highlightNoteDraft by remember { mutableStateOf("") }
     var highlightNoteTarget by remember { mutableStateOf<TextHighlight?>(null) }
     var highlightNoteSelectionRange by remember { mutableStateOf<SelectionRange?>(null) }
+    var showBookmarkDialog by remember { mutableStateOf(false) }
+    var bookmarkTitleDraft by remember { mutableStateOf("") }
+    var pendingBookmarkAnchorStart by remember { mutableStateOf<Int?>(null) }
+    var pendingBookmarkFallbackTitle by remember { mutableStateOf("") }
+    var suppressSelectionToolbar by remember { mutableStateOf(false) }
     var studyTextView by remember { mutableStateOf<JustifiedStudyTextView?>(null) }
     val originalSelectionCoordinator = remember { OriginalSelectionCoordinator() }
     var pendingInitialHighlightRange by remember(subtitleId, initialHighlightRange) {
@@ -167,6 +176,9 @@ fun ReaderScreen(
                 SelectionRange(start = start, end = end)
             }
         )
+    }
+    var pendingInitialBookmarkStart by remember(subtitleId, initialBookmarkStart) {
+        mutableStateOf(initialBookmarkStart)
     }
     var lastKnownStudyScroll by rememberSaveable(subtitle.id) {
         mutableStateOf(subtitle.lastStudyScroll)
@@ -187,6 +199,8 @@ fun ReaderScreen(
         }
         viewModel.updateLastStudyScroll(scrollToSave)
     })
+
+    val hasInitialNavigationTarget = initialHighlightRange != null || initialBookmarkStart != null
 
     DisposableEffect(Unit) {
         onDispose { brightnessHideJob?.cancel() }
@@ -247,6 +261,13 @@ fun ReaderScreen(
         highlightNoteSelectionRange = null
     }
 
+    fun dismissBookmarkDialog() {
+        showBookmarkDialog = false
+        bookmarkTitleDraft = ""
+        pendingBookmarkAnchorStart = null
+        pendingBookmarkFallbackTitle = ""
+    }
+
     fun openHighlightNoteDialog() {
         val selectedHighlight = activeHighlight
         if (selectedHighlight != null) {
@@ -262,6 +283,15 @@ fun ReaderScreen(
         highlightNoteSelectionRange = selectedRange
         highlightNoteDraft = ""
         showHighlightNoteDialog = true
+    }
+
+    fun openBookmarkDialog() {
+        val textView = studyTextView ?: return
+        val anchorStart = textView.topVisibleLineAnchor(studyScrollState.value) ?: return
+        pendingBookmarkAnchorStart = anchorStart
+        pendingBookmarkFallbackTitle = textView.lineTextForOffset(anchorStart)
+        bookmarkTitleDraft = ""
+        showBookmarkDialog = true
     }
 
     fun activateSearchResultsMode(mode: SearchResultsMode) {
@@ -311,6 +341,7 @@ fun ReaderScreen(
                 selectionRange = null
                 activeHighlight = null
                 dismissHighlightNoteDialog()
+                dismissBookmarkDialog()
                 studyTextView?.clearSelection()
                 clearSearchResultsMode()
             },
@@ -465,18 +496,52 @@ fun ReaderScreen(
 
         val targetScroll = textView.verticalOffsetForSelection(targetHighlight.start)
             .coerceIn(0, studyScrollState.maxValue)
-        studyScrollState.animateScrollTo(targetScroll)
+        studyScrollState.scrollTo(targetScroll)
         selectionRange = null
         activeHighlight = targetHighlight
+        suppressSelectionToolbar = true
         dismissHighlightNoteDialog()
+        dismissBookmarkDialog()
         studyTextView?.clearSelection()
         clearSearchResultsMode()
-        isUiVisible = true
+        isUiVisible = false
         pendingInitialHighlightRange = null
+    }
+
+    LaunchedEffect(
+        pendingInitialBookmarkStart,
+        studyTextView,
+        studyScrollState.maxValue,
+        readerMode
+    ) {
+        val bookmarkStart = pendingInitialBookmarkStart ?: return@LaunchedEffect
+        if (readerMode != ReaderMode.STUDY) {
+            readerMode = ReaderMode.STUDY
+            return@LaunchedEffect
+        }
+
+        val textView = studyTextView ?: return@LaunchedEffect
+        if (!textView.isLaidOut) return@LaunchedEffect
+        val targetScroll = textView.verticalOffsetForBookmark(bookmarkStart)
+            .coerceIn(0, studyScrollState.maxValue)
+        studyScrollState.scrollTo(targetScroll)
+        selectionRange = null
+        activeHighlight = null
+        suppressSelectionToolbar = false
+        dismissHighlightNoteDialog()
+        dismissBookmarkDialog()
+        studyTextView?.clearSelection()
+        clearSearchResultsMode()
+        isUiVisible = false
+        pendingInitialBookmarkStart = null
     }
 
     fun handleReaderTap(tapPosition: ReaderTapPosition) {
         if (isEditing) return
+        if (readerMode == ReaderMode.STUDY && isBookmarkCornerTap(tapPosition)) {
+            openBookmarkDialog()
+            return
+        }
 
         when (classifyReaderTapZone(tapPosition)) {
             ReaderTapZone.PREVIOUS_PAGE -> {
@@ -497,6 +562,7 @@ fun ReaderScreen(
         subtitleId = subtitle.id,
         subtitleLastStudyScroll = subtitle.lastStudyScroll,
         subtitleLastTimestamp = subtitle.lastTimestamp,
+        hasInitialNavigationTarget = hasInitialNavigationTarget,
         uiContent = uiState.content,
         pendingAiCleanedText = uiState.pendingAiCleanedText,
         aiCleaningErrorLog = uiState.aiCleaningErrorLog,
@@ -513,6 +579,7 @@ fun ReaderScreen(
             selectionRange = null
             activeHighlight = null
             dismissHighlightNoteDialog()
+            dismissBookmarkDialog()
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
             clearSearchResultsMode()
@@ -520,6 +587,7 @@ fun ReaderScreen(
         onResetAiDialogs = {
             showAiPreviewDialog = false
             showAiErrorDialog = false
+            dismissBookmarkDialog()
         },
         setLastKnownStudyScroll = { lastKnownStudyScroll = it },
         setHasRestoredStudyScroll = { hasRestoredStudyScroll = it },
@@ -531,6 +599,7 @@ fun ReaderScreen(
             selectionRange = null
             activeHighlight = null
             dismissHighlightNoteDialog()
+            dismissBookmarkDialog()
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
             clearSearchResultsMode()
@@ -541,6 +610,7 @@ fun ReaderScreen(
             selectionRange = null
             activeHighlight = null
             dismissHighlightNoteDialog()
+            dismissBookmarkDialog()
             studyTextView?.clearSelection()
             clearSearchResultsMode()
         },
@@ -591,6 +661,7 @@ fun ReaderScreen(
     val showSelectionToolbar = readerMode == ReaderMode.STUDY &&
         !isEditing &&
         searchResultsMode == null &&
+        !suppressSelectionToolbar &&
         (selectionRange != null || activeHighlight != null)
     val showSearchResultsToolbar = !isEditing && searchResultsMode != null
     val topContentPadding by animateDpAsState(
@@ -710,6 +781,7 @@ fun ReaderScreen(
         originalFallbackText = originalFallbackText,
         studyContent = uiState.content,
         highlights = uiState.highlights,
+        bookmarks = uiState.bookmarks,
         activeStudySearchRange = activeStudySearchRange,
         activeOriginalFallbackSearchRange = activeOriginalFallbackSearchRange,
         activeOriginalSegmentSearchResult = activeOriginalSegmentSearchResult,
@@ -735,6 +807,7 @@ fun ReaderScreen(
             val normalizedStart = minOf(start, end)
             val normalizedEnd = maxOf(start, end)
             selectionRange = if (normalizedStart >= 0 && normalizedStart < normalizedEnd) {
+                suppressSelectionToolbar = false
                 activeHighlight = null
                 dismissHighlightNoteDialog()
                 clearSearchResultsMode()
@@ -744,6 +817,7 @@ fun ReaderScreen(
             }
         },
         onHighlightTapped = { tappedHighlight ->
+            suppressSelectionToolbar = false
             clearSearchResultsMode()
             dismissHighlightNoteDialog()
             activeHighlight = tappedHighlight
@@ -1036,6 +1110,19 @@ fun ReaderScreen(
             }
             dismissHighlightNoteDialog()
         },
+        showBookmarkDialog = showBookmarkDialog,
+        bookmarkTitleText = bookmarkTitleDraft,
+        onBookmarkTitleTextChange = { bookmarkTitleDraft = it },
+        onSaveBookmark = {
+            val anchorStart = pendingBookmarkAnchorStart
+            val resolvedTitle = bookmarkTitleDraft.trim().ifBlank { pendingBookmarkFallbackTitle.trim() }
+            if (anchorStart != null && resolvedTitle.isNotBlank()) {
+                viewModel.saveBookmark(anchorStart = anchorStart, title = resolvedTitle)
+                coroutineScope.launch { snackbarHostState.showSnackbar("Bookmark saved.") }
+            }
+            dismissBookmarkDialog()
+        },
+        onDismissBookmark = { dismissBookmarkDialog() },
         snackbarHostState = snackbarHostState,
         coroutineScope = coroutineScope
     )

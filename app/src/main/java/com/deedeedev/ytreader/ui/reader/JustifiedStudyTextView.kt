@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.text.Layout
@@ -18,6 +19,7 @@ import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
+import com.deedeedev.ytreader.data.local.BookmarkEntity
 
 class JustifiedStudyTextView @JvmOverloads constructor(
     context: Context,
@@ -49,6 +51,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
 
     private var content: String = ""
     private var highlights: List<TextHighlight> = emptyList()
+    private var bookmarks: List<BookmarkEntity> = emptyList()
     private var redColor: Int = 0
     private var blueColor: Int = 0
     private var greenColor: Int = 0
@@ -109,6 +112,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         canvas.save()
         canvas.translate(paddingLeft.toFloat(), paddingTop.toFloat())
         textLayout.draw(canvas)
+        drawBookmarkIndicators(canvas, textLayout)
         drawHighlightNoteIndicators(canvas, textLayout)
         selectionHandleVisuals(textLayout).forEach { handle ->
             drawHandle(canvas, handle)
@@ -173,6 +177,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     internal fun setContentWithHighlights(
         content: String,
         highlights: List<TextHighlight>,
+        bookmarks: List<BookmarkEntity>,
         searchResultRange: SelectionRange?,
         redColor: Int,
         blueColor: Int,
@@ -187,6 +192,14 @@ class JustifiedStudyTextView @JvmOverloads constructor(
                 val end = highlight.end.coerceIn(0, content.length)
                 if (end <= start) null else highlight.copy(start = start, end = end)
             }
+        this.bookmarks = bookmarks.mapNotNull { bookmark ->
+            val boundedAnchor = bookmark.anchorStart.coerceIn(0, content.length)
+            if (content.isEmpty() || boundedAnchor >= content.length) {
+                null
+            } else {
+                bookmark.copy(anchorStart = boundedAnchor)
+            }
+        }
         this.redColor = redColor
         this.blueColor = blueColor
         this.greenColor = greenColor
@@ -237,6 +250,29 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         val safeStart = start.coerceIn(0, content.length - 1)
         val line = textLayout.getLineForOffset(safeStart)
         return paddingTop + textLayout.getLineTop(line)
+    }
+
+    fun verticalOffsetForBookmark(anchorStart: Int): Int {
+        return verticalOffsetForSelection(anchorStart)
+    }
+
+    fun topVisibleLineAnchor(scrollOffset: Int): Int? {
+        val textLayout = layout ?: return null
+        if (content.isEmpty()) return null
+        val line = textLayout.getLineForVertical(scrollOffset.coerceAtLeast(0))
+        return textLayout.getLineStart(line).coerceIn(0, content.lastIndex)
+    }
+
+    fun lineTextForOffset(offset: Int): String {
+        val textLayout = layout ?: return ""
+        if (content.isEmpty()) return ""
+        val safeOffset = offset.coerceIn(0, content.lastIndex)
+        val line = textLayout.getLineForOffset(safeOffset)
+        val start = textLayout.getLineStart(line).coerceIn(0, content.length)
+        val end = textLayout.getLineEnd(line).coerceIn(start, content.length)
+        return content.substring(start, end)
+            .replace(Regex("\\s+"), " ")
+            .trim()
     }
 
     fun selectedText(): String? {
@@ -454,6 +490,34 @@ class JustifiedStudyTextView @JvmOverloads constructor(
                 .coerceAtMost(textLayout.getLineBottom(line) - radius)
             canvas.drawCircle(x, y, radius, noteIndicatorPaint)
             canvas.drawCircle(x, y, radius, noteIndicatorStrokePaint)
+        }
+    }
+
+    private fun drawBookmarkIndicators(canvas: Canvas, textLayout: StaticLayout) {
+        if (content.isEmpty() || bookmarks.isEmpty()) return
+        val markerWidth = dpToPx(10f)
+        val markerHeight = dpToPx(14f)
+        val topInset = dpToPx(2f)
+        val endInset = dpToPx(2f)
+        val notchDepth = dpToPx(4f)
+        bookmarks.forEach { bookmark ->
+            val line = textLayout.getLineForOffset(bookmark.anchorStart.coerceIn(0, content.lastIndex))
+            val top = (textLayout.getLineTop(line) + topInset)
+                .coerceAtMost(textLayout.getLineBottom(line) - markerHeight)
+            val left = (textLayout.width - markerWidth - endInset).coerceAtLeast(0f)
+            val right = left + markerWidth
+            val bottom = top + markerHeight
+            val centerX = left + (markerWidth / 2f)
+            val path = Path().apply {
+                moveTo(left, top)
+                lineTo(right, top)
+                lineTo(right, bottom)
+                lineTo(centerX, bottom - notchDepth)
+                lineTo(left, bottom)
+                close()
+            }
+            canvas.drawPath(path, noteIndicatorPaint)
+            canvas.drawPath(path, noteIndicatorStrokePaint)
         }
     }
 
