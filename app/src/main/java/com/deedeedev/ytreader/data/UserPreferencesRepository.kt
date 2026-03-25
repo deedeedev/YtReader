@@ -10,6 +10,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+data class PersistedLibraryFilters(
+    val selectedChannelFilter: String? = null,
+    val visibilityFilter: String = "ALL",
+    val sortOption: String = "DOWNLOADED",
+    val isAscending: Boolean = false
+)
+
+data class PersistedCollectionFilters(
+    val selectedChannelFilter: String? = null,
+    val sortOption: String = "DOWNLOADED",
+    val isAscending: Boolean = false
+)
+
 data class VideoCollection(
     val id: String,
     val name: String,
@@ -200,6 +213,46 @@ class UserPreferencesRepository(context: Context) {
 
     fun getLegacyCollectionsJson(): String? = prefs.getString(KEY_VIDEO_COLLECTIONS, null)
 
+    fun getLibraryFilterState(): PersistedLibraryFilters {
+        val raw = prefs.getString(KEY_LIBRARY_FILTER_STATE, null)
+        return try {
+            gson.fromJson(raw, PersistedLibraryFilters::class.java) ?: PersistedLibraryFilters()
+        } catch (_: Exception) {
+            PersistedLibraryFilters()
+        }
+    }
+
+    fun saveLibraryFilterState(state: PersistedLibraryFilters) {
+        prefs.edit().putString(KEY_LIBRARY_FILTER_STATE, gson.toJson(state)).apply()
+    }
+
+    fun getCollectionFilterStates(): Map<String, PersistedCollectionFilters> {
+        val raw = prefs.getString(KEY_COLLECTION_FILTER_STATES, null)
+        return try {
+            val type = object : TypeToken<Map<String, PersistedCollectionFilters>>() {}.type
+            gson.fromJson<Map<String, PersistedCollectionFilters>>(raw, type) ?: emptyMap()
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    fun getCollectionFilterState(collectionId: String): PersistedCollectionFilters? {
+        return getCollectionFilterStates()[collectionId]
+    }
+
+    fun saveCollectionFilterState(collectionId: String, state: PersistedCollectionFilters) {
+        val updated = getCollectionFilterStates().toMutableMap()
+        updated[collectionId] = state
+        prefs.edit().putString(KEY_COLLECTION_FILTER_STATES, gson.toJson(updated)).apply()
+    }
+
+    fun removeCollectionFilterState(collectionId: String) {
+        val updated = getCollectionFilterStates().toMutableMap()
+        if (updated.remove(collectionId) != null) {
+            prefs.edit().putString(KEY_COLLECTION_FILTER_STATES, gson.toJson(updated)).apply()
+        }
+    }
+
     fun clearLegacyCollections() {
         prefs.edit().remove(KEY_VIDEO_COLLECTIONS).remove(KEY_COLLECTION_IDS_NORMALIZED).apply()
     }
@@ -227,6 +280,8 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_VIDEO_COLLECTIONS = "video_collections"
         private const val KEY_COLLECTION_IDS_NORMALIZED = "collection_ids_normalized"
         private const val KEY_COLLECTIONS_MIGRATED_TO_DATABASE = "collections_migrated_to_database"
+        private const val KEY_LIBRARY_FILTER_STATE = "library_filter_state"
+        private const val KEY_COLLECTION_FILTER_STATES = "collection_filter_states"
 
         const val BRIGHTNESS_FOLLOW_SYSTEM = -1f
 

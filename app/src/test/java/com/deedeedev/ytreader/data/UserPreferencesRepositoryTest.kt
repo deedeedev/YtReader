@@ -73,9 +73,102 @@ class UserPreferencesRepositoryTest {
         assertEquals(listOf("dQw4w9WgXcQ", "9bZkp7q19f0"), collections.first().videoIds)
     }
 
-    private fun createRepository(): UserPreferencesRepository {
-        val context = mock<Context>()
+    @Test
+    fun libraryFilterState_roundTripsCurrentValues() {
         val sharedPreferences = FakeSharedPreferences()
+        val repository = createRepository(sharedPreferences)
+
+        repository.saveLibraryFilterState(
+            PersistedLibraryFilters(
+                selectedChannelFilter = "My Channel",
+                visibilityFilter = "IN_COLLECTIONS",
+                sortOption = "TITLE",
+                isAscending = true
+            )
+        )
+
+        val restoredRepository = createRepository(sharedPreferences)
+
+        assertEquals(
+            PersistedLibraryFilters(
+                selectedChannelFilter = "My Channel",
+                visibilityFilter = "IN_COLLECTIONS",
+                sortOption = "TITLE",
+                isAscending = true
+            ),
+            restoredRepository.getLibraryFilterState()
+        )
+    }
+
+    @Test
+    fun collectionFilterStates_areIndependentPerCollection() {
+        val sharedPreferences = FakeSharedPreferences()
+        val repository = createRepository(sharedPreferences)
+
+        repository.saveCollectionFilterState(
+            collectionId = "collection-1",
+            state = PersistedCollectionFilters(
+                selectedChannelFilter = "Channel A",
+                sortOption = "TITLE",
+                isAscending = true
+            )
+        )
+        repository.saveCollectionFilterState(
+            collectionId = "collection-2",
+            state = PersistedCollectionFilters(
+                selectedChannelFilter = "Channel B",
+                sortOption = "LAST_OPENED",
+                isAscending = false
+            )
+        )
+
+        val restoredRepository = createRepository(sharedPreferences)
+
+        assertEquals(
+            PersistedCollectionFilters(
+                selectedChannelFilter = "Channel A",
+                sortOption = "TITLE",
+                isAscending = true
+            ),
+            restoredRepository.getCollectionFilterState("collection-1")
+        )
+        assertEquals(
+            PersistedCollectionFilters(
+                selectedChannelFilter = "Channel B",
+                sortOption = "LAST_OPENED",
+                isAscending = false
+            ),
+            restoredRepository.getCollectionFilterState("collection-2")
+        )
+    }
+
+    @Test
+    fun removeCollectionFilterState_deletesOnlyRequestedCollection() {
+        val sharedPreferences = FakeSharedPreferences()
+        val repository = createRepository(sharedPreferences)
+
+        repository.saveCollectionFilterState(
+            collectionId = "collection-1",
+            state = PersistedCollectionFilters(selectedChannelFilter = "Channel A")
+        )
+        repository.saveCollectionFilterState(
+            collectionId = "collection-2",
+            state = PersistedCollectionFilters(selectedChannelFilter = "Channel B")
+        )
+
+        repository.removeCollectionFilterState("collection-1")
+
+        val restoredRepository = createRepository(sharedPreferences)
+
+        assertEquals(null, restoredRepository.getCollectionFilterState("collection-1"))
+        assertEquals(
+            PersistedCollectionFilters(selectedChannelFilter = "Channel B"),
+            restoredRepository.getCollectionFilterState("collection-2")
+        )
+    }
+
+    private fun createRepository(sharedPreferences: SharedPreferences = FakeSharedPreferences()): UserPreferencesRepository {
+        val context = mock<Context>()
 
         whenever(context.getSharedPreferences(any(), any())).thenReturn(sharedPreferences)
 

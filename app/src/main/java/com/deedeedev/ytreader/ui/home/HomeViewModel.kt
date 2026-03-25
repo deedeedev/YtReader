@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.data.CollectionRepository
+import com.deedeedev.ytreader.data.PersistedCollectionFilters
+import com.deedeedev.ytreader.data.PersistedLibraryFilters
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.YoutubeRepository
@@ -48,7 +50,14 @@ data class HomeUiState(
     val sortOption: SortOption = SortOption.DOWNLOADED,
     val isAscending: Boolean = false,
     val downloadingSubtitleIds: Set<Long> = emptySet(),
-    val collections: List<VideoCollection> = emptyList()
+    val collections: List<VideoCollection> = emptyList(),
+    val collectionFilterStates: Map<String, CollectionFilterState> = emptyMap()
+)
+
+data class CollectionFilterState(
+    val selectedChannelFilter: String? = null,
+    val sortOption: SortOption = SortOption.DOWNLOADED,
+    val isAscending: Boolean = false
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -61,7 +70,7 @@ class HomeViewModel(
     private val collectionRepository: CollectionRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HomeUiState())
+    private val _uiState = MutableStateFlow(createInitialUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     val libraryChannels: StateFlow<List<String>> = subtitleDao.observeLibraryChannels()
@@ -124,19 +133,43 @@ class HomeViewModel(
     }
 
     fun setChannelFilter(channelName: String?) {
-        _uiState.update { it.copy(selectedChannelFilter = channelName) }
+        _uiState.update {
+            it.copy(selectedChannelFilter = channelName).also(::persistLibraryFilterState)
+        }
     }
 
     fun setLibraryVisibilityFilter(visibilityFilter: LibraryVisibilityFilter) {
-        _uiState.update { it.copy(libraryVisibilityFilter = visibilityFilter) }
+        _uiState.update {
+            it.copy(libraryVisibilityFilter = visibilityFilter).also(::persistLibraryFilterState)
+        }
     }
 
     fun setSortOption(sortOption: SortOption) {
-        _uiState.update { it.copy(sortOption = sortOption) }
+        _uiState.update {
+            it.copy(sortOption = sortOption).also(::persistLibraryFilterState)
+        }
     }
 
     fun toggleSortOrder() {
-        _uiState.update { it.copy(isAscending = !it.isAscending) }
+        _uiState.update {
+            it.copy(isAscending = !it.isAscending).also(::persistLibraryFilterState)
+        }
+    }
+
+    fun getCollectionFilterState(collectionId: String): CollectionFilterState {
+        return _uiState.value.collectionFilterStates[collectionId] ?: CollectionFilterState()
+    }
+
+    fun setCollectionChannelFilter(collectionId: String, channelName: String?) {
+        updateCollectionFilterState(collectionId) { it.copy(selectedChannelFilter = channelName) }
+    }
+
+    fun setCollectionSortOption(collectionId: String, sortOption: SortOption) {
+        updateCollectionFilterState(collectionId) { it.copy(sortOption = sortOption) }
+    }
+
+    fun toggleCollectionSortOrder(collectionId: String) {
+        updateCollectionFilterState(collectionId) { it.copy(isAscending = !it.isAscending) }
     }
 
     fun onUrlChange(newUrl: String?) {
@@ -326,6 +359,10 @@ class HomeViewModel(
     }
 
     fun deleteCollection(collectionId: String) {
+        _uiState.update {
+            it.copy(collectionFilterStates = it.collectionFilterStates - collectionId)
+        }
+        userPreferencesRepository.removeCollectionFilterState(collectionId)
         viewModelScope.launch {
             collectionRepository.deleteCollection(collectionId)
         }
@@ -453,6 +490,71 @@ class HomeViewModel(
             return YouTubeVideoIdNormalizer.canonicalWatchUrl(normalizedVideoId)
         }
         return videoId
+    }
+
+    private fun createInitialUiState(): HomeUiState {
+        val libraryFilters = userPreferencesRepository.getLibraryFilterState()
+        val collectionFilters = userPreferencesRepository.getCollectionFilterStates()
+            .mapValues { (_, state) -> state.toUiState() }
+        return HomeUiState(
+            selectedChannelFilter = libraryFilters.selectedChannelFilter,
+            libraryVisibilityFilter = libraryFilters.visibilityFilter.toLibraryVisibilityFilter(),
+            sortOption = libraryFilters.sortOption.toSortOption(),
+            isAscending = libraryFilters.isAscending,
+            collectionFilterStates = collectionFilters
+        )
+    }
+
+    private fun persistLibraryFilterState(state: HomeUiState) {
+        userPreferencesRepository.saveLibraryFilterState(
+            PersistedLibraryFilters(
+                selectedChannelFilter = state.selectedChannelFilter,
+                visibilityFilter = state.libraryVisibilityFilter.name,
+                sortOption = state.sortOption.name,
+                isAscending = state.isAscending
+            )
+        )
+    }
+
+    private fun updateCollectionFilterState(
+        collectionId: String,
+        transform: (CollectionFilterState) -> CollectionFilterState
+    ) {
+        var updatedState: CollectionFilterState? = null
+        _uiState.update { state ->
+            val current = state.collectionFilterStates[collectionId] ?: CollectionFilterState()
+            val updated = transform(current)
+            updatedState = updated
+            state.copy(
+                collectionFilterStates = state.collectionFilterStates + (collectionId to updated)
+            )
+        }
+        updatedState?.let { state ->
+            userPreferencesRepository.saveCollectionFilterState(
+                collectionId = collectionId,
+                state = PersistedCollectionFilters(
+                    selectedChannelFilter = state.selectedChannelFilter,
+                    sortOption = state.sortOption.name,
+                    isAscending = state.isAscending
+                )
+            )
+        }
+    }
+
+    private fun String.toSortOption(): SortOption {
+        return SortOption.entries.firstOrNull { it.name == this } ?: SortOption.DOWNLOADED
+    }
+
+    private fun String.toLibraryVisibilityFilter(): LibraryVisibilityFilter {
+        return LibraryVisibilityFilter.entries.firstOrNull { it.name == this } ?: LibraryVisibilityFilter.ALL
+    }
+
+    private fun PersistedCollectionFilters.toUiState(): CollectionFilterState {
+        return CollectionFilterState(
+            selectedChannelFilter = selectedChannelFilter,
+            sortOption = sortOption.toSortOption(),
+            isAscending = isAscending
+        )
     }
 
     private data class LibraryQueryParams(

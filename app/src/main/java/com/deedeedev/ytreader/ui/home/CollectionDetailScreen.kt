@@ -57,10 +57,8 @@ fun CollectionDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
-    var selectedChannelFilter by remember(collectionId) { mutableStateOf<String?>(null) }
-    var sortOption by remember(collectionId) { mutableStateOf(SortOption.DOWNLOADED) }
-    var isAscending by remember(collectionId) { mutableStateOf(false) }
     var addToCollectionTargetVideoId by remember { mutableStateOf<String?>(null) }
+    val filterState = uiState.collectionFilterStates[collectionId] ?: viewModel.getCollectionFilterState(collectionId)
 
     val collection = remember(uiState.collections, collectionId) {
         uiState.collections.firstOrNull { it.id == collectionId }
@@ -74,12 +72,17 @@ fun CollectionDetailScreen(
         viewModel.observeCollectionChannels(collectionVideoIds)
     }.collectAsStateWithLifecycle(initialValue = emptyList())
 
-    val sortedItems by remember(collectionVideoIds, selectedChannelFilter, sortOption, isAscending) {
+    val sortedItems by remember(
+        collectionVideoIds,
+        filterState.selectedChannelFilter,
+        filterState.sortOption,
+        filterState.isAscending
+    ) {
         viewModel.observeCollectionItems(
             videoIds = collectionVideoIds,
-            channelName = selectedChannelFilter,
-            sortOption = sortOption,
-            isAscending = isAscending
+            channelName = filterState.selectedChannelFilter,
+            sortOption = filterState.sortOption,
+            isAscending = filterState.isAscending
         )
     }.collectAsStateWithLifecycle(initialValue = emptyList())
 
@@ -91,9 +94,12 @@ fun CollectionDetailScreen(
         } ?: 0
     }
 
-    LaunchedEffect(uniqueChannels, selectedChannelFilter) {
-        if (selectedChannelFilter != null && selectedChannelFilter !in uniqueChannels) {
-            selectedChannelFilter = null
+    LaunchedEffect(uniqueChannels, filterState.selectedChannelFilter, collectionId) {
+        if (
+            filterState.selectedChannelFilter != null &&
+            filterState.selectedChannelFilter !in uniqueChannels
+        ) {
+            viewModel.setCollectionChannelFilter(collectionId, null)
         }
     }
 
@@ -146,12 +152,12 @@ fun CollectionDetailScreen(
 
             LibraryListControls(
                 channels = uniqueChannels,
-                selectedChannelFilter = selectedChannelFilter,
-                sortOption = sortOption,
-                isAscending = isAscending,
-                onChannelFilterChange = { selectedChannelFilter = it },
-                onSortOptionChange = { sortOption = it },
-                onSortDirectionToggle = { isAscending = !isAscending },
+                selectedChannelFilter = filterState.selectedChannelFilter,
+                sortOption = filterState.sortOption,
+                isAscending = filterState.isAscending,
+                onChannelFilterChange = { viewModel.setCollectionChannelFilter(collectionId, it) },
+                onSortOptionChange = { viewModel.setCollectionSortOption(collectionId, it) },
+                onSortDirectionToggle = { viewModel.toggleCollectionSortOrder(collectionId) },
                 modifier = Modifier.padding(vertical = 16.dp)
             )
 
@@ -159,7 +165,7 @@ fun CollectionDetailScreen(
                 items = sortedItems,
                 emptyText = collectionEmptyText(
                     totalCollectionVideoCount = collection.videoIds.size,
-                    selectedChannelFilter = selectedChannelFilter
+                    selectedChannelFilter = filterState.selectedChannelFilter
                 ),
                 modifier = Modifier.fillMaxSize(),
                 key = { it.videoId }
