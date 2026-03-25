@@ -21,14 +21,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.StickyNote2
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FormatColorText
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -54,11 +58,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
-
-private enum class VideoNotesFilter {
-    ALL,
-    WITH_NOTES
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,20 +108,21 @@ private fun VideoNotesScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var selectedFilter by remember { mutableStateOf(VideoNotesFilter.ALL) }
+    var selectedTypes by remember { mutableStateOf(setOf<VideoAnnotationType>()) }
 
-    val filteredItems = remember(uiState.items, selectedFilter) {
-        when (selectedFilter) {
-            VideoNotesFilter.ALL -> uiState.items
-            VideoNotesFilter.WITH_NOTES -> uiState.items.filter { item -> item.type == VideoAnnotationType.NOTE }
+    val filteredItems = remember(uiState.items, selectedTypes) {
+        if (selectedTypes.isEmpty()) {
+            uiState.items
+        } else {
+            uiState.items.filter { item -> item.type in selectedTypes }
         }
     }
 
-    val markdownExport = remember(filteredItems, uiState.title, videoId, selectedFilter) {
+    val markdownExport = remember(filteredItems, uiState.title, videoId, selectedTypes) {
         buildVideoNotesMarkdown(
             title = uiState.title,
             videoId = videoId,
-            filter = selectedFilter,
+            selectedTypes = selectedTypes,
             items = filteredItems
         )
     }
@@ -182,8 +182,12 @@ private fun VideoNotesScreen(
             )
 
             VideoNotesFilterRow(
-                selectedFilter = selectedFilter,
-                onFilterSelected = { selectedFilter = it },
+                selectedTypes = selectedTypes,
+                onToggleType = { type ->
+                    selectedTypes = selectedTypes.toMutableSet().apply {
+                        if (!add(type)) remove(type)
+                    }.toSet()
+                },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
@@ -258,23 +262,55 @@ private fun VideoNotesStatChip(
 
 @Composable
 private fun VideoNotesFilterRow(
-    selectedFilter: VideoNotesFilter,
-    onFilterSelected: (VideoNotesFilter) -> Unit,
+    selectedTypes: Set<VideoAnnotationType>,
+    onToggleType: (VideoAnnotationType) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        FilterChip(
-            selected = selectedFilter == VideoNotesFilter.ALL,
-            onClick = { onFilterSelected(VideoNotesFilter.ALL) },
-            label = { Text("All") }
+        AnnotationFilterToggle(
+            type = VideoAnnotationType.BOOKMARK,
+            selected = VideoAnnotationType.BOOKMARK in selectedTypes,
+            onClick = { onToggleType(VideoAnnotationType.BOOKMARK) }
         )
-        FilterChip(
-            selected = selectedFilter == VideoNotesFilter.WITH_NOTES,
-            onClick = { onFilterSelected(VideoNotesFilter.WITH_NOTES) },
-            label = { Text("With notes") }
+        AnnotationFilterToggle(
+            type = VideoAnnotationType.HIGHLIGHT,
+            selected = VideoAnnotationType.HIGHLIGHT in selectedTypes,
+            onClick = { onToggleType(VideoAnnotationType.HIGHLIGHT) }
+        )
+        AnnotationFilterToggle(
+            type = VideoAnnotationType.NOTE,
+            selected = VideoAnnotationType.NOTE in selectedTypes,
+            onClick = { onToggleType(VideoAnnotationType.NOTE) }
+        )
+    }
+}
+
+@Composable
+private fun AnnotationFilterToggle(
+    type: VideoAnnotationType,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    IconToggleButton(
+        checked = selected,
+        onCheckedChange = { onClick() },
+        modifier = modifier,
+        colors = IconButtonDefaults.iconToggleButtonColors(
+            checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    ) {
+        Icon(
+            imageVector = annotationFilterIcon(type),
+            contentDescription = annotationTypeLabel(type)
         )
     }
 }
@@ -297,7 +333,7 @@ private fun VideoNotesEmptyState(
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = if (hasAnyAnnotations) {
-                    "Switch to All to review every bookmark, highlight, and note."
+                    "Toggle the icons off to review every bookmark, highlight, and note."
                 } else {
                     "Create bookmarks, highlights, or notes in the reader to review them here."
                 },
@@ -405,7 +441,7 @@ private fun VideoAnnotationCard(
 private fun buildVideoNotesMarkdown(
     title: String,
     videoId: String,
-    filter: VideoNotesFilter,
+    selectedTypes: Set<VideoAnnotationType>,
     items: List<VideoAnnotationItem>
 ): String {
     val exportTitle = title.ifBlank { videoId }
@@ -417,12 +453,7 @@ private fun buildVideoNotesMarkdown(
         append(videoId)
         append("\n")
         append("- Filter: ")
-        append(
-            when (filter) {
-                VideoNotesFilter.ALL -> "All"
-                VideoNotesFilter.WITH_NOTES -> "With notes"
-            }
-        )
+        append(annotationFilterLabel(selectedTypes))
         append("\n")
         append("- Exported items: ")
         append(items.size)
@@ -465,6 +496,21 @@ private fun annotationTypeLabel(type: VideoAnnotationType): String = when (type)
     VideoAnnotationType.BOOKMARK -> "Bookmark"
     VideoAnnotationType.NOTE -> "Note"
     VideoAnnotationType.HIGHLIGHT -> "Highlight"
+}
+
+private fun annotationFilterLabel(selectedTypes: Set<VideoAnnotationType>): String {
+    if (selectedTypes.isEmpty()) return "All"
+    return buildList {
+        if (VideoAnnotationType.BOOKMARK in selectedTypes) add("Bookmarks")
+        if (VideoAnnotationType.HIGHLIGHT in selectedTypes) add("Highlights")
+        if (VideoAnnotationType.NOTE in selectedTypes) add("Notes")
+    }.joinToString(", ")
+}
+
+private fun annotationFilterIcon(type: VideoAnnotationType) = when (type) {
+    VideoAnnotationType.BOOKMARK -> Icons.Filled.Bookmark
+    VideoAnnotationType.HIGHLIGHT -> Icons.Filled.FormatColorText
+    VideoAnnotationType.NOTE -> Icons.AutoMirrored.Filled.StickyNote2
 }
 
 private fun annotationBarColor(item: VideoAnnotationItem): Color = when (item.type) {
