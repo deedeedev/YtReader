@@ -78,6 +78,7 @@ internal fun ReaderScreenMainLayer(
     onShareText: (String) -> Unit,
     onRemoveEmptyLines: () -> Unit,
     onShowFind: () -> Unit,
+    onShowVideoNotes: () -> Unit,
     onShowFindAndReplace: () -> Unit,
     onStartAiCleaning: (String) -> Unit,
     onRequestNotificationPermission: (String) -> Unit,
@@ -215,6 +216,7 @@ internal fun ReaderScreenMainLayer(
             onShareText = onShareText,
             onRemoveEmptyLines = onRemoveEmptyLines,
             onShowFind = onShowFind,
+            onShowVideoNotes = onShowVideoNotes,
             onShowFindAndReplace = onShowFindAndReplace,
             onStartAiCleaning = onStartAiCleaning,
             onRequestNotificationPermission = onRequestNotificationPermission

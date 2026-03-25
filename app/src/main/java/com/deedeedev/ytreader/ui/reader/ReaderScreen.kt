@@ -69,6 +69,8 @@ fun ReaderScreen(
     subtitleDao: SubtitleDao,
     highlightNoteDao: HighlightNoteDao,
     userPreferencesRepository: UserPreferencesRepository,
+    initialHighlightRange: Pair<Int, Int>? = null,
+    onOpenVideoNotes: (String) -> Unit,
     onChromeReady: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -159,6 +161,13 @@ fun ReaderScreen(
     var highlightNoteSelectionRange by remember { mutableStateOf<SelectionRange?>(null) }
     var studyTextView by remember { mutableStateOf<JustifiedStudyTextView?>(null) }
     val originalSelectionCoordinator = remember { OriginalSelectionCoordinator() }
+    var pendingInitialHighlightRange by remember(subtitleId, initialHighlightRange) {
+        mutableStateOf(
+            initialHighlightRange?.let { (start, end) ->
+                SelectionRange(start = start, end = end)
+            }
+        )
+    }
     var lastKnownStudyScroll by rememberSaveable(subtitle.id) {
         mutableStateOf(subtitle.lastStudyScroll)
     }
@@ -433,6 +442,37 @@ fun ReaderScreen(
             is SearchResultsMode.OriginalSegment -> mode.results.getOrNull(mode.activeIndex)
             else -> null
         }
+    }
+
+    LaunchedEffect(
+        pendingInitialHighlightRange,
+        studyTextView,
+        studyScrollState.maxValue,
+        uiState.highlights,
+        readerMode
+    ) {
+        val targetRange = pendingInitialHighlightRange ?: return@LaunchedEffect
+        if (readerMode != ReaderMode.STUDY) {
+            readerMode = ReaderMode.STUDY
+            return@LaunchedEffect
+        }
+
+        val textView = studyTextView ?: return@LaunchedEffect
+        if (!textView.isLaidOut) return@LaunchedEffect
+        val targetHighlight = uiState.highlights.firstOrNull { highlight ->
+            highlight.start == targetRange.start && highlight.end == targetRange.end
+        } ?: return@LaunchedEffect
+
+        val targetScroll = textView.verticalOffsetForSelection(targetHighlight.start)
+            .coerceIn(0, studyScrollState.maxValue)
+        studyScrollState.animateScrollTo(targetScroll)
+        selectionRange = null
+        activeHighlight = targetHighlight
+        dismissHighlightNoteDialog()
+        studyTextView?.clearSelection()
+        clearSearchResultsMode()
+        isUiVisible = true
+        pendingInitialHighlightRange = null
     }
 
     fun handleReaderTap(tapPosition: ReaderTapPosition) {
@@ -754,6 +794,9 @@ fun ReaderScreen(
             clearSearchResultsMode()
             resetFindDialogState()
             showFindDialog = true
+        },
+        onShowVideoNotes = {
+            subtitle.videoId.takeIf { it.isNotBlank() }?.let(onOpenVideoNotes)
         },
         onShowFindAndReplace = {
             clearSearchResultsMode()

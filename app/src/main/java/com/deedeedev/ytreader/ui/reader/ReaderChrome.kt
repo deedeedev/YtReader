@@ -119,6 +119,7 @@ internal fun ReaderBottomBar(
     onShareText: (String) -> Unit,
     onRemoveEmptyLines: () -> Unit,
     onShowFind: () -> Unit,
+    onShowVideoNotes: () -> Unit,
     onShowFindAndReplace: () -> Unit,
     onStartAiCleaning: (String) -> Unit,
     onRequestNotificationPermission: (String) -> Unit
@@ -215,6 +216,13 @@ internal fun ReaderBottomBar(
                                 onClick = {
                                     showOverflowMenu = false
                                     onShareText(currentText)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Highlights & notes") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    onShowVideoNotes()
                                 }
                             )
                             if (!isOriginalMode) {

@@ -1,5 +1,6 @@
 package com.deedeedev.ytreader.ui
 
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -19,6 +20,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.deedeedev.ytreader.AppContainer
@@ -28,6 +30,7 @@ import com.deedeedev.ytreader.ui.home.CollectionsScreen
 import com.deedeedev.ytreader.ui.home.LibraryScreen
 import com.deedeedev.ytreader.ui.home.SearchScreen
 import com.deedeedev.ytreader.ui.reader.ReaderScreen
+import com.deedeedev.ytreader.ui.reader.VideoNotesSheetRoute
 import com.deedeedev.ytreader.ui.settings.SettingsScreen
 
 sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
@@ -36,12 +39,36 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
     object Collections : Screen("collections", "Collections", Icons.Default.CollectionsBookmark)
     object CollectionDetail : Screen("collection/{collectionId}", "Collection", Icons.Default.CollectionsBookmark)
     object Settings : Screen("settings", "Settings", Icons.Default.Settings)
-    object Reader : Screen("reader/{subtitleId}", "Reader", Icons.AutoMirrored.Filled.MenuBook)
+    object Reader : Screen(
+        "reader/{subtitleId}?highlightStart={highlightStart}&highlightEnd={highlightEnd}",
+        "Reader",
+        Icons.AutoMirrored.Filled.MenuBook
+    ) {
+        fun createRoute(
+            subtitleId: Long,
+            highlightStart: Int? = null,
+            highlightEnd: Int? = null
+        ): String {
+            return buildString {
+                append("reader/")
+                append(subtitleId)
+                if (highlightStart != null && highlightEnd != null) {
+                    append("?highlightStart=")
+                    append(highlightStart)
+                    append("&highlightEnd=")
+                    append(highlightEnd)
+                }
+            }
+        }
+    }
+    object VideoNotes : Screen("video_notes/{videoId}", "Highlights & Notes", Icons.AutoMirrored.Filled.MenuBook)
 }
 
 @Composable
 fun MainScreen(
     appContainer: AppContainer,
+    requestedHomeRoute: String? = null,
+    onHomeRouteHandled: () -> Unit = {},
     requestedReaderSubtitleId: Long? = null,
     onReaderSubtitleHandled: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(
@@ -57,9 +84,21 @@ fun MainScreen(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+    LaunchedEffect(requestedHomeRoute) {
+        val route = requestedHomeRoute ?: return@LaunchedEffect
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+        onHomeRouteHandled()
+    }
+
     LaunchedEffect(requestedReaderSubtitleId) {
         val subtitleId = requestedReaderSubtitleId ?: return@LaunchedEffect
-        navController.navigate("reader/$subtitleId") {
+        navController.navigate(Screen.Reader.createRoute(subtitleId)) {
             launchSingleTop = true
         }
         onReaderSubtitleHandled()
@@ -108,7 +147,7 @@ fun MainScreen(
                 SearchScreen(
                     viewModel = viewModel,
                     onSubtitleClick = { id ->
-                        navController.navigate("reader/$id")
+                        navController.navigate(Screen.Reader.createRoute(id))
                     }
                 )
             }
@@ -122,7 +161,7 @@ fun MainScreen(
                 LibraryScreen(
                     viewModel = viewModel,
                     onSubtitleClick = { id ->
-                        navController.navigate("reader/$id")
+                        navController.navigate(Screen.Reader.createRoute(id))
                     },
                     onVideoClick = { url ->
                         viewModel.onUrlChange(url)
@@ -176,7 +215,7 @@ fun MainScreen(
                     viewModel = viewModel,
                     collectionId = collectionId,
                     onSubtitleClick = { id ->
-                        navController.navigate("reader/$id")
+                        navController.navigate(Screen.Reader.createRoute(id))
                     },
                     onBack = { navController.popBackStack() },
                     onVideoClick = { url ->
@@ -194,21 +233,75 @@ fun MainScreen(
             }
             composable(
                 route = Screen.Reader.route,
-                arguments = listOf(navArgument("subtitleId") { type = NavType.LongType }),
+                arguments = listOf(
+                    navArgument("subtitleId") { type = NavType.LongType },
+                    navArgument("highlightStart") {
+                        type = NavType.IntType
+                        defaultValue = -1
+                    },
+                    navArgument("highlightEnd") {
+                        type = NavType.IntType
+                        defaultValue = -1
+                    }
+                ),
                 enterTransition = { null },
                 exitTransition = { null },
                 popEnterTransition = { null },
                 popExitTransition = { null }
             ) { backStackEntry ->
                 val subtitleId = backStackEntry.arguments?.getLong("subtitleId") ?: return@composable
+                val highlightStart = backStackEntry.arguments?.getInt("highlightStart") ?: -1
+                val highlightEnd = backStackEntry.arguments?.getInt("highlightEnd") ?: -1
                 
                 ReaderScreen(
                     subtitleId = subtitleId,
                     subtitleDao = appContainer.subtitleDao,
                     highlightNoteDao = appContainer.highlightNoteDao,
                     userPreferencesRepository = appContainer.userPreferencesRepository,
+                    initialHighlightRange = if (highlightStart >= 0 && highlightEnd > highlightStart) {
+                        highlightStart to highlightEnd
+                    } else {
+                        null
+                    },
+                    onOpenVideoNotes = { videoId ->
+                        navController.navigate("video_notes/$videoId") {
+                            launchSingleTop = true
+                        }
+                    },
                     onChromeReady = {},
                     onBack = { navController.popBackStack() }
+                )
+            }
+            dialog(
+                route = Screen.VideoNotes.route,
+                arguments = listOf(navArgument("videoId") { type = NavType.StringType }),
+                dialogProperties = DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false
+                )
+            ) { backStackEntry ->
+                val videoId = backStackEntry.arguments?.getString("videoId") ?: return@dialog
+
+                VideoNotesSheetRoute(
+                    videoId = videoId,
+                    subtitleDao = appContainer.subtitleDao,
+                    highlightNoteDao = appContainer.highlightNoteDao,
+                    onOpenSubtitle = { targetSubtitleId, targetStart, targetEnd ->
+                        navController.navigate(
+                            Screen.Reader.createRoute(
+                                subtitleId = targetSubtitleId,
+                                highlightStart = targetStart,
+                                highlightEnd = targetEnd
+                            )
+                        ) {
+                            navController.previousBackStackEntry?.destination?.id?.let { previousDestinationId ->
+                                popUpTo(previousDestinationId) {
+                                    inclusive = true
+                                }
+                            }
+                        }
+                    },
+                    onDismiss = { navController.popBackStack() }
                 )
             }
         }

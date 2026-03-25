@@ -18,6 +18,16 @@ interface HighlightNoteDao {
     )
     fun observeBySubtitleId(subtitleId: Long): Flow<List<HighlightNoteEntity>>
 
+    @Query(
+        """
+        SELECT *
+        FROM highlight_notes
+        WHERE subtitleId IN (:subtitleIds)
+        ORDER BY updatedAt DESC, createdAt DESC, id DESC
+        """
+    )
+    fun observeBySubtitleIds(subtitleIds: List<Long>): Flow<List<HighlightNoteEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(note: HighlightNoteEntity): Long
 

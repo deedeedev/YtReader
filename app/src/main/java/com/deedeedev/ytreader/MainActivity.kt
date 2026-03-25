@@ -57,6 +57,17 @@ class MainActivity : ComponentActivity() {
 
                 MainScreen(
                     appContainer = appContainer,
+                    requestedHomeRoute = requestedHomeRouteForIntent(currentIntent),
+                    onHomeRouteHandled = {
+                        val current = latestIntent
+                        if (current != null && isSharedTextIntent(current)) {
+                            latestIntent = Intent(current).apply {
+                                action = null
+                                type = null
+                                removeExtra(Intent.EXTRA_TEXT)
+                            }
+                        }
+                    },
                     viewModel = viewModel,
                     requestedReaderSubtitleId = extractRequestedSubtitleId(currentIntent),
                     onReaderSubtitleHandled = {

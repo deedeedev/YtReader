@@ -200,6 +200,16 @@ interface SubtitleDao {
     @Query("SELECT * FROM subtitles WHERE id = :id")
     fun observeById(id: Long): Flow<SubtitleEntity?>
 
+    @Query(
+        """
+        SELECT *
+        FROM subtitles
+        WHERE videoId = :videoId
+        ORDER BY lastOpenedAt DESC, createdAt DESC, id DESC
+        """
+    )
+    fun observeByVideoId(videoId: String): Flow<List<SubtitleEntity>>
+
     @Query("SELECT * FROM subtitles WHERE id = :id")
     suspend fun getById(id: Long): SubtitleEntity?
 
