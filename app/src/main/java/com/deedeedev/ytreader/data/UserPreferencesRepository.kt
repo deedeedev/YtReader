@@ -9,7 +9,6 @@ import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.UUID
 
 data class VideoCollection(
     val id: String,
@@ -18,14 +17,24 @@ data class VideoCollection(
     val createdAt: Long = System.currentTimeMillis()
 )
 
+data class PreferencesBackup(
+    val favoriteLanguages: Set<String> = emptySet(),
+    val defaultFontSize: Float = 16f,
+    val fontFamily: String = "Default",
+    val lineHeightMultiplier: Float = 1.5f,
+    val appTheme: String = AppTheme.SYSTEM.storageValue,
+    val appBrightness: Float = UserPreferencesRepository.BRIGHTNESS_FOLLOW_SYSTEM,
+    val aiEndpoint: String = "",
+    val aiApiKey: String = "",
+    val aiModel: String = DEFAULT_AI_MODEL,
+    val aiPrompt: String = DEFAULT_AI_CLEANING_PROMPT
+)
+
 class UserPreferencesRepository(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val gson = Gson()
     private val _favoriteLanguages = MutableStateFlow<Set<String>>(emptySet())
     val favoriteLanguages: StateFlow<Set<String>> = _favoriteLanguages.asStateFlow()
-
-    private val _videoCollections = MutableStateFlow<List<VideoCollection>>(emptyList())
-    val videoCollections: StateFlow<List<VideoCollection>> = _videoCollections.asStateFlow()
 
     private val _defaultFontSize = MutableStateFlow(16f)
     val defaultFontSize: StateFlow<Float> = _defaultFontSize.asStateFlow()
@@ -57,7 +66,6 @@ class UserPreferencesRepository(context: Context) {
     init {
         loadFavorites()
         loadDisplaySettings()
-        loadCollections()
     }
 
     private fun loadFavorites() {
@@ -78,36 +86,6 @@ class UserPreferencesRepository(context: Context) {
             ?: DEFAULT_AI_CLEANING_PROMPT
     }
 
-    private fun loadCollections() {
-        _videoCollections.value = decodeCollections(prefs.getString(KEY_VIDEO_COLLECTIONS, null))
-    }
-
-    private fun persistCollections(collections: List<VideoCollection>) {
-        prefs.edit().putString(KEY_VIDEO_COLLECTIONS, gson.toJson(collections)).apply()
-        _videoCollections.value = collections
-    }
-
-    private fun decodeCollections(raw: String?): List<VideoCollection> {
-        if (raw.isNullOrBlank()) {
-            return emptyList()
-        }
-
-        return try {
-            val type = object : TypeToken<List<VideoCollection>>() {}.type
-            val parsed = gson.fromJson<List<VideoCollection>>(raw, type) ?: emptyList()
-            parsed
-                .map { collection ->
-                    collection.copy(
-                        name = collection.name.trim(),
-                        videoIds = collection.videoIds.map { it.trim() }.filter { it.isNotBlank() }.distinct()
-                    )
-                }
-                .filter { it.id.isNotBlank() && it.name.isNotBlank() }
-        } catch (_: Exception) {
-            emptyList()
-        }
-    }
-
     fun toggleFavoriteLanguage(languageCode: String) {
         val current = _favoriteLanguages.value.toMutableSet()
         if (current.contains(languageCode)) {
@@ -118,127 +96,6 @@ class UserPreferencesRepository(context: Context) {
         
         prefs.edit().putStringSet(KEY_FAVORITE_LANGUAGES, current).apply()
         _favoriteLanguages.value = current
-    }
-
-    fun createCollection(name: String): Boolean {
-        val trimmedName = name.trim()
-        if (trimmedName.isBlank()) {
-            return false
-        }
-        if (_videoCollections.value.any { it.name.equals(trimmedName, ignoreCase = true) }) {
-            return false
-        }
-
-        val updated = _videoCollections.value + VideoCollection(
-            id = UUID.randomUUID().toString(),
-            name = trimmedName
-        )
-        persistCollections(updated)
-        return true
-    }
-
-    fun renameCollection(collectionId: String, newName: String): Boolean {
-        val trimmedName = newName.trim()
-        if (trimmedName.isBlank()) {
-            return false
-        }
-
-        val existing = _videoCollections.value
-        if (existing.none { it.id == collectionId }) {
-            return false
-        }
-        if (existing.any { it.id != collectionId && it.name.equals(trimmedName, ignoreCase = true) }) {
-            return false
-        }
-
-        val updated = existing.map { collection ->
-            if (collection.id == collectionId) {
-                collection.copy(name = trimmedName)
-            } else {
-                collection
-            }
-        }
-        persistCollections(updated)
-        return true
-    }
-
-    fun deleteCollection(collectionId: String) {
-        val updated = _videoCollections.value.filterNot { it.id == collectionId }
-        persistCollections(updated)
-    }
-
-    fun addVideoToCollection(collectionId: String, videoId: String): Boolean {
-        val trimmedVideoId = videoId.trim()
-        if (trimmedVideoId.isBlank()) {
-            return false
-        }
-
-        var foundCollection = false
-        var changed = false
-        val updated = _videoCollections.value.map { collection ->
-            if (collection.id != collectionId) {
-                return@map collection
-            }
-            foundCollection = true
-            if (collection.videoIds.contains(trimmedVideoId)) {
-                return@map collection
-            }
-            changed = true
-            collection.copy(videoIds = collection.videoIds + trimmedVideoId)
-        }
-
-        if (!foundCollection) {
-            return false
-        }
-        if (changed) {
-            persistCollections(updated)
-        }
-        return true
-    }
-
-    fun removeVideoFromCollection(collectionId: String, videoId: String) {
-        val updated = _videoCollections.value.map { collection ->
-            if (collection.id == collectionId) {
-                collection.copy(videoIds = collection.videoIds.filterNot { it == videoId })
-            } else {
-                collection
-            }
-        }
-        persistCollections(updated)
-    }
-
-    fun removeVideoFromAllCollections(videoId: String) {
-        val updated = _videoCollections.value.map { collection ->
-            collection.copy(videoIds = collection.videoIds.filterNot { it == videoId })
-        }
-        persistCollections(updated)
-    }
-
-    fun isVideoInAnyCollection(videoId: String): Boolean {
-        return _videoCollections.value.any { collection -> videoId in collection.videoIds }
-    }
-
-    fun normalizeCollectionVideoIds() {
-        if (prefs.getBoolean(KEY_COLLECTION_IDS_NORMALIZED, false)) {
-            return
-        }
-
-        val normalized = _videoCollections.value.map { collection ->
-            val normalizedIds = collection.videoIds.mapNotNull { rawValue ->
-                val trimmed = rawValue.trim()
-                if (trimmed.isBlank()) {
-                    return@mapNotNull null
-                }
-                val extracted = YouTubeVideoIdNormalizer.extractVideoId(trimmed)
-                extracted ?: trimmed
-            }.distinct()
-            collection.copy(videoIds = normalizedIds)
-        }
-
-        if (normalized != _videoCollections.value) {
-            persistCollections(normalized)
-        }
-        prefs.edit().putBoolean(KEY_COLLECTION_IDS_NORMALIZED, true).apply()
     }
 
     fun setDefaultFontSize(size: Float) {
@@ -300,6 +157,61 @@ class UserPreferencesRepository(context: Context) {
     fun getAiPrompt(): String =
         prefs.getString(KEY_AI_PROMPT, DEFAULT_AI_CLEANING_PROMPT) ?: DEFAULT_AI_CLEANING_PROMPT
 
+    fun exportPreferencesJson(): String {
+        val backup = PreferencesBackup(
+            favoriteLanguages = _favoriteLanguages.value,
+            defaultFontSize = _defaultFontSize.value,
+            fontFamily = _fontFamily.value,
+            lineHeightMultiplier = _lineHeightMultiplier.value,
+            appTheme = _appTheme.value.storageValue,
+            appBrightness = _appBrightness.value,
+            aiEndpoint = _aiEndpoint.value,
+            aiApiKey = _aiApiKey.value,
+            aiModel = _aiModel.value,
+            aiPrompt = _aiPrompt.value
+        )
+        return gson.toJson(backup)
+    }
+
+    fun importPreferencesJson(json: String): Boolean {
+        val backup = try {
+            gson.fromJson(json, PreferencesBackup::class.java)
+        } catch (_: Exception) {
+            null
+        } ?: return false
+
+        prefs.edit()
+            .putStringSet(KEY_FAVORITE_LANGUAGES, backup.favoriteLanguages.toMutableSet())
+            .putFloat(KEY_DEFAULT_FONT_SIZE, backup.defaultFontSize)
+            .putString(KEY_FONT_FAMILY, backup.fontFamily)
+            .putFloat(KEY_LINE_HEIGHT_MULTIPLIER, backup.lineHeightMultiplier)
+            .putString(KEY_APP_THEME, backup.appTheme)
+            .putFloat(KEY_APP_BRIGHTNESS, backup.appBrightness)
+            .putString(KEY_AI_ENDPOINT, backup.aiEndpoint)
+            .putString(KEY_AI_API_KEY, backup.aiApiKey)
+            .putString(KEY_AI_MODEL, backup.aiModel)
+            .putString(KEY_AI_PROMPT, backup.aiPrompt)
+            .apply()
+
+        loadFavorites()
+        loadDisplaySettings()
+        return true
+    }
+
+    fun getLegacyCollectionsJson(): String? = prefs.getString(KEY_VIDEO_COLLECTIONS, null)
+
+    fun clearLegacyCollections() {
+        prefs.edit().remove(KEY_VIDEO_COLLECTIONS).remove(KEY_COLLECTION_IDS_NORMALIZED).apply()
+    }
+
+    fun areCollectionsMigratedToDatabase(): Boolean {
+        return prefs.getBoolean(KEY_COLLECTIONS_MIGRATED_TO_DATABASE, false)
+    }
+
+    fun markCollectionsMigratedToDatabase() {
+        prefs.edit().putBoolean(KEY_COLLECTIONS_MIGRATED_TO_DATABASE, true).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "user_preferences"
         private const val KEY_FAVORITE_LANGUAGES = "favorite_languages"
@@ -314,7 +226,37 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_AI_PROMPT = "ai_prompt"
         private const val KEY_VIDEO_COLLECTIONS = "video_collections"
         private const val KEY_COLLECTION_IDS_NORMALIZED = "collection_ids_normalized"
+        private const val KEY_COLLECTIONS_MIGRATED_TO_DATABASE = "collections_migrated_to_database"
 
         const val BRIGHTNESS_FOLLOW_SYSTEM = -1f
+
+        fun parseLegacyCollectionsJson(raw: String?): List<VideoCollection> {
+            if (raw.isNullOrBlank()) {
+                return emptyList()
+            }
+
+            return try {
+                val gson = Gson()
+                val type = object : TypeToken<List<VideoCollection>>() {}.type
+                val parsed = gson.fromJson<List<VideoCollection>>(raw, type) ?: emptyList()
+                parsed
+                    .map { collection ->
+                        collection.copy(
+                            name = collection.name.trim(),
+                            videoIds = collection.videoIds.mapNotNull { rawValue ->
+                                val trimmed = rawValue.trim()
+                                if (trimmed.isBlank()) {
+                                    null
+                                } else {
+                                    YouTubeVideoIdNormalizer.extractVideoId(trimmed) ?: trimmed
+                                }
+                            }.distinct()
+                        )
+                    }
+                    .filter { it.id.isNotBlank() && it.name.isNotBlank() }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
     }
 }

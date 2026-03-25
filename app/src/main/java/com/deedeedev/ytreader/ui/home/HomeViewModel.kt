@@ -3,6 +3,7 @@ package com.deedeedev.ytreader.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.deedeedev.ytreader.data.CollectionRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.YoutubeRepository
@@ -56,7 +57,8 @@ class HomeViewModel(
     private val subtitleDao: SubtitleDao,
     private val highlightNoteDao: HighlightNoteDao,
     private val bookmarkDao: BookmarkDao,
-    private val userPreferencesRepository: UserPreferencesRepository
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val collectionRepository: CollectionRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -88,7 +90,6 @@ class HomeViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     init {
-        userPreferencesRepository.normalizeCollectionVideoIds()
         loadSavedSubtitles()
         loadFavoriteLanguages()
         loadCollections()
@@ -96,7 +97,7 @@ class HomeViewModel(
 
     private fun loadCollections() {
         viewModelScope.launch {
-            userPreferencesRepository.videoCollections.collect { collections ->
+            collectionRepository.collections.collect { collections ->
                 _uiState.update { it.copy(collections = collections) }
             }
         }
@@ -278,7 +279,7 @@ class HomeViewModel(
 
     fun deleteVideoPermanently(videoId: String) {
         viewModelScope.launch {
-            userPreferencesRepository.removeVideoFromAllCollections(videoId)
+            collectionRepository.removeVideoFromAllCollections(videoId)
             subtitleDao.deleteByVideoId(videoId)
         }
     }
@@ -287,31 +288,67 @@ class HomeViewModel(
         viewModelScope.launch {
             val subtitleCountForVideo = subtitleDao.countByVideoId(subtitle.videoId)
             if (subtitleCountForVideo <= 1) {
-                userPreferencesRepository.removeVideoFromAllCollections(subtitle.videoId)
+                collectionRepository.removeVideoFromAllCollections(subtitle.videoId)
             }
             subtitleDao.delete(subtitle)
         }
     }
 
     fun createCollection(name: String): Boolean {
-        return userPreferencesRepository.createCollection(name)
+        val trimmedName = name.trim()
+        if (trimmedName.isBlank()) {
+            return false
+        }
+        if (_uiState.value.collections.any { it.name.equals(trimmedName, ignoreCase = true) }) {
+            return false
+        }
+        viewModelScope.launch {
+            collectionRepository.createCollection(trimmedName)
+        }
+        return true
     }
 
     fun renameCollection(collectionId: String, newName: String): Boolean {
-        return userPreferencesRepository.renameCollection(collectionId, newName)
+        val trimmedName = newName.trim()
+        if (trimmedName.isBlank()) {
+            return false
+        }
+        if (_uiState.value.collections.none { it.id == collectionId }) {
+            return false
+        }
+        if (_uiState.value.collections.any { it.id != collectionId && it.name.equals(trimmedName, ignoreCase = true) }) {
+            return false
+        }
+        viewModelScope.launch {
+            collectionRepository.renameCollection(collectionId, trimmedName)
+        }
+        return true
     }
 
     fun deleteCollection(collectionId: String) {
-        userPreferencesRepository.deleteCollection(collectionId)
+        viewModelScope.launch {
+            collectionRepository.deleteCollection(collectionId)
+        }
     }
 
     fun addVideoToCollection(collectionId: String, videoId: String): Boolean {
-        return userPreferencesRepository.addVideoToCollection(collectionId, videoId)
+        val collection = _uiState.value.collections.firstOrNull { it.id == collectionId } ?: return false
+        val normalizedVideoId = YouTubeVideoIdNormalizer.extractVideoId(videoId.trim()) ?: videoId.trim()
+        if (normalizedVideoId.isBlank()) {
+            return false
+        }
+        if (normalizedVideoId in collection.videoIds) {
+            return true
+        }
+        viewModelScope.launch {
+            collectionRepository.addVideoToCollection(collectionId, normalizedVideoId)
+        }
+        return true
     }
 
     fun removeVideoFromCollection(collectionId: String, videoId: String) {
-        userPreferencesRepository.removeVideoFromCollection(collectionId, videoId)
         viewModelScope.launch {
+            collectionRepository.removeVideoFromCollection(collectionId, videoId)
             deleteVideoIfUnreferenced(videoId)
         }
     }
@@ -372,7 +409,7 @@ class HomeViewModel(
         }
 
         return subtitleDao.observeSubtitleTracksForVideos(videoIds)
-            .combine(userPreferencesRepository.videoCollections) { tracks, collections ->
+            .combine(collectionRepository.collections) { tracks, collections ->
                 val tracksByVideoId = tracks.groupBy { it.videoId }
                 val collectionCounts = collectionCountsByVideoId(collections)
                 rows.map { row ->
@@ -395,7 +432,7 @@ class HomeViewModel(
 
     private suspend fun deleteVideoIfUnreferenced(videoId: String) {
         val hasLibraryEntry = subtitleDao.countLibraryEntriesByVideoId(videoId) > 0
-        if (!hasLibraryEntry && !userPreferencesRepository.isVideoInAnyCollection(videoId)) {
+        if (!hasLibraryEntry && !collectionRepository.isVideoInAnyCollection(videoId)) {
             subtitleDao.deleteByVideoId(videoId)
         }
     }
@@ -431,7 +468,8 @@ class HomeViewModel(
             dao: SubtitleDao,
             highlightNoteDao: HighlightNoteDao,
             bookmarkDao: BookmarkDao,
-            userPreferencesRepository: UserPreferencesRepository
+            userPreferencesRepository: UserPreferencesRepository,
+            collectionRepository: CollectionRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -440,7 +478,8 @@ class HomeViewModel(
                     dao,
                     highlightNoteDao,
                     bookmarkDao,
-                    userPreferencesRepository
+                    userPreferencesRepository,
+                    collectionRepository
                 ) as T
             }
         }

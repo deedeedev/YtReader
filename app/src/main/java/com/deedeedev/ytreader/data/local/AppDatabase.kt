@@ -6,14 +6,21 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [SubtitleEntity::class, HighlightNoteEntity::class, BookmarkEntity::class],
-    version = 17,
+    entities = [
+        SubtitleEntity::class,
+        HighlightNoteEntity::class,
+        BookmarkEntity::class,
+        CollectionEntity::class,
+        CollectionVideoEntity::class
+    ],
+    version = 18,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun subtitleDao(): SubtitleDao
     abstract fun highlightNoteDao(): HighlightNoteDao
     abstract fun bookmarkDao(): BookmarkDao
+    abstract fun collectionDao(): CollectionDao
 
     companion object {
         val MIGRATION_12_13 = object : Migration(12, 13) {
@@ -94,6 +101,38 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "CREATE UNIQUE INDEX IF NOT EXISTS `index_bookmarks_subtitleId_anchorStart` ON `bookmarks` (`subtitleId`, `anchorStart`)"
+                )
+            }
+        }
+
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `collections` (
+                        `id` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `collection_videos` (
+                        `collectionId` TEXT NOT NULL,
+                        `videoId` TEXT NOT NULL,
+                        `addedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`collectionId`, `videoId`),
+                        FOREIGN KEY(`collectionId`) REFERENCES `collections`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_collection_videos_collectionId` ON `collection_videos` (`collectionId`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_collection_videos_videoId` ON `collection_videos` (`videoId`)"
                 )
             }
         }

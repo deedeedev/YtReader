@@ -2,25 +2,31 @@ package com.deedeedev.ytreader
 
 import android.content.Context
 import androidx.room.Room
+import com.deedeedev.ytreader.data.CollectionRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.AiCleaningRepository
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.AppDatabase
 import com.deedeedev.ytreader.data.local.BookmarkDao
+import com.deedeedev.ytreader.data.local.CollectionDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.remote.NewPipeDownloader
 import okhttp3.OkHttpClient
 import org.schabi.newpipe.extractor.NewPipe
+import kotlinx.coroutines.runBlocking
 import java.util.concurrent.TimeUnit
 
 interface AppContainer {
     val subtitleDao: SubtitleDao
     val highlightNoteDao: HighlightNoteDao
     val bookmarkDao: BookmarkDao
+    val collectionDao: CollectionDao
     val youtubeRepository: YoutubeRepository
     val userPreferencesRepository: UserPreferencesRepository
+    val collectionRepository: CollectionRepository
     val aiCleaningRepository: AiCleaningRepository
+    fun closeDatabase()
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -35,6 +41,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             .addMigrations(AppDatabase.MIGRATION_14_15)
             .addMigrations(AppDatabase.MIGRATION_15_16)
             .addMigrations(AppDatabase.MIGRATION_16_17)
+            .addMigrations(AppDatabase.MIGRATION_17_18)
             .fallbackToDestructiveMigration(false)
             .build()
     }
@@ -67,6 +74,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         database.bookmarkDao()
     }
 
+    override val collectionDao: CollectionDao by lazy {
+        database.collectionDao()
+    }
+
     override val youtubeRepository: YoutubeRepository by lazy {
         YoutubeRepository(okHttpClient)
     }
@@ -75,7 +86,19 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         UserPreferencesRepository(context)
     }
 
+    override val collectionRepository: CollectionRepository by lazy {
+        CollectionRepository(collectionDao, userPreferencesRepository).also { repository ->
+            runBlocking {
+                repository.migrateLegacyCollectionsIfNeeded()
+            }
+        }
+    }
+
     override val aiCleaningRepository: AiCleaningRepository by lazy {
         AiCleaningRepository(aiOkHttpClient)
+    }
+
+    override fun closeDatabase() {
+        database.close()
     }
 }

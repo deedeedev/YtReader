@@ -494,7 +494,9 @@ class ReaderScreenTest {
                         subtitleId = subtitleId,
                         subtitleDao = db.subtitleDao(),
                         highlightNoteDao = db.highlightNoteDao(),
+                        bookmarkDao = db.bookmarkDao(),
                         userPreferencesRepository = preferencesRepository,
+                        onOpenVideoNotes = {},
                         onChromeReady = {},
                         onBack = onBack
                     )
