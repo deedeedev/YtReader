@@ -20,6 +20,8 @@ import com.deedeedev.ytreader.ui.FontOption
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.util.Date
 
 private enum class SettingsImportTarget {
     PREFERENCES,
@@ -40,6 +42,7 @@ fun SettingsScreen(
     val coroutineScope = rememberCoroutineScope()
     var pendingImportTarget by remember { mutableStateOf<SettingsImportTarget?>(null) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingDataImportPreview by remember { mutableStateOf<DataBackupPreview?>(null) }
     var isBusy by remember { mutableStateOf(false) }
 
     val selectedFontFamily = when (FontOption.fromStorageValue(uiState.fontFamily)) {
@@ -63,6 +66,24 @@ fun SettingsScreen(
             }
             isBusy = false
             snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    fun launchBlockingUiTask(block: suspend () -> Unit) {
+        coroutineScope.launch {
+            if (isBusy) {
+                return@launch
+            }
+            isBusy = true
+            try {
+                block()
+            } catch (error: Exception) {
+                snackbarHostState.showSnackbar(
+                    error.message ?: context.getString(R.string.operation_failed)
+                )
+            } finally {
+                isBusy = false
+            }
         }
     }
 
@@ -101,8 +122,12 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            pendingImportTarget = SettingsImportTarget.DATA
-            pendingImportUri = uri
+            launchBlockingUiTask {
+                val preview = readDataBackupPreview(context, uri.toString())
+                pendingImportTarget = SettingsImportTarget.DATA
+                pendingImportUri = uri
+                pendingDataImportPreview = preview
+            }
         }
     }
 
@@ -339,6 +364,7 @@ fun SettingsScreen(
                 if (!isBusy) {
                     pendingImportTarget = null
                     pendingImportUri = null
+                    pendingDataImportPreview = null
                 }
             },
             properties = DialogProperties(dismissOnBackPress = !isBusy, dismissOnClickOutside = !isBusy),
@@ -347,22 +373,109 @@ fun SettingsScreen(
                     if (target == SettingsImportTarget.PREFERENCES) {
                         stringResource(R.string.settings_preferences_import_confirm)
                     } else {
-                        stringResource(R.string.settings_data_import_confirm)
+                        stringResource(R.string.settings_data_backup_preview)
                     }
                 )
             },
             text = {
-                Text(
-                    if (target == SettingsImportTarget.PREFERENCES) {
-                        stringResource(R.string.settings_preferences_import_message)
-                    } else {
-                        stringResource(R.string.settings_data_import_message)
+                if (target == SettingsImportTarget.PREFERENCES) {
+                    Text(stringResource(R.string.settings_preferences_import_message))
+                } else {
+                    val preview = pendingDataImportPreview
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.settings_data_import_message))
+                        if (preview != null) {
+                            preview.createdAtEpochMillis?.let { createdAt ->
+                                Text(
+                                    stringResource(
+                                        R.string.settings_data_backup_preview_created,
+                                        DateFormat.getDateTimeInstance().format(Date(createdAt))
+                                    )
+                                )
+                            }
+                            preview.appVersionName?.takeIf { it.isNotBlank() }?.let { appVersion ->
+                                Text(
+                                    stringResource(
+                                        R.string.settings_data_backup_preview_app_version,
+                                        appVersion
+                                    )
+                                )
+                            }
+                            Text(
+                                stringResource(
+                                    R.string.settings_data_backup_preview_schema,
+                                    preview.schemaVersion
+                                )
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.settings_data_backup_preview_subtitles,
+                                    preview.subtitleCount
+                                )
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.settings_data_backup_preview_collections,
+                                    preview.collectionCount
+                                )
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.settings_data_backup_preview_bookmarks,
+                                    preview.bookmarkCount
+                                )
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.settings_data_backup_preview_notes,
+                                    preview.highlightNoteCount
+                                )
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.settings_data_backup_preview_manifest,
+                                    stringResource(
+                                        if (preview.hasManifest) {
+                                            R.string.settings_data_backup_preview_manifest_present
+                                        } else {
+                                            R.string.settings_data_backup_preview_manifest_missing
+                                        }
+                                    )
+                                )
+                            )
+                            Text(
+                                text = if (preview.isCompatible) {
+                                    stringResource(R.string.settings_data_backup_preview_ready)
+                                } else {
+                                    preview.incompatibilityReason?.let { issue ->
+                                        when (issue) {
+                                            BackupCompatibilityIssue.SCHEMA_VERSION_MISMATCH -> {
+                                                stringResource(R.string.settings_backup_error_schema_mismatch)
+                                            }
+
+                                            BackupCompatibilityIssue.ROOM_IDENTITY_MISMATCH -> {
+                                                stringResource(R.string.settings_backup_error_identity_mismatch)
+                                            }
+                                        }
+                                    } ?: stringResource(R.string.settings_data_backup_preview_incompatible)
+                                },
+                                color = if (preview.isCompatible) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                }
+                            )
+                        } else {
+                            Text(stringResource(R.string.settings_working))
+                        }
                     }
-                )
+                }
             },
             confirmButton = {
                 TextButton(
-                    enabled = !isBusy,
+                    enabled = !isBusy && (
+                        target != SettingsImportTarget.DATA || pendingDataImportPreview?.isCompatible == true
+                    ),
                     onClick = {
                         val uri = pendingImportUri ?: return@TextButton
                         val currentTarget = pendingImportTarget ?: return@TextButton
@@ -371,11 +484,13 @@ fun SettingsScreen(
                                 importPreferencesBackup(context, appContainer, uri.toString())
                                 pendingImportTarget = null
                                 pendingImportUri = null
+                                pendingDataImportPreview = null
                                 context.getString(R.string.settings_preferences_imported)
                             } else {
                                 importDataBackup(context, appContainer, uri.toString())
                                 pendingImportTarget = null
                                 pendingImportUri = null
+                                pendingDataImportPreview = null
                                 context.getString(R.string.settings_data_imported)
                             }
                         }
@@ -390,6 +505,7 @@ fun SettingsScreen(
                     onClick = {
                         pendingImportTarget = null
                         pendingImportUri = null
+                        pendingDataImportPreview = null
                     }
                 ) {
                     Text(stringResource(R.string.cancel))

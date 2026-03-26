@@ -37,6 +37,7 @@ private const val AI_CLEANING_NOTIFICATION_ID_BASE = 4_200
 private const val KEY_SUBTITLE_ID = "subtitle_id"
 private const val KEY_WORK_ID = "work_id"
 private const val ACTION_CANCEL_AI_CLEANING = "com.deedeedev.ytreader.action.CANCEL_AI_CLEANING"
+private const val AI_CLEANING_WORK_TAG = "ai_cleaning"
 
 class AiCleaningWorker(
     appContext: Context,
@@ -178,6 +179,7 @@ object AiCleaningWorkScheduler {
     fun enqueue(context: Context, subtitleId: Long) {
         val request = OneTimeWorkRequestBuilder<AiCleaningWorker>()
             .setInputData(workDataOf(KEY_SUBTITLE_ID to subtitleId))
+            .addTag(AI_CLEANING_WORK_TAG)
             .build()
 
         WorkManager.getInstance(context).enqueueUniqueWork(
@@ -188,6 +190,10 @@ object AiCleaningWorkScheduler {
     }
 
     fun uniqueWorkName(subtitleId: Long): String = "$AI_CLEANING_UNIQUE_WORK_PREFIX$subtitleId"
+
+    fun cancelAll(context: Context) {
+        WorkManager.getInstance(context).cancelAllWorkByTag(AI_CLEANING_WORK_TAG)
+    }
 }
 
 fun createAiCleaningNotificationChannel(context: Context) {
