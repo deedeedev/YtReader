@@ -136,7 +136,7 @@ private data class HighlightNoteKey(
     val end: Int
 )
 
-private fun buildVideoAnnotationItems(
+internal fun buildVideoAnnotationItems(
     subtitles: List<SubtitleEntity>,
     notes: List<HighlightNoteEntity>,
     bookmarks: List<BookmarkEntity>
@@ -157,19 +157,26 @@ private fun buildVideoAnnotationItems(
         val text = subtitleTextById[bookmark.subtitleId] ?: return@mapNotNull null
         if (text.isEmpty()) return@mapNotNull null
         val anchorStart = bookmark.anchorStart.coerceIn(0, text.lastIndex)
-        val progressPercent = ((anchorStart.toFloat() / text.length.coerceAtLeast(1).toFloat()) * 100f)
-            .toInt()
-            .coerceIn(0, 100)
-        VideoAnnotationItem(
-            key = "bookmark:${bookmark.subtitleId}:${bookmark.anchorStart}",
-            type = VideoAnnotationType.BOOKMARK,
-            navigationTarget = ReaderAnnotationTarget(
-                subtitleId = bookmark.subtitleId,
-                bookmarkStart = anchorStart
+        val textLength = text.length.coerceAtLeast(1)
+        val progressRatio = anchorStart.toFloat() / textLength.toFloat()
+        SortableVideoAnnotationItem(
+            item = VideoAnnotationItem(
+                key = "bookmark:${bookmark.subtitleId}:${bookmark.anchorStart}",
+                type = VideoAnnotationType.BOOKMARK,
+                navigationTarget = ReaderAnnotationTarget(
+                    subtitleId = bookmark.subtitleId,
+                    bookmarkStart = anchorStart
+                ),
+                title = bookmark.title.trim().ifBlank { lineTextAtOffset(text, anchorStart) },
+                updatedAt = bookmark.updatedAt,
+                progressPercent = (progressRatio * 100f)
+                    .toInt()
+                    .coerceIn(0, 100)
             ),
-            title = bookmark.title.trim().ifBlank { lineTextAtOffset(text, anchorStart) },
-            updatedAt = bookmark.updatedAt,
-            progressPercent = progressPercent
+            progressRatio = progressRatio,
+            startOffset = anchorStart,
+            endOffset = anchorStart,
+            updatedAt = bookmark.updatedAt
         )
     }
 
@@ -194,36 +201,58 @@ private fun buildVideoAnnotationItems(
                 } else {
                     VideoAnnotationType.HIGHLIGHT
                 }
-                VideoAnnotationItem(
-                    key = "highlight:${subtitle.id}:$start:$end:${highlight.color.name}",
-                    type = annotationType,
-                    navigationTarget = ReaderAnnotationTarget(
-                        subtitleId = subtitle.id,
-                        highlightStart = start,
-                        highlightEnd = end
+                val updatedAt = note?.updatedAt
+                    ?: subtitle.lastOpenedAt.takeIf { it > 0L }
+                    ?: subtitle.createdAt
+                val progressRatio = start.toFloat() / textLength.toFloat()
+                SortableVideoAnnotationItem(
+                    item = VideoAnnotationItem(
+                        key = "highlight:${subtitle.id}:$start:$end:${highlight.color.name}",
+                        type = annotationType,
+                        navigationTarget = ReaderAnnotationTarget(
+                            subtitleId = subtitle.id,
+                            highlightStart = start,
+                            highlightEnd = end
+                        ),
+                        title = baseText.substring(start, end)
+                            .replace(Regex("\\s+"), " ")
+                            .trim()
+                            .ifBlank { baseText.substring(start, end) },
+                        note = note?.noteText,
+                        color = highlight.color,
+                        updatedAt = updatedAt,
+                        progressPercent = (progressRatio * 100f)
+                            .toInt()
+                            .coerceIn(0, 100)
                     ),
-                    title = baseText.substring(start, end)
-                        .replace(Regex("\\s+"), " ")
-                        .trim()
-                        .ifBlank { baseText.substring(start, end) },
-                    note = note?.noteText,
-                    color = highlight.color,
-                    updatedAt = note?.updatedAt
-                        ?: subtitle.lastOpenedAt.takeIf { it > 0L }
-                        ?: subtitle.createdAt,
-                    progressPercent = ((start.toFloat() / textLength.toFloat()) * 100f)
-                        .toInt()
-                        .coerceIn(0, 100)
+                    progressRatio = progressRatio,
+                    startOffset = start,
+                    endOffset = end,
+                    updatedAt = updatedAt
                 )
             }
         }
     }
 
-    return (bookmarkItems + highlightItems).sortedWith(
-        compareByDescending<VideoAnnotationItem> { item -> item.updatedAt }
-            .thenBy { item -> item.title }
-    )
+    return (bookmarkItems + highlightItems)
+        .sortedWith(
+            compareBy<SortableVideoAnnotationItem> { item -> item.progressRatio }
+                .thenBy { item -> item.startOffset }
+                .thenBy { item -> item.endOffset }
+                .thenBy { item -> item.item.navigationTarget.subtitleId }
+                .thenByDescending { item -> item.updatedAt }
+                .thenBy { item -> item.item.title }
+        )
+        .map { item -> item.item }
 }
+
+private data class SortableVideoAnnotationItem(
+    val item: VideoAnnotationItem,
+    val progressRatio: Float,
+    val startOffset: Int,
+    val endOffset: Int,
+    val updatedAt: Long
+)
 
 private fun lineTextAtOffset(text: String, offset: Int): String {
     if (text.isEmpty()) return ""

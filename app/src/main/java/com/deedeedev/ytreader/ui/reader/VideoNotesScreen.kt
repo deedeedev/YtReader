@@ -141,7 +141,7 @@ private fun VideoNotesScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "Most recent",
+                            text = "From start to finish",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.secondary
                         )
