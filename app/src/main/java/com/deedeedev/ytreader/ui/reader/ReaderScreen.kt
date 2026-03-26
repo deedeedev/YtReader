@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.ui.FontOption
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
@@ -127,12 +128,12 @@ fun ReaderScreen(
     }
 
     val fontSize = uiState.fontSize
-    val fontFamily = when (uiState.fontFamily) {
-        "Serif" -> FontFamily.Serif
-        "SansSerif" -> FontFamily.SansSerif
-        "Monospace" -> FontFamily.Monospace
-        "Cursive" -> FontFamily.Cursive
-        else -> FontFamily.Default
+    val fontFamily = when (FontOption.fromStorageValue(uiState.fontFamily)) {
+        FontOption.SERIF -> FontFamily.Serif
+        FontOption.SANS_SERIF -> FontFamily.SansSerif
+        FontOption.MONOSPACE -> FontFamily.Monospace
+        FontOption.CURSIVE -> FontFamily.Cursive
+        FontOption.DEFAULT -> FontFamily.Default
     }
 
     val clipboardManager = LocalClipboardManager.current
@@ -235,7 +236,7 @@ fun ReaderScreen(
     }
     val originalFallbackText = uiState.originalParsedText.ifBlank { uiState.content }
     val originalModeText = remember(originalSegments, showTimestamps, originalFallbackText) {
-        formatOriginalModeCopyText(originalSegments, showTimestamps, originalFallbackText)
+        formatOriginalModeCopyText(context, originalSegments, showTimestamps, originalFallbackText)
     }
 
     fun currentText(): String = currentReaderText(
@@ -344,6 +345,9 @@ fun ReaderScreen(
             sourceText = currentText(),
             originalSegments = originalSegments,
             originalFallbackText = originalFallbackText,
+            emptyQueryMessage = context.getString(R.string.reader_enter_regex),
+            invalidRegexMessage = context.getString(R.string.invalid_regex),
+            excerptEllipsis = context.getString(R.string.reader_excerpt_ellipsis),
             setHasSearched = { hasSearchedFind = it },
             setErrorMessage = { findErrorMessage = it },
             setFindResults = { findResults = it },
@@ -877,7 +881,9 @@ fun ReaderScreen(
                 type = "text/plain"
                 putExtra(Intent.EXTRA_TEXT, textToShare)
             }
-            context.startActivity(Intent.createChooser(shareIntent, "Share text"))
+            context.startActivity(
+                Intent.createChooser(shareIntent, context.getString(R.string.share_text_title))
+            )
         },
         onRemoveEmptyLines = {
             val cleaned = currentText()
@@ -899,10 +905,34 @@ fun ReaderScreen(
             resetFindReplaceDialogState()
             showFindReplaceDialog = true
         },
+        onStartExternalAiCleaning = { sourceText ->
+            val shareText = buildExternalAiCleaningShareText(
+                prompt = userPreferencesRepository.getAiPrompt(),
+                studyText = sourceText
+            )
+            if (shareText.isBlank()) {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.ai_cleaning_external_nothing_to_share)
+                    )
+                }
+            } else {
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, shareText)
+                }
+                context.startActivity(
+                    Intent.createChooser(
+                        shareIntent,
+                        context.getString(R.string.ai_cleaning_external_share_title)
+                    )
+                )
+            }
+        },
         onStartAiCleaning = { sourceText ->
             if (sourceText.isBlank()) {
                 coroutineScope.launch {
-                    snackbarHostState.showSnackbar("Nothing to clean.")
+                    snackbarHostState.showSnackbar(context.getString(R.string.nothing_to_clean))
                 }
             } else {
                 coroutineScope.launch { startAiCleaningJob(sourceText) }
@@ -911,7 +941,7 @@ fun ReaderScreen(
         onRequestNotificationPermission = { sourceText ->
             if (sourceText.isBlank()) {
                 coroutineScope.launch {
-                    snackbarHostState.showSnackbar("Nothing to clean.")
+                    snackbarHostState.showSnackbar(context.getString(R.string.nothing_to_clean))
                 }
             } else {
                 pendingAiCleaningSourceText = sourceText
@@ -1045,10 +1075,13 @@ fun ReaderScreen(
                 text = currentText(),
                 query = findText,
                 replacement = replaceText,
-                isCaseSensitive = isCaseSensitive
+                isCaseSensitive = isCaseSensitive,
+                emptyQueryMessage = context.getString(R.string.reader_enter_regex),
+                invalidRegexMessage = context.getString(R.string.invalid_regex)
             )
             if (replaceResult.isFailure) {
-                findReplaceErrorMessage = replaceResult.exceptionOrNull()?.message ?: "Invalid regex."
+                findReplaceErrorMessage = replaceResult.exceptionOrNull()?.message
+                    ?: context.getString(R.string.invalid_regex)
             } else {
                 val updated = replaceResult.getOrThrow()
                 applyTextUpdate(updated)
@@ -1096,13 +1129,17 @@ fun ReaderScreen(
                 existingHighlight != null && normalizedNote != null -> {
                     viewModel.saveHighlightNote(existingHighlight, normalizedNote)
                     activeHighlight = existingHighlight.copy(note = normalizedNote)
-                    coroutineScope.launch { snackbarHostState.showSnackbar("Note saved.") }
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(context.getString(R.string.note_saved))
+                    }
                 }
 
                 existingHighlight != null -> {
                     viewModel.deleteHighlightNote(existingHighlight)
                     activeHighlight = existingHighlight.copy(note = null)
-                    coroutineScope.launch { snackbarHostState.showSnackbar("Note removed.") }
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(context.getString(R.string.note_removed))
+                    }
                 }
 
                 normalizedNote != null -> {
@@ -1117,7 +1154,9 @@ fun ReaderScreen(
                         activeHighlight = createdHighlight
                         selectionRange = null
                         studyTextView?.clearSelection()
-                        coroutineScope.launch { snackbarHostState.showSnackbar("Note saved.") }
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(context.getString(R.string.note_saved))
+                        }
                     }
                 }
             }
@@ -1128,7 +1167,9 @@ fun ReaderScreen(
             highlightNoteTarget?.let { target ->
                 viewModel.deleteHighlightNote(target)
                 activeHighlight = target.copy(note = null)
-                coroutineScope.launch { snackbarHostState.showSnackbar("Note removed.") }
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(context.getString(R.string.note_removed))
+                }
             }
             dismissHighlightNoteDialog()
         },
@@ -1140,7 +1181,9 @@ fun ReaderScreen(
             val resolvedTitle = bookmarkTitleDraft.trim().ifBlank { pendingBookmarkFallbackTitle.trim() }
             if (anchorStart != null && resolvedTitle.isNotBlank()) {
                 viewModel.saveBookmark(anchorStart = anchorStart, title = resolvedTitle)
-                coroutineScope.launch { snackbarHostState.showSnackbar("Bookmark saved.") }
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(context.getString(R.string.bookmark_saved))
+                }
             }
             dismissBookmarkDialog()
         },

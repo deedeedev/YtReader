@@ -101,6 +101,9 @@ internal fun executeReaderFindSearch(
     sourceText: String,
     originalSegments: List<SubtitleSegment>,
     originalFallbackText: String,
+    emptyQueryMessage: String,
+    invalidRegexMessage: String,
+    excerptEllipsis: String,
     setHasSearched: (Boolean) -> Unit,
     setErrorMessage: (String?) -> Unit,
     setFindResults: (List<ReaderFindResult>) -> Unit,
@@ -113,7 +116,10 @@ internal fun executeReaderFindSearch(
         isOriginalMode = readerMode == ReaderMode.ORIGINAL,
         sourceText = sourceText,
         originalSegments = originalSegments,
-        originalFallbackText = originalFallbackText
+        originalFallbackText = originalFallbackText,
+        emptyQueryMessage = emptyQueryMessage,
+        invalidRegexMessage = invalidRegexMessage,
+        excerptEllipsis = excerptEllipsis
     )
     setErrorMessage(outcome.errorMessage)
     setFindResults(outcome.findResults)
@@ -138,6 +144,7 @@ internal suspend fun startReaderAiCleaningJob(
 }
 
 internal fun formatOriginalModeCopyText(
+    context: Context,
     segments: List<SubtitleSegment>,
     showTimestamps: Boolean,
     fallbackText: String
@@ -147,10 +154,20 @@ internal fun formatOriginalModeCopyText(
     }
     return segments.joinToString("\n\n") { segment ->
         if (showTimestamps) {
-            "[${formatTime(segment.startTime)}] ${segment.text}"
+            context.getString(R.string.reader_timestamped_segment, formatTime(segment.startTime), segment.text)
         } else {
             segment.text
         }
+    }
+}
+
+internal fun buildExternalAiCleaningShareText(prompt: String, studyText: String): String {
+    val normalizedPrompt = prompt.trim()
+    val normalizedStudyText = studyText.trim()
+    return when {
+        normalizedPrompt.isEmpty() -> normalizedStudyText
+        normalizedStudyText.isEmpty() -> normalizedPrompt
+        else -> "$normalizedPrompt\n\n$normalizedStudyText"
     }
 }
 

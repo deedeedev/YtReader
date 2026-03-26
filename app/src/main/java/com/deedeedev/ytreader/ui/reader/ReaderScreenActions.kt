@@ -14,29 +14,34 @@ internal fun executeReaderFindSearch(
     isOriginalMode: Boolean,
     sourceText: String,
     originalSegments: List<SubtitleSegment>,
-    originalFallbackText: String
+    originalFallbackText: String,
+    emptyQueryMessage: String,
+    invalidRegexMessage: String,
+    excerptEllipsis: String
 ): ReaderFindSearchOutcome {
     val regex = compileFindRegex(
         query = query,
-        isCaseSensitive = isCaseSensitive
+        isCaseSensitive = isCaseSensitive,
+        emptyQueryMessage = emptyQueryMessage,
+        invalidRegexMessage = invalidRegexMessage
     ).getOrElse { error ->
-        return ReaderFindSearchOutcome(errorMessage = error.message ?: "Invalid regex.")
+        return ReaderFindSearchOutcome(errorMessage = error.message ?: invalidRegexMessage)
     }
 
     if (!isOriginalMode) {
         return ReaderFindSearchOutcome(
-            findResults = findRegexMatches(sourceText, regex)
+            findResults = findRegexMatches(sourceText, regex, excerptEllipsis)
         )
     }
 
     if (originalSegments.isEmpty()) {
         return ReaderFindSearchOutcome(
-            findResults = findRegexMatches(originalFallbackText, regex)
+            findResults = findRegexMatches(originalFallbackText, regex, excerptEllipsis)
         )
     }
 
     return ReaderFindSearchOutcome(
-        originalSegmentFindResults = findRegexMatchesInSegments(originalSegments, regex)
+        originalSegmentFindResults = findRegexMatchesInSegments(originalSegments, regex, excerptEllipsis)
     )
 }
 

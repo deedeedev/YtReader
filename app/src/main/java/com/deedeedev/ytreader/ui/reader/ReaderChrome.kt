@@ -47,9 +47,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.ui.FontOption
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +66,8 @@ internal fun ReaderTopBar(
     onBack: () -> Unit,
     onCancelEditing: () -> Unit
 ) {
+    val backLabel = stringResource(R.string.back)
+    val cancelLabel = stringResource(R.string.cancel)
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically(initialOffsetY = { -it }),
@@ -83,13 +89,13 @@ internal fun ReaderTopBar(
                 windowInsets = WindowInsets(0, 0, 0, 0),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = backLabel)
                     }
                 },
                 actions = {
                     if (showCancelAction) {
                         TextButton(onClick = onCancelEditing) {
-                            Text("Cancel")
+                            Text(cancelLabel)
                         }
                     }
                 }
@@ -121,9 +127,29 @@ internal fun ReaderBottomBar(
     onShowFind: () -> Unit,
     onShowVideoNotes: () -> Unit,
     onShowFindAndReplace: () -> Unit,
+    onStartExternalAiCleaning: (String) -> Unit,
     onStartAiCleaning: (String) -> Unit,
     onRequestNotificationPermission: (String) -> Unit
 ) {
+    val context = LocalContext.current
+    val copyTextLabel = stringResource(R.string.copy_text)
+    val hideTimestampsLabel = stringResource(R.string.hide_timestamps)
+    val showTimestampsLabel = stringResource(R.string.show_timestamps)
+    val saveLabel = stringResource(R.string.save)
+    val editLabel = stringResource(R.string.edit)
+    val decreaseFontSizeLabel = stringResource(R.string.decrease_font_size)
+    val increaseFontSizeLabel = stringResource(R.string.increase_font_size)
+    val fontFamilyLabel = stringResource(R.string.font_family)
+    val selectedLabel = stringResource(R.string.selected)
+    val moreOptionsLabel = stringResource(R.string.more_options)
+    val shareTextLabel = stringResource(R.string.share_text)
+    val highlightsAndNotesLabel = stringResource(R.string.highlights_and_notes)
+    val removeEmptyLinesLabel = stringResource(R.string.remove_empty_lines)
+    val findLabel = stringResource(R.string.find)
+    val externalAiCleaningLabel = stringResource(R.string.ai_cleaning_external_menu_label)
+    val findAndReplaceLabel = stringResource(R.string.find_and_replace)
+    val aiCleaningLabel = stringResource(R.string.ai_cleaning_menu_label)
+    val aiCleaningRunningLabel = stringResource(R.string.ai_cleaning_running_menu_label)
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically(initialOffsetY = { it }),
@@ -141,7 +167,7 @@ internal fun ReaderBottomBar(
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     IconButton(onClick = { onCopyText(AnnotatedString(currentText)) }) {
-                        Icon(Icons.Filled.ContentCopy, contentDescription = "Copy text")
+                        Icon(Icons.Filled.ContentCopy, contentDescription = copyTextLabel)
                     }
 
                     if (isOriginalMode) {
@@ -149,9 +175,9 @@ internal fun ReaderBottomBar(
                             Icon(
                                 imageVector = if (showTimestamps) Icons.Filled.TimerOff else Icons.Filled.Timer,
                                 contentDescription = if (showTimestamps) {
-                                    "Hide timestamps"
+                                    hideTimestampsLabel
                                 } else {
-                                    "Show timestamps"
+                                    showTimestampsLabel
                                 }
                             )
                         }
@@ -159,41 +185,40 @@ internal fun ReaderBottomBar(
                         IconButton(onClick = onEditSaveTap) {
                             Icon(
                                 imageVector = if (isEditing) Icons.Filled.Save else Icons.Filled.Edit,
-                                contentDescription = if (isEditing) "Save" else "Edit"
+                                contentDescription = if (isEditing) saveLabel else editLabel
                             )
                         }
                     }
 
                     IconButton(onClick = onDecreaseFontSize, enabled = fontSize > 12f) {
-                        Icon(Icons.Filled.Remove, contentDescription = "Decrease Font Size")
+                        Icon(Icons.Filled.Remove, contentDescription = decreaseFontSizeLabel)
                     }
 
                     IconButton(onClick = onIncreaseFontSize, enabled = fontSize < 42f) {
-                        Icon(Icons.Filled.Add, contentDescription = "Increase Font Size")
+                        Icon(Icons.Filled.Add, contentDescription = increaseFontSizeLabel)
                     }
 
                     var showFontMenu by remember { mutableStateOf(false) }
                     Box {
                         IconButton(onClick = { showFontMenu = true }) {
-                            Icon(Icons.Filled.FormatSize, contentDescription = "Font Family")
+                            Icon(Icons.Filled.FormatSize, contentDescription = fontFamilyLabel)
                         }
                         DropdownMenu(
                             expanded = showFontMenu,
                             onDismissRequest = { showFontMenu = false }
                         ) {
-                            val fonts = listOf("Default", "Serif", "SansSerif", "Monospace")
-                            fonts.forEach { font ->
+                            FontOption.labels(context, includeCursive = false).forEach { (fontValue, fontLabel) ->
                                 DropdownMenuItem(
-                                    text = { Text(font) },
+                                    text = { Text(fontLabel) },
                                     onClick = {
-                                        onChangeFontFamily(font)
+                                        onChangeFontFamily(fontValue)
                                         showFontMenu = false
                                     },
                                     trailingIcon = {
-                                        if (selectedFontFamily == font) {
+                                        if (selectedFontFamily == fontValue) {
                                             Icon(
                                                 imageVector = Icons.Default.Check,
-                                                contentDescription = "Selected"
+                                                contentDescription = selectedLabel
                                             )
                                         }
                                     }
@@ -205,21 +230,21 @@ internal fun ReaderBottomBar(
                     var showOverflowMenu by remember { mutableStateOf(false) }
                     Box {
                         IconButton(onClick = { showOverflowMenu = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "More options")
+                            Icon(Icons.Filled.MoreVert, contentDescription = moreOptionsLabel)
                         }
                         DropdownMenu(
                             expanded = showOverflowMenu,
                             onDismissRequest = { showOverflowMenu = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Share text") },
+                                text = { Text(shareTextLabel) },
                                 onClick = {
                                     showOverflowMenu = false
                                     onShareText(currentText)
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Highlights & notes") },
+                                text = { Text(highlightsAndNotesLabel) },
                                 onClick = {
                                     showOverflowMenu = false
                                     onShowVideoNotes()
@@ -227,7 +252,7 @@ internal fun ReaderBottomBar(
                             )
                             if (!isOriginalMode) {
                                 DropdownMenuItem(
-                                    text = { Text("Remove empty lines") },
+                                    text = { Text(removeEmptyLinesLabel) },
                                     onClick = {
                                         showOverflowMenu = false
                                         onRemoveEmptyLines()
@@ -236,7 +261,7 @@ internal fun ReaderBottomBar(
                             }
                             if (!(isEditing && !isOriginalMode)) {
                                 DropdownMenuItem(
-                                    text = { Text("Find") },
+                                    text = { Text(findLabel) },
                                     onClick = {
                                         showOverflowMenu = false
                                         onShowFind()
@@ -245,7 +270,14 @@ internal fun ReaderBottomBar(
                             }
                             if (!isOriginalMode) {
                                 DropdownMenuItem(
-                                    text = { Text("Find and replace") },
+                                    text = { Text(externalAiCleaningLabel) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onStartExternalAiCleaning(currentText)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(findAndReplaceLabel) },
                                     onClick = {
                                         showOverflowMenu = false
                                         onShowFindAndReplace()
@@ -253,7 +285,7 @@ internal fun ReaderBottomBar(
                                 )
                                 DropdownMenuItem(
                                     text = {
-                                        Text(if (isAiCleaning) "AI cleaning..." else "AI cleaning")
+                                        Text(if (isAiCleaning) aiCleaningRunningLabel else aiCleaningLabel)
                                     },
                                     onClick = {
                                         showOverflowMenu = false
@@ -281,6 +313,8 @@ internal fun ReaderModeFab(
     isOriginalMode: Boolean,
     onSwitchMode: () -> Unit
 ) {
+    val switchToOriginalModeLabel = stringResource(R.string.switch_to_original_mode)
+    val switchToStudyModeLabel = stringResource(R.string.switch_to_study_mode)
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically(initialOffsetY = { it }),
@@ -295,9 +329,9 @@ internal fun ReaderModeFab(
                     Icons.AutoMirrored.Filled.MenuBook
                 },
                 contentDescription = if (!isOriginalMode) {
-                    "Switch to original mode"
+                    switchToOriginalModeLabel
                 } else {
-                    "Switch to study mode"
+                    switchToStudyModeLabel
                 }
             )
         }

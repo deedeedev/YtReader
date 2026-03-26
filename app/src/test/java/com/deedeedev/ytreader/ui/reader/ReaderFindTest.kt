@@ -6,12 +6,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReaderFindTest {
+    private val emptyQueryMessage = "Enter a regex to search."
+    private val invalidRegexMessage = "Invalid regex."
+    private val excerptEllipsis = "..."
 
     @Test
     fun `compileFindRegex trims input and ignores case`() {
-        val regex = compileFindRegex("  hello  ").getOrThrow()
+        val regex = compileFindRegex(
+            "  hello  ",
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage
+        ).getOrThrow()
 
-        val matches = findRegexMatches("Hello there", regex)
+        val matches = findRegexMatches("Hello there", regex, excerptEllipsis)
 
         assertEquals(1, matches.size)
         assertEquals(0, matches.first().start)
@@ -22,10 +29,12 @@ class ReaderFindTest {
     fun `compileFindRegex respects case sensitivity when enabled`() {
         val regex = compileFindRegex(
             query = "hello",
-            isCaseSensitive = true
+            isCaseSensitive = true,
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage
         ).getOrThrow()
 
-        val matches = findRegexMatches("Hello hello", regex)
+        val matches = findRegexMatches("Hello hello", regex, excerptEllipsis)
 
         assertEquals(1, matches.size)
         assertEquals(6, matches.first().start)
@@ -34,7 +43,11 @@ class ReaderFindTest {
 
     @Test
     fun `compileFindRegex returns failure for invalid regex`() {
-        val result = compileFindRegex("(")
+        val result = compileFindRegex(
+            "(",
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage
+        )
 
         assertTrue(result.isFailure)
         assertEquals("Invalid regex.", result.exceptionOrNull()?.message)
@@ -42,9 +55,13 @@ class ReaderFindTest {
 
     @Test
     fun `findRegexMatches returns numbered results with progress`() {
-        val regex = compileFindRegex("hello").getOrThrow()
+        val regex = compileFindRegex(
+            "hello",
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage
+        ).getOrThrow()
 
-        val matches = findRegexMatches("hello there hello again", regex)
+        val matches = findRegexMatches("hello there hello again", regex, excerptEllipsis)
 
         assertEquals(2, matches.size)
         assertEquals(1, matches[0].number)
@@ -55,9 +72,13 @@ class ReaderFindTest {
 
     @Test
     fun `findRegexMatches builds excerpt near text edges`() {
-        val regex = compileFindRegex("alpha|omega").getOrThrow()
+        val regex = compileFindRegex(
+            "alpha|omega",
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage
+        ).getOrThrow()
 
-        val matches = findRegexMatches("alpha middle section omega", regex)
+        val matches = findRegexMatches("alpha middle section omega", regex, excerptEllipsis)
 
         assertEquals("alpha middle section omega", matches.first().excerpt)
         assertEquals("alpha middle section omega", matches.last().excerpt)
@@ -65,13 +86,17 @@ class ReaderFindTest {
 
     @Test
     fun `findRegexMatchesInSegments searches each segment and computes global progress`() {
-        val regex = compileFindRegex("line").getOrThrow()
+        val regex = compileFindRegex(
+            "line",
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage
+        ).getOrThrow()
         val segments = listOf(
             SubtitleSegment(startTime = 0, endTime = 1_000, text = "First line"),
             SubtitleSegment(startTime = 1_000, endTime = 2_000, text = "Second line")
         )
 
-        val matches = findRegexMatchesInSegments(segments, regex)
+        val matches = findRegexMatchesInSegments(segments, regex, excerptEllipsis)
 
         assertEquals(2, matches.size)
         assertEquals(0, matches[0].segmentIndex)
@@ -87,7 +112,9 @@ class ReaderFindTest {
             text = "First line\nSecond line",
             query = "(line)",
             replacement = "[$1]",
-            isCaseSensitive = false
+            isCaseSensitive = false,
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage
         ).getOrThrow()
 
         assertEquals("First [line]\nSecond [line]", updated)
@@ -99,7 +126,9 @@ class ReaderFindTest {
             text = "First line",
             query = "(",
             replacement = "value",
-            isCaseSensitive = false
+            isCaseSensitive = false,
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage
         )
 
         assertTrue(result.isFailure)
@@ -112,7 +141,9 @@ class ReaderFindTest {
             text = "Line line LINE",
             query = "line",
             replacement = "match",
-            isCaseSensitive = false
+            isCaseSensitive = false,
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage
         ).getOrThrow()
 
         assertEquals("match match match", updated)
@@ -124,7 +155,9 @@ class ReaderFindTest {
             text = "Line line LINE",
             query = "line",
             replacement = "match",
-            isCaseSensitive = true
+            isCaseSensitive = true,
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage
         ).getOrThrow()
 
         assertEquals("Line match LINE", updated)

@@ -6,6 +6,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ReaderScreenActionsTest {
+    private val emptyQueryMessage = "Enter a regex to search."
+    private val invalidRegexMessage = "Invalid regex."
+    private val excerptEllipsis = "..."
 
     @Test
     fun `classifyReaderTapZone returns toggle for center taps`() {
@@ -92,7 +95,10 @@ class ReaderScreenActionsTest {
             isOriginalMode = false,
             sourceText = "First line",
             originalSegments = emptyList(),
-            originalFallbackText = ""
+            originalFallbackText = "",
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage,
+            excerptEllipsis = excerptEllipsis
         )
 
         assertEquals("Invalid regex.", outcome.errorMessage)
@@ -108,7 +114,10 @@ class ReaderScreenActionsTest {
             isOriginalMode = false,
             sourceText = "First line\nSecond line",
             originalSegments = emptyList(),
-            originalFallbackText = ""
+            originalFallbackText = "",
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage,
+            excerptEllipsis = excerptEllipsis
         )
 
         assertEquals(2, outcome.findResults.size)
@@ -127,7 +136,10 @@ class ReaderScreenActionsTest {
                 SubtitleSegment(startTime = 0, endTime = 1_000, text = "First line"),
                 SubtitleSegment(startTime = 1_000, endTime = 2_000, text = "Second line")
             ),
-            originalFallbackText = ""
+            originalFallbackText = "",
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage,
+            excerptEllipsis = excerptEllipsis
         )
 
         assertEquals(2, outcome.originalSegmentFindResults.size)
@@ -142,11 +154,36 @@ class ReaderScreenActionsTest {
             isOriginalMode = true,
             sourceText = "",
             originalSegments = emptyList(),
-            originalFallbackText = "First\nSecond"
+            originalFallbackText = "First\nSecond",
+            emptyQueryMessage = emptyQueryMessage,
+            invalidRegexMessage = invalidRegexMessage,
+            excerptEllipsis = excerptEllipsis
         )
 
         assertEquals(1, outcome.findResults.size)
         assertEquals(0, outcome.originalSegmentFindResults.size)
+    }
+
+    @Test
+    fun `buildExternalAiCleaningShareText joins trimmed prompt and study text`() {
+        val shareText = buildExternalAiCleaningShareText(
+            prompt = "  Clean this text carefully.  ",
+            studyText = "  First line\nSecond line  "
+        )
+
+        assertEquals("Clean this text carefully.\n\nFirst line\nSecond line", shareText)
+    }
+
+    @Test
+    fun `buildExternalAiCleaningShareText returns available content when one side is blank`() {
+        assertEquals(
+            "Only text",
+            buildExternalAiCleaningShareText(prompt = "   ", studyText = " Only text ")
+        )
+        assertEquals(
+            "Only prompt",
+            buildExternalAiCleaningShareText(prompt = " Only prompt ", studyText = "   ")
+        )
     }
 
     @Test

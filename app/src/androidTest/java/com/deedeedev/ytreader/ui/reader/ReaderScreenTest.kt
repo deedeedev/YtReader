@@ -191,11 +191,14 @@ class ReaderScreenTest {
         showChrome()
         openOverflowMenu()
 
+        val externalAiCleaningTop = composeTestRule.onNodeWithText("AI Cleaning (ext)").assertIsDisplayed()
+            .fetchSemanticsNode().boundsInRoot.top
         val findTop = composeTestRule.onNodeWithText("Find").assertIsDisplayed()
             .fetchSemanticsNode().boundsInRoot.top
         val findAndReplaceTop = composeTestRule.onNodeWithText("Find and replace").assertIsDisplayed()
             .fetchSemanticsNode().boundsInRoot.top
 
+        assertTrue(externalAiCleaningTop < findAndReplaceTop)
         assertTrue(findTop < findAndReplaceTop)
     }
 
@@ -207,6 +210,7 @@ class ReaderScreenTest {
         openOverflowMenu()
 
         composeTestRule.onNodeWithText("Find").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("AI Cleaning (ext)").assertCountEquals(0)
         composeTestRule.onAllNodesWithText("Find and replace").assertCountEquals(0)
     }
 

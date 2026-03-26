@@ -23,18 +23,27 @@ private const val FIND_EXCERPT_RADIUS = 24
 
 internal fun compileFindRegex(
     query: String,
-    isCaseSensitive: Boolean = false
+    isCaseSensitive: Boolean = false,
+    emptyQueryMessage: String,
+    invalidRegexMessage: String
 ): Result<Regex> {
-    return compileReaderRegex(query = query, isCaseSensitive = isCaseSensitive)
+    return compileReaderRegex(
+        query = query,
+        isCaseSensitive = isCaseSensitive,
+        emptyQueryMessage = emptyQueryMessage,
+        invalidRegexMessage = invalidRegexMessage
+    )
 }
 
 internal fun compileReaderRegex(
     query: String,
-    isCaseSensitive: Boolean
+    isCaseSensitive: Boolean,
+    emptyQueryMessage: String,
+    invalidRegexMessage: String
 ): Result<Regex> {
     val trimmedQuery = query.trim()
     if (trimmedQuery.isEmpty()) {
-        return Result.failure(IllegalArgumentException("Enter a regex to search."))
+        return Result.failure(IllegalArgumentException(emptyQueryMessage))
     }
 
     return try {
@@ -45,7 +54,7 @@ internal fun compileReaderRegex(
         }
         Result.success(Regex(trimmedQuery, options))
     } catch (_: IllegalArgumentException) {
-        Result.failure(IllegalArgumentException("Invalid regex."))
+        Result.failure(IllegalArgumentException(invalidRegexMessage))
     }
 }
 
@@ -53,16 +62,24 @@ internal fun replaceRegexMatches(
     text: String,
     query: String,
     replacement: String,
-    isCaseSensitive: Boolean
+    isCaseSensitive: Boolean,
+    emptyQueryMessage: String,
+    invalidRegexMessage: String
 ): Result<String> {
-    val regex = compileReaderRegex(query = query, isCaseSensitive = isCaseSensitive)
+    val regex = compileReaderRegex(
+        query = query,
+        isCaseSensitive = isCaseSensitive,
+        emptyQueryMessage = emptyQueryMessage,
+        invalidRegexMessage = invalidRegexMessage
+    )
         .getOrElse { return Result.failure(it) }
     return Result.success(regex.replace(text, replacement))
 }
 
 internal fun findRegexMatches(
     text: String,
-    regex: Regex
+    regex: Regex,
+    excerptEllipsis: String
 ): List<ReaderFindResult> {
     if (text.isEmpty()) return emptyList()
 
@@ -75,7 +92,7 @@ internal fun findRegexMatches(
                 start = start,
                 end = end,
                 number = index + 1,
-                excerpt = buildFindExcerpt(text, start, end),
+                excerpt = buildFindExcerpt(text, start, end, excerptEllipsis),
                 progressPercent = calculateFindProgressPercent(
                     matchStart = start,
                     textLength = text.length
@@ -87,7 +104,8 @@ internal fun findRegexMatches(
 
 internal fun findRegexMatchesInSegments(
     segments: List<SubtitleSegment>,
-    regex: Regex
+    regex: Regex,
+    excerptEllipsis: String
 ): List<OriginalSegmentFindResult> {
     if (segments.isEmpty()) return emptyList()
 
@@ -109,7 +127,7 @@ internal fun findRegexMatchesInSegments(
                     start = start,
                     end = end,
                     number = resultNumber,
-                    excerpt = buildFindExcerpt(segment.text, start, end),
+                    excerpt = buildFindExcerpt(segment.text, start, end, excerptEllipsis),
                     progressPercent = calculateFindProgressPercent(
                         matchStart = consumedLength + start,
                         textLength = totalLength
@@ -127,6 +145,7 @@ private fun buildFindExcerpt(
     text: String,
     start: Int,
     end: Int,
+    excerptEllipsis: String,
     radius: Int = FIND_EXCERPT_RADIUS
 ): String {
     if (text.isEmpty()) return ""
@@ -137,8 +156,8 @@ private fun buildFindExcerpt(
         .replace(Regex("\\s+"), " ")
         .trim()
 
-    val prefix = if (excerptStart > 0) "..." else ""
-    val suffix = if (excerptEnd < text.length) "..." else ""
+    val prefix = if (excerptStart > 0) excerptEllipsis else ""
+    val suffix = if (excerptEnd < text.length) excerptEllipsis else ""
     return prefix + excerpt + suffix
 }
 

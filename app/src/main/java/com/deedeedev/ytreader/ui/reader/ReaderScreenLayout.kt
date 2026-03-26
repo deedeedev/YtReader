@@ -82,6 +82,7 @@ internal fun ReaderScreenMainLayer(
     onShowFind: () -> Unit,
     onShowVideoNotes: () -> Unit,
     onShowFindAndReplace: () -> Unit,
+    onStartExternalAiCleaning: (String) -> Unit,
     onStartAiCleaning: (String) -> Unit,
     onRequestNotificationPermission: (String) -> Unit,
     isAiCleaning: Boolean,
@@ -221,6 +222,7 @@ internal fun ReaderScreenMainLayer(
             onShowFind = onShowFind,
             onShowVideoNotes = onShowVideoNotes,
             onShowFindAndReplace = onShowFindAndReplace,
+            onStartExternalAiCleaning = onStartExternalAiCleaning,
             onStartAiCleaning = onStartAiCleaning,
             onRequestNotificationPermission = onRequestNotificationPermission
         )
