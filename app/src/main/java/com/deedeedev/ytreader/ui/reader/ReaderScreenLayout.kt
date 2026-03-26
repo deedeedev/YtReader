@@ -92,6 +92,7 @@ internal fun ReaderScreenMainLayer(
     onSelectionNoteClick: () -> Unit,
     selectionHasNote: Boolean,
     onDeleteHighlight: () -> Unit,
+    onBookmarkTapped: (BookmarkEntity) -> Unit,
     showSearchResultsToolbar: Boolean,
     searchResultsCurrentIndex: Int,
     searchResultsTotalCount: Int,
@@ -153,6 +154,7 @@ internal fun ReaderScreenMainLayer(
                 onStudyTextViewReady = onStudyTextViewReady,
                 onSelectionRangeChanged = onSelectionRangeChanged,
                 onHighlightTapped = onHighlightTapped,
+                onBookmarkTapped = onBookmarkTapped,
                 hasActiveHighlight = hasActiveHighlight,
                 onClearActiveHighlight = onClearActiveHighlight,
                 clearSelectionNow = clearSelectionNow

@@ -9,6 +9,7 @@
     <string name="ai_cleaning_external_nothing_to_share">Nothing to share.</string>
     <string name="back">Back</string>
     <string name="bookmark_saved">Bookmark saved.</string>
+    <string name="bookmark_deleted">Bookmark deleted.</string>
     <string name="cancel">Cancel</string>
     <string name="channel_unknown">Unknown Channel</string>
     <string name="clear_search">Clear search</string>
@@ -121,6 +122,7 @@
     <string name="reader_dismiss">Dismiss</string>
     <string name="reader_discard">Discard</string>
     <string name="reader_edit_note">Edit note</string>
+    <string name="reader_edit_bookmark">Edit bookmark</string>
     <string name="reader_empty_text">Empty text</string>
     <string name="reader_highlight_note">Highlight note</string>
     <string name="reader_next_search_result">Next search result</string>

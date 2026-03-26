@@ -100,6 +100,7 @@ internal fun JustifiedStudyTextView.bindStudyContent(
     searchResultRange: SelectionRange?,
     onSelectionChanged: (start: Int, end: Int) -> Unit,
     onHighlightTapped: (TextHighlight?) -> Unit,
+    onBookmarkTapped: (BookmarkEntity) -> Unit,
     onPlainTextTap: (ReaderTapPosition) -> Unit,
     hasActiveHighlight: () -> Boolean,
     clearActiveHighlight: () -> Unit,
@@ -125,6 +126,7 @@ internal fun JustifiedStudyTextView.bindStudyContent(
             clearSelectionNow()
         }
     }
+    onBookmarkTappedListener = onBookmarkTapped
     setContentWithHighlights(
         content = content,
         highlights = highlights,

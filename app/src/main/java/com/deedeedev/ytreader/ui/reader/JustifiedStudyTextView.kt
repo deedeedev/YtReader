@@ -29,6 +29,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
 
     var onSelectionChangedListener: ((start: Int, end: Int) -> Unit)? = null
     var onHighlightTappedListener: ((TextHighlight?) -> Unit)? = null
+    var onBookmarkTappedListener: ((BookmarkEntity) -> Unit)? = null
     internal var onTextTapListener: ((TextTapOutcome, ReaderTapPosition) -> Unit)? = null
 
     private val textPaint = TextPaint(TextPaint.ANTI_ALIAS_FLAG).apply {
@@ -352,6 +353,12 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     }
 
     private fun dispatchTap(event: MotionEvent) {
+        val tappedBookmark = findBookmarkAt(event)
+        if (tappedBookmark != null) {
+            onBookmarkTappedListener?.invoke(tappedBookmark)
+            return
+        }
+
         val offset = offsetAt(event)
         val tappedHighlight = offset?.let { findHighlightAtOffset(highlights, it) }
         if (tappedHighlight != null) {
@@ -495,31 +502,63 @@ class JustifiedStudyTextView @JvmOverloads constructor(
 
     private fun drawBookmarkIndicators(canvas: Canvas, textLayout: StaticLayout) {
         if (content.isEmpty() || bookmarks.isEmpty()) return
-        val markerWidth = dpToPx(10f)
-        val markerHeight = dpToPx(14f)
-        val topInset = dpToPx(2f)
-        val endInset = dpToPx(2f)
-        val notchDepth = dpToPx(4f)
-        bookmarks.forEach { bookmark ->
-            val line = textLayout.getLineForOffset(bookmark.anchorStart.coerceIn(0, content.lastIndex))
-            val top = (textLayout.getLineTop(line) + topInset)
-                .coerceAtMost(textLayout.getLineBottom(line) - markerHeight)
-            val left = (textLayout.width - markerWidth - endInset).coerceAtLeast(0f)
-            val right = left + markerWidth
-            val bottom = top + markerHeight
-            val centerX = left + (markerWidth / 2f)
+        bookmarkMarkerBounds(textLayout).forEach { marker ->
+            val centerX = marker.left + (bookmarkMarkerWidthPx() / 2f)
             val path = Path().apply {
-                moveTo(left, top)
-                lineTo(right, top)
-                lineTo(right, bottom)
-                lineTo(centerX, bottom - notchDepth)
-                lineTo(left, bottom)
+                moveTo(marker.left, marker.top)
+                lineTo(marker.right, marker.top)
+                lineTo(marker.right, marker.bottom)
+                lineTo(centerX, marker.bottom - bookmarkMarkerNotchDepthPx())
+                lineTo(marker.left, marker.bottom)
                 close()
             }
             canvas.drawPath(path, noteIndicatorPaint)
             canvas.drawPath(path, noteIndicatorStrokePaint)
         }
     }
+
+    private fun findBookmarkAt(event: MotionEvent): BookmarkEntity? {
+        val textLayout = layout ?: return null
+        if (content.isEmpty() || bookmarks.isEmpty()) return null
+        val localX = event.x - paddingLeft
+        val localY = event.y - paddingTop
+        return bookmarkMarkerBounds(textLayout)
+            .lastOrNull { marker ->
+                localX in marker.left..marker.right && localY in marker.top..marker.bottom
+            }
+            ?.bookmark
+    }
+
+    private fun bookmarkMarkerBounds(textLayout: StaticLayout): List<BookmarkMarkerBounds> {
+        if (content.isEmpty() || bookmarks.isEmpty()) return emptyList()
+        val markerWidth = bookmarkMarkerWidthPx()
+        val markerHeight = bookmarkMarkerHeightPx()
+        val topInset = bookmarkMarkerTopInsetPx()
+        val endInset = bookmarkMarkerEndInsetPx()
+        return bookmarks.map { bookmark ->
+            val line = textLayout.getLineForOffset(bookmark.anchorStart.coerceIn(0, content.lastIndex))
+            val top = (textLayout.getLineTop(line) + topInset)
+                .coerceAtMost(textLayout.getLineBottom(line) - markerHeight)
+            val left = (textLayout.width - markerWidth - endInset).coerceAtLeast(0f)
+            BookmarkMarkerBounds(
+                bookmark = bookmark,
+                left = left,
+                top = top,
+                right = left + markerWidth,
+                bottom = top + markerHeight
+            )
+        }
+    }
+
+    private fun bookmarkMarkerWidthPx(): Float = dpToPx(10f)
+
+    private fun bookmarkMarkerHeightPx(): Float = dpToPx(14f)
+
+    private fun bookmarkMarkerTopInsetPx(): Float = dpToPx(2f)
+
+    private fun bookmarkMarkerEndInsetPx(): Float = dpToPx(2f)
+
+    private fun bookmarkMarkerNotchDepthPx(): Float = dpToPx(4f)
 
     private fun hitHandleAt(event: MotionEvent): SelectionHandle? {
         val textLayout = layout ?: return null
@@ -602,5 +641,13 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         val handle: SelectionHandle,
         val centerX: Float,
         val anchorY: Float
+    )
+
+    private data class BookmarkMarkerBounds(
+        val bookmark: BookmarkEntity,
+        val left: Float,
+        val top: Float,
+        val right: Float,
+        val bottom: Float
     )
 }

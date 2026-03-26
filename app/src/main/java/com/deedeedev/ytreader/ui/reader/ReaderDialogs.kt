@@ -429,15 +429,20 @@ internal fun HighlightNoteDialog(
 
 @Composable
 internal fun BookmarkTitleDialog(
+    isEditing: Boolean,
     titleText: String,
     onTitleTextChange: (String) -> Unit,
     onSave: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit
 ) {
-    val title = stringResource(R.string.reader_add_bookmark)
+    val title = stringResource(
+        if (isEditing) R.string.reader_edit_bookmark else R.string.reader_add_bookmark
+    )
     val bookmarkTitleLabel = stringResource(R.string.reader_bookmark_title_label)
     val bookmarkSupportingText = stringResource(R.string.reader_bookmark_title_supporting)
     val saveLabel = stringResource(R.string.save)
+    val deleteLabel = stringResource(R.string.delete)
     val cancelLabel = stringResource(R.string.cancel)
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -462,8 +467,14 @@ internal fun BookmarkTitleDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(cancelLabel)
+            if (isEditing) {
+                TextButton(onClick = onDelete) {
+                    Text(deleteLabel)
+                }
+            } else {
+                TextButton(onClick = onDismiss) {
+                    Text(cancelLabel)
+                }
             }
         }
     )

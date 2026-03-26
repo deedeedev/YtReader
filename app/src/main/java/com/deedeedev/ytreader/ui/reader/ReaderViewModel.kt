@@ -198,6 +198,22 @@ class ReaderViewModel(
         }
     }
 
+    fun deleteBookmark(anchorStart: Int) {
+        val state = _uiState.value
+        val contentLength = state.content.length
+        if (contentLength == 0) return
+
+        val boundedAnchor = anchorStart.coerceIn(0, contentLength - 1)
+        val updatedBookmarks = state.bookmarks.filterNot { it.anchorStart == boundedAnchor }
+        if (updatedBookmarks.size == state.bookmarks.size) return
+
+        _uiState.update { it.copy(bookmarks = updatedBookmarks) }
+
+        viewModelScope.launch {
+            bookmarkDao.deleteByAnchor(subtitleId = subtitleId, anchorStart = boundedAnchor)
+        }
+    }
+
     fun applyHighlight(start: Int, end: Int, color: HighlightColor): TextHighlight? {
         return applyHighlightInternal(start = start, end = end, color = color, note = null)
     }

@@ -44,6 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.ui.FontOption
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
@@ -179,6 +180,7 @@ fun ReaderScreen(
     var highlightNoteSelectionRange by remember { mutableStateOf<SelectionRange?>(null) }
     var showBookmarkDialog by remember { mutableStateOf(false) }
     var bookmarkTitleDraft by remember { mutableStateOf("") }
+    var editingBookmark by remember { mutableStateOf<BookmarkEntity?>(null) }
     var pendingBookmarkAnchorStart by remember { mutableStateOf<Int?>(null) }
     var pendingBookmarkFallbackTitle by remember { mutableStateOf("") }
     var suppressSelectionToolbar by remember { mutableStateOf(false) }
@@ -287,6 +289,7 @@ fun ReaderScreen(
     fun dismissBookmarkDialog() {
         showBookmarkDialog = false
         bookmarkTitleDraft = ""
+        editingBookmark = null
         pendingBookmarkAnchorStart = null
         pendingBookmarkFallbackTitle = ""
     }
@@ -311,9 +314,19 @@ fun ReaderScreen(
     fun openBookmarkDialog() {
         val textView = studyTextView ?: return
         val anchorStart = textView.topVisibleLineAnchor(studyScrollState.value) ?: return
+        editingBookmark = null
         pendingBookmarkAnchorStart = anchorStart
         pendingBookmarkFallbackTitle = textView.lineTextForOffset(anchorStart)
         bookmarkTitleDraft = ""
+        showBookmarkDialog = true
+    }
+
+    fun openBookmarkDialog(bookmark: BookmarkEntity) {
+        val textView = studyTextView ?: return
+        editingBookmark = bookmark
+        pendingBookmarkAnchorStart = bookmark.anchorStart
+        pendingBookmarkFallbackTitle = textView.lineTextForOffset(bookmark.anchorStart)
+        bookmarkTitleDraft = bookmark.title
         showBookmarkDialog = true
     }
 
@@ -984,6 +997,15 @@ fun ReaderScreen(
             dismissHighlightNoteDialog()
             studyTextView?.clearSelection()
         },
+        onBookmarkTapped = { bookmark ->
+            suppressSelectionToolbar = false
+            clearSearchResultsMode()
+            dismissHighlightNoteDialog()
+            activeHighlight = null
+            selectionRange = null
+            studyTextView?.clearSelection()
+            openBookmarkDialog(bookmark)
+        },
         showSearchResultsToolbar = showSearchResultsToolbar,
         searchResultsCurrentIndex = (searchResultsMode?.activeIndex ?: 0) + 1,
         searchResultsTotalCount = searchResultsMode?.totalResults ?: 0,
@@ -1186,6 +1208,7 @@ fun ReaderScreen(
             dismissHighlightNoteDialog()
         },
         showBookmarkDialog = showBookmarkDialog,
+        isEditingBookmark = editingBookmark != null,
         bookmarkTitleText = bookmarkTitleDraft,
         onBookmarkTitleTextChange = { bookmarkTitleDraft = it },
         onSaveBookmark = {
@@ -1200,6 +1223,15 @@ fun ReaderScreen(
             dismissBookmarkDialog()
         },
         onDismissBookmark = { dismissBookmarkDialog() },
+        onDeleteBookmark = {
+            pendingBookmarkAnchorStart?.let { anchorStart ->
+                viewModel.deleteBookmark(anchorStart)
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(context.getString(R.string.bookmark_deleted))
+                }
+            }
+            dismissBookmarkDialog()
+        },
         snackbarHostState = snackbarHostState,
         coroutineScope = coroutineScope
     )

@@ -239,6 +239,7 @@ internal fun ReaderStudyPane(
     onStudyTextViewReady: (JustifiedStudyTextView) -> Unit,
     onSelectionRangeChanged: (Int, Int) -> Unit,
     onHighlightTapped: (TextHighlight?) -> Unit,
+    onBookmarkTapped: (BookmarkEntity) -> Unit,
     hasActiveHighlight: () -> Boolean,
     onClearActiveHighlight: () -> Unit,
     clearSelectionNow: () -> Unit
@@ -302,6 +303,7 @@ internal fun ReaderStudyPane(
                         searchResultRange = activeStudySearchRange,
                         onSelectionChanged = onSelectionRangeChanged,
                         onHighlightTapped = onHighlightTapped,
+                        onBookmarkTapped = onBookmarkTapped,
                         onPlainTextTap = onReaderTap,
                         hasActiveHighlight = hasActiveHighlight,
                         clearActiveHighlight = onClearActiveHighlight,
@@ -323,6 +325,7 @@ internal fun ReaderStudyPane(
                     searchResultRange = activeStudySearchRange,
                     onSelectionChanged = onSelectionRangeChanged,
                     onHighlightTapped = onHighlightTapped,
+                    onBookmarkTapped = onBookmarkTapped,
                     onPlainTextTap = onReaderTap,
                     hasActiveHighlight = hasActiveHighlight,
                     clearActiveHighlight = onClearActiveHighlight,
