@@ -1,5 +1,7 @@
 package com.deedeedev.ytreader.data
 
+import android.content.Context
+import com.deedeedev.ytreader.R
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +28,7 @@ data class AiCleaningRequest(
 )
 
 class AiCleaningRepository(
+    private val context: Context,
     private val client: OkHttpClient,
     private val gson: Gson = Gson()
 ) {
@@ -61,13 +64,17 @@ class AiCleaningRepository(
             if (!response.isSuccessful) {
                 throw AiCleaningException(
                     AiCleaningFailureFactory.buildFailure(
-                        summary = "AI request failed (${response.code}).",
+                        resources = context.resources,
+                        summary = context.getString(R.string.ai_cleaning_request_failed, response.code),
                         lines = listOf(
-                            "Endpoint: $endpoint",
-                            "Model: ${request.model}",
-                            "HTTP status: ${response.code}",
-                            "Response body:",
-                            AiCleaningFailureFactory.sanitizeLog(body.ifBlank { "<empty>" })
+                            context.getString(R.string.ai_cleaning_log_endpoint, endpoint),
+                            context.getString(R.string.ai_cleaning_log_model, request.model),
+                            context.getString(R.string.ai_cleaning_log_http_status, response.code),
+                            context.getString(R.string.ai_cleaning_log_response_body),
+                            AiCleaningFailureFactory.sanitizeLog(
+                                body.ifBlank { context.getString(R.string.ai_cleaning_log_empty) },
+                                context.resources
+                            )
                         )
                     )
                 )
@@ -77,12 +84,16 @@ class AiCleaningRepository(
             if (cleanedText.isNullOrBlank()) {
                 throw AiCleaningException(
                     AiCleaningFailureFactory.buildFailure(
-                        summary = "AI response does not contain cleaned text.",
+                        resources = context.resources,
+                        summary = context.getString(R.string.ai_cleaning_missing_response_text),
                         lines = listOf(
-                            "Endpoint: $endpoint",
-                            "Model: ${request.model}",
-                            "Response body:",
-                            AiCleaningFailureFactory.sanitizeLog(body.ifBlank { "<empty>" })
+                            context.getString(R.string.ai_cleaning_log_endpoint, endpoint),
+                            context.getString(R.string.ai_cleaning_log_model, request.model),
+                            context.getString(R.string.ai_cleaning_log_response_body),
+                            AiCleaningFailureFactory.sanitizeLog(
+                                body.ifBlank { context.getString(R.string.ai_cleaning_log_empty) },
+                                context.resources
+                            )
                         )
                     )
                 )
@@ -94,12 +105,14 @@ class AiCleaningRepository(
     fun toFailure(request: AiCleaningRequest, throwable: Throwable): AiCleaningFailure {
         if (throwable is SocketTimeoutException) {
             return AiCleaningFailureFactory.fromThrowable(
+                resources = context.resources,
                 throwable = throwable,
                 endpoint = buildEndpoint(request.endpointBaseUrl),
                 model = request.model
             )
         }
         return AiCleaningFailureFactory.fromThrowable(
+            resources = context.resources,
             throwable = throwable,
             endpoint = runCatching { buildEndpoint(request.endpointBaseUrl) }.getOrNull(),
             model = request.model

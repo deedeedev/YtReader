@@ -1,10 +1,13 @@
 package com.deedeedev.ytreader.ui.theme
 
-enum class AppTheme(val storageValue: String, val label: String) {
-    SYSTEM("system", "System"),
-    LIGHT("light", "Light"),
-    DARK("dark", "Dark"),
-    DARK_AMOLED("dark_amoled", "Dark (AMOLED)");
+import androidx.annotation.StringRes
+import com.deedeedev.ytreader.R
+
+enum class AppTheme(val storageValue: String, @StringRes val labelRes: Int) {
+    SYSTEM("system", R.string.theme_system),
+    LIGHT("light", R.string.theme_light),
+    DARK("dark", R.string.theme_dark),
+    DARK_AMOLED("dark_amoled", R.string.theme_amoled_dark);
 
     companion object {
         fun fromStorageValue(value: String?): AppTheme {

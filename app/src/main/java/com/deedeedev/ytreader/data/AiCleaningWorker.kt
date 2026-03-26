@@ -60,15 +60,18 @@ class AiCleaningWorker(
         if (sourceText == null) {
             subtitleDao.storeAiCleaningFailure(
                 id = subtitleId,
-                summary = "No text was available for AI cleaning.",
-                log = "Subtitle $subtitleId does not have a stored AI cleaning source snapshot.",
+                summary = applicationContext.getString(R.string.ai_cleaning_no_text_available),
+                log = applicationContext.getString(
+                    R.string.ai_cleaning_log_missing_snapshot,
+                    subtitleId
+                ),
                 updatedAt = System.currentTimeMillis()
             )
             postCompletionNotification(
                 context = applicationContext,
                 subtitleId = subtitleId,
                 title = subtitle.title,
-                message = "AI cleaning failed."
+                message = applicationContext.getString(R.string.ai_cleaning_failed)
             )
             return@withContext Result.failure()
         }
@@ -79,8 +82,8 @@ class AiCleaningWorker(
         val prompt = preferences.getAiPrompt()
         if (endpoint.isBlank() || apiKey.isBlank() || model.isBlank()) {
             val failure = AiCleaningFailure(
-                summary = "Set AI endpoint, API key, and model in Settings.",
-                detailedLog = "AI cleaning could not start because endpoint, API key, or model was blank."
+                summary = applicationContext.getString(R.string.ai_cleaning_missing_settings),
+                detailedLog = applicationContext.getString(R.string.ai_cleaning_log_missing_settings)
             )
             subtitleDao.storeAiCleaningFailure(
                 id = subtitleId,
@@ -110,7 +113,7 @@ class AiCleaningWorker(
                 subtitleId = subtitleId,
                 workId = id,
                 title = subtitle.title,
-                message = "Cleaning in progress"
+                message = applicationContext.getString(R.string.ai_cleaning_notification_in_progress)
             )
         )
 
@@ -125,7 +128,7 @@ class AiCleaningWorker(
                 context = applicationContext,
                 subtitleId = subtitleId,
                 title = subtitle.title,
-                message = "AI cleaning complete."
+                message = applicationContext.getString(R.string.ai_cleaning_notification_complete)
             )
             Result.success()
         } catch (cancelled: CancellationException) {
@@ -194,10 +197,10 @@ fun createAiCleaningNotificationChannel(context: Context) {
     val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     val channel = NotificationChannel(
         AI_CLEANING_CHANNEL_ID,
-        "AI Cleaning",
+        context.getString(R.string.ai_cleaning_channel_name),
         NotificationManager.IMPORTANCE_LOW
     ).apply {
-        description = "Status updates for background AI Cleaning jobs"
+        description = context.getString(R.string.ai_cleaning_channel_description)
     }
     manager.createNotificationChannel(channel)
 }
@@ -217,7 +220,11 @@ internal fun buildAiCleaningForegroundNotification(
         .setOngoing(true)
         .setOnlyAlertOnce(true)
         .setProgress(0, 0, true)
-        .addAction(0, "Cancel", createCancelAiCleaningPendingIntent(context, subtitleId, workId))
+        .addAction(
+            0,
+            context.getString(R.string.cancel),
+            createCancelAiCleaningPendingIntent(context, subtitleId, workId)
+        )
         .build()
 }
 

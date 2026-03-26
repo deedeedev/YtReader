@@ -38,9 +38,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.deedeedev.ytreader.R
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -55,6 +59,7 @@ fun CollectionDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -117,7 +122,7 @@ fun CollectionDetailScreen(
         ) {
             if (collection == null) {
                 Text(
-                    text = "Collection not found.",
+                    text = stringResource(R.string.collection_not_found),
                     style = MaterialTheme.typography.bodyLarge
                 )
                 return@Column
@@ -127,7 +132,7 @@ fun CollectionDetailScreen(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back to collections"
+                        contentDescription = stringResource(R.string.collection_back_to_collections)
                     )
                 }
                 Text(
@@ -137,13 +142,17 @@ fun CollectionDetailScreen(
                 )
             }
             Text(
-                text = "${collection.videoIds.size} videos",
+                text = pluralStringResource(
+                    R.plurals.collection_videos_count,
+                    collection.videoIds.size,
+                    collection.videoIds.size
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.secondary
             )
             if (onlyInCollectionsCount > 0) {
                 Text(
-                    text = "$onlyInCollectionsCount only in collections",
+                    text = stringResource(R.string.collection_only_in_collections, onlyInCollectionsCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.tertiary
                 )
@@ -165,6 +174,7 @@ fun CollectionDetailScreen(
             LibraryListSection(
                 items = sortedItems,
                 emptyText = collectionEmptyText(
+                    resources = context.resources,
                     totalCollectionVideoCount = collection.videoIds.size,
                     selectedChannelFilter = filterState.selectedChannelFilter
                 ),
@@ -178,7 +188,7 @@ fun CollectionDetailScreen(
                                         viewModel.markVideoAsRead(item.videoId)
                                         coroutineScope.launch {
                                             snackbarHostState.showSnackbar(
-                                                message = "Marked as read",
+                                                message = context.getString(R.string.library_marked_read),
                                                 duration = SnackbarDuration.Short
                                             )
                                         }
@@ -188,8 +198,11 @@ fun CollectionDetailScreen(
                                         viewModel.removeVideoFromCollection(collection.id, item.videoId)
                                         coroutineScope.launch {
                                             val result = snackbarHostState.showSnackbar(
-                                                message = "Video removed from ${collection.name}",
-                                                actionLabel = "Undo",
+                                                message = context.getString(
+                                                    R.string.collection_remove_video,
+                                                    collection.name
+                                                ),
+                                                actionLabel = context.getString(R.string.undo),
                                                 duration = SnackbarDuration.Short
                                             )
                                             if (result == SnackbarResult.ActionPerformed) {
@@ -282,7 +295,7 @@ fun CollectionDetailScreen(
                 if (!created) {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar(
-                            message = "Could not create collection",
+                            message = context.getString(R.string.collection_add_error),
                             duration = SnackbarDuration.Short
                         )
                     }
@@ -294,7 +307,7 @@ fun CollectionDetailScreen(
                 if (added) {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar(
-                            message = "Added to collection",
+                            message = context.getString(R.string.collection_add_success),
                             duration = SnackbarDuration.Short
                         )
                     }
@@ -302,7 +315,7 @@ fun CollectionDetailScreen(
                 } else {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar(
-                            message = "Could not add to collection",
+                            message = context.getString(R.string.collection_create_error),
                             duration = SnackbarDuration.Short
                         )
                     }

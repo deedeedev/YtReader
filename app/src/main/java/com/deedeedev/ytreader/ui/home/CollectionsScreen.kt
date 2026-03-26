@@ -44,9 +44,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.VideoCollection
 import kotlinx.coroutines.launch
 
@@ -58,6 +62,7 @@ fun CollectionsScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -93,14 +98,14 @@ fun CollectionsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Collections",
+                    text = stringResource(R.string.collections),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold
                 )
                 ElevatedButton(onClick = { showCreateDialog = true }) {
                     Icon(imageVector = Icons.Default.Add, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("New")
+                    Text(stringResource(R.string.collection_new))
                 }
             }
 
@@ -113,7 +118,7 @@ fun CollectionsScreen(
                 if (uiState.collections.isEmpty()) {
                     item {
                         Text(
-                            text = "No collections yet. Create one to organize videos.",
+                            text = stringResource(R.string.collections_empty),
                             style = MaterialTheme.typography.bodyLarge
                         )
                     }
@@ -141,8 +146,8 @@ fun CollectionsScreen(
 
     if (showCreateDialog) {
         CollectionNameDialog(
-            title = "New collection",
-            confirmLabel = "Create",
+            title = context.getString(R.string.collection_new_label),
+            confirmLabel = context.getString(R.string.collection_create),
             initialValue = "",
             onDismiss = { showCreateDialog = false },
             onConfirm = { name ->
@@ -150,7 +155,11 @@ fun CollectionsScreen(
                 showCreateDialog = false
                 scope.launch {
                     snackbarHostState.showSnackbar(
-                        message = if (created) "Collection created" else "Could not create collection",
+                        message = if (created) {
+                            context.getString(R.string.collection_created)
+                        } else {
+                            context.getString(R.string.collection_create_error)
+                        },
                         duration = SnackbarDuration.Short
                     )
                 }
@@ -160,8 +169,8 @@ fun CollectionsScreen(
 
     renameTarget?.let { target ->
         CollectionNameDialog(
-            title = "Rename collection",
-            confirmLabel = "Save",
+            title = context.getString(R.string.collection_rename),
+            confirmLabel = context.getString(R.string.save),
             initialValue = target.name,
             onDismiss = { renameTarget = null },
             onConfirm = { name ->
@@ -169,7 +178,11 @@ fun CollectionsScreen(
                 renameTarget = null
                 scope.launch {
                     snackbarHostState.showSnackbar(
-                        message = if (renamed) "Collection renamed" else "Could not rename collection",
+                        message = if (renamed) {
+                            context.getString(R.string.collection_renamed)
+                        } else {
+                            context.getString(R.string.collection_rename_error)
+                        },
                         duration = SnackbarDuration.Short
                     )
                 }
@@ -180,8 +193,8 @@ fun CollectionsScreen(
     deleteTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Delete collection?") },
-            text = { Text("${target.name} will be removed.") },
+            title = { Text(stringResource(R.string.collection_delete_title)) },
+            text = { Text(stringResource(R.string.collection_delete_message, target.name)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -189,12 +202,12 @@ fun CollectionsScreen(
                         deleteTarget = null
                     }
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { deleteTarget = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -212,6 +225,11 @@ private fun CollectionCard(
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val videosCountLabel = pluralStringResource(
+        R.plurals.collection_videos_count,
+        collection.videoIds.size,
+        collection.videoIds.size
+    )
 
     Card(
         modifier = Modifier
@@ -235,18 +253,25 @@ private fun CollectionCard(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "${collection.videoIds.size} videos",
+                        text = videosCountLabel,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
                     Text(
-                        text = "Read: $readCount/${collection.videoIds.size}",
+                        text = stringResource(
+                            R.string.collection_read_progress,
+                            readCount,
+                            collection.videoIds.size
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
                     if (onlyInCollectionsCount > 0) {
                         Text(
-                            text = "$onlyInCollectionsCount only in collections",
+                            text = stringResource(
+                                R.string.collection_only_in_collections,
+                                onlyInCollectionsCount
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.tertiary
                         )
@@ -254,7 +279,10 @@ private fun CollectionCard(
                 }
 
                 IconButton(onClick = { showMenu = true }) {
-                    Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Collection options")
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(R.string.collection_options)
+                    )
                 }
             }
 
@@ -263,7 +291,7 @@ private fun CollectionCard(
                 onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Rename") },
+                    text = { Text(stringResource(R.string.collection_rename)) },
                     onClick = {
                         showMenu = false
                         onRename()
@@ -273,7 +301,7 @@ private fun CollectionCard(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Delete") },
+                    text = { Text(stringResource(R.string.delete)) },
                     onClick = {
                         showMenu = false
                         onDelete()
@@ -305,7 +333,7 @@ private fun CollectionNameDialog(
                 value = value,
                 onValueChange = { value = it },
                 singleLine = true,
-                label = { Text("Name") }
+                label = { Text(stringResource(R.string.collection_name)) }
             )
         },
         confirmButton = {
@@ -315,7 +343,7 @@ private fun CollectionNameDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

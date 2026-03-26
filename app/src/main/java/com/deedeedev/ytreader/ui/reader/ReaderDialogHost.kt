@@ -1,10 +1,12 @@
 package com.deedeedev.ytreader.ui.reader
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.material3.SnackbarHostState
+import com.deedeedev.ytreader.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -64,6 +66,7 @@ internal fun ReaderDialogHost(
     snackbarHostState: SnackbarHostState,
     coroutineScope: CoroutineScope
 ) {
+    val context = LocalContext.current
     if (showUnsavedDialog) {
         UnsavedChangesDialog(
             onDiscard = onDiscardUnsaved,
@@ -130,7 +133,9 @@ internal fun ReaderDialogHost(
                     clipboardSetText(AnnotatedString(errorLog))
                     onDismissAiError()
                     coroutineScope.launch {
-                        snackbarHostState.showSnackbar("Error copied to clipboard.")
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.error_copied_to_clipboard)
+                        )
                     }
                 },
                 onDismiss = onDismissAiError

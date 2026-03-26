@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import java.util.concurrent.TimeUnit
 
 interface AppContainer {
+    val appContext: Context
     val subtitleDao: SubtitleDao
     val highlightNoteDao: HighlightNoteDao
     val bookmarkDao: BookmarkDao
@@ -30,6 +31,9 @@ interface AppContainer {
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
+    override val appContext: Context
+        get() = context.applicationContext
+
     private val database: AppDatabase by lazy {
         Room.databaseBuilder(
             context.applicationContext,
@@ -59,7 +63,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     init {
-        NewPipe.init(NewPipeDownloader(okHttpClient))
+        NewPipe.init(NewPipeDownloader(context.applicationContext, okHttpClient))
     }
 
     override val subtitleDao: SubtitleDao by lazy {
@@ -79,7 +83,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val youtubeRepository: YoutubeRepository by lazy {
-        YoutubeRepository(okHttpClient)
+        YoutubeRepository(context.applicationContext, okHttpClient)
     }
 
     override val userPreferencesRepository: UserPreferencesRepository by lazy {
@@ -95,7 +99,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val aiCleaningRepository: AiCleaningRepository by lazy {
-        AiCleaningRepository(aiOkHttpClient)
+        AiCleaningRepository(context.applicationContext, aiOkHttpClient)
     }
 
     override fun closeDatabase() {

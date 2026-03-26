@@ -3,6 +3,7 @@ package com.deedeedev.ytreader.ui.settings
 import android.app.Activity
 import android.content.Context
 import com.deedeedev.ytreader.AppContainer
+import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.DefaultAppContainer
 import com.deedeedev.ytreader.YtReaderApplication
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,7 @@ suspend fun exportPreferencesBackup(
         val json = appContainer.userPreferencesRepository.exportPreferencesJson()
         context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
             writer.write(json)
-        } ?: error("Could not open destination file.")
+        } ?: error(context.getString(R.string.settings_backup_error_open_destination))
     }
 }
 
@@ -42,10 +43,10 @@ suspend fun importPreferencesBackup(
         val uri = android.net.Uri.parse(uriString)
         val json = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
             reader.readText()
-        } ?: error("Could not open selected file.")
+        } ?: error(context.getString(R.string.settings_backup_error_open_selected))
 
         check(appContainer.userPreferencesRepository.importPreferencesJson(json)) {
-            "Selected file is not a valid preferences backup."
+            context.getString(R.string.settings_backup_error_invalid_preferences)
         }
     }
 }
@@ -70,7 +71,7 @@ suspend fun exportDataBackup(
                     zipOutputStream.closeEntry()
                 }
             }
-        } ?: error("Could not open destination file.")
+        } ?: error(context.getString(R.string.settings_backup_error_open_destination))
     }
 }
 
@@ -103,16 +104,17 @@ suspend fun importDataBackup(
                     entry = zipInputStream.nextEntry
                 }
             }
-        } ?: error("Could not open selected backup file.")
+        } ?: error(context.getString(R.string.settings_backup_error_open_backup))
 
         check(extractedFiles.containsKey(DATABASE_NAME)) {
-            "Selected file does not contain a database backup."
+            context.getString(R.string.settings_backup_error_missing_database)
         }
 
         appContainer.closeDatabase()
 
         val databaseFile = context.getDatabasePath(DATABASE_NAME)
-        val databaseDir = databaseFile.parentFile ?: error("Could not access database directory.")
+        val databaseDir = databaseFile.parentFile
+            ?: error(context.getString(R.string.settings_backup_error_database_directory))
         databaseFiles(context).forEach { file ->
             if (file.exists()) {
                 file.delete()

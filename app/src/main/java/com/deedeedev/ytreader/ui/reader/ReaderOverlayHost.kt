@@ -12,7 +12,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.deedeedev.ytreader.R
 
 @Composable
 internal fun BoxScope.ReaderOverlayHost(
@@ -108,7 +110,7 @@ internal fun BoxScope.ReaderOverlayHost(
             .padding(bottom = if (isUiVisible) 88.dp else 16.dp)
     ) {
         TinyValueIndicator(
-            text = "$brightnessIndicatorPercent%",
+            text = stringResource(R.string.reader_progress_percent, brightnessIndicatorPercent),
             modifier = Modifier.testTag(READER_BRIGHTNESS_INDICATOR_TAG)
         )
     }

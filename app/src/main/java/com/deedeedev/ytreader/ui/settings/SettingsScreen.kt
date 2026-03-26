@@ -9,11 +9,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.AppContainer
+import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.ui.FontOption
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -39,12 +42,12 @@ fun SettingsScreen(
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     var isBusy by remember { mutableStateOf(false) }
 
-    val selectedFontFamily = when (uiState.fontFamily) {
-        "Serif" -> FontFamily.Serif
-        "SansSerif" -> FontFamily.SansSerif
-        "Monospace" -> FontFamily.Monospace
-        "Cursive" -> FontFamily.Cursive
-        else -> FontFamily.Default
+    val selectedFontFamily = when (FontOption.fromStorageValue(uiState.fontFamily)) {
+        FontOption.SERIF -> FontFamily.Serif
+        FontOption.SANS_SERIF -> FontFamily.SansSerif
+        FontOption.MONOSPACE -> FontFamily.Monospace
+        FontOption.CURSIVE -> FontFamily.Cursive
+        FontOption.DEFAULT -> FontFamily.Default
     }
 
     fun launchTask(block: suspend () -> String) {
@@ -56,7 +59,7 @@ fun SettingsScreen(
             val message = try {
                 block()
             } catch (error: Exception) {
-                error.message ?: "Operation failed."
+                error.message ?: context.getString(R.string.operation_failed)
             }
             isBusy = false
             snackbarHostState.showSnackbar(message)
@@ -69,7 +72,7 @@ fun SettingsScreen(
         if (uri != null) {
             launchTask {
                 exportPreferencesBackup(context, appContainer, uri.toString())
-                "Preferences exported."
+                context.getString(R.string.settings_preferences_exported)
             }
         }
     }
@@ -89,7 +92,7 @@ fun SettingsScreen(
         if (uri != null) {
             launchTask {
                 exportDataBackup(context, uri.toString())
-                "Data exported."
+                context.getString(R.string.settings_data_exported)
             }
         }
     }
@@ -108,7 +111,7 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings)) },
                 windowInsets = WindowInsets(0, 0, 0, 0)
             )
         }
@@ -128,14 +131,14 @@ fun SettingsScreen(
                     onExpandedChange = { expanded = !expanded }
                 ) {
                     TextField(
-                        value = uiState.appTheme.label,
+                        value = stringResource(uiState.appTheme.labelRes),
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier
                             .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
                             .fillMaxWidth(),
-                        label = { Text("App Theme") }
+                        label = { Text(stringResource(R.string.settings_app_theme)) }
                     )
                     ExposedDropdownMenu(
                         expanded = expanded,
@@ -143,7 +146,7 @@ fun SettingsScreen(
                     ) {
                         uiState.availableThemes.forEach { appTheme ->
                             DropdownMenuItem(
-                                text = { Text(appTheme.label) },
+                                text = { Text(stringResource(appTheme.labelRes)) },
                                 onClick = {
                                     viewModel.setAppTheme(appTheme)
                                     expanded = false
@@ -156,7 +159,7 @@ fun SettingsScreen(
 
             item {
                 Text(
-                    text = "Reader Defaults",
+                    text = stringResource(R.string.settings_reader_defaults),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -164,7 +167,10 @@ fun SettingsScreen(
 
             item {
                 Text(
-                    text = "Default Font Size: ${uiState.defaultFontSize.toInt()}sp",
+                    text = stringResource(
+                        R.string.settings_default_font_size,
+                        uiState.defaultFontSize.toInt()
+                    ),
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontSize = uiState.defaultFontSize.sp,
                         fontFamily = selectedFontFamily
@@ -186,14 +192,14 @@ fun SettingsScreen(
                     onExpandedChange = { expanded = !expanded }
                 ) {
                     TextField(
-                        value = uiState.fontFamily,
+                        value = stringResource(FontOption.fromStorageValue(uiState.fontFamily).labelRes),
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier
                             .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
                             .fillMaxWidth(),
-                        label = { Text("Font Family") }
+                        label = { Text(stringResource(R.string.settings_font_family)) }
                     )
                     ExposedDropdownMenu(
                         expanded = expanded,
@@ -201,7 +207,7 @@ fun SettingsScreen(
                     ) {
                         uiState.availableFonts.forEach { font ->
                             DropdownMenuItem(
-                                text = { Text(font) },
+                                text = { Text(stringResource(FontOption.fromStorageValue(font).labelRes)) },
                                 onClick = {
                                     viewModel.setFontFamily(font)
                                     expanded = false
@@ -213,7 +219,10 @@ fun SettingsScreen(
             }
             item {
                 Text(
-                    text = "Line Height Multiplier: ${String.format("%.1f", uiState.lineHeightMultiplier)}x",
+                    text = stringResource(
+                        R.string.settings_line_height_multiplier,
+                        String.format("%.1f", uiState.lineHeightMultiplier)
+                    ),
                     style = MaterialTheme.typography.bodyLarge
                 )
                 Slider(
@@ -229,8 +238,8 @@ fun SettingsScreen(
                     value = uiState.aiEndpoint,
                     onValueChange = { viewModel.setAiEndpoint(it) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("AI Endpoint") },
-                    placeholder = { Text("https://api.example.com/v1") },
+                    label = { Text(stringResource(R.string.settings_ai_endpoint)) },
+                    placeholder = { Text(stringResource(R.string.settings_ai_endpoint_placeholder)) },
                     singleLine = true
                 )
             }
@@ -240,8 +249,8 @@ fun SettingsScreen(
                     value = uiState.aiApiKey,
                     onValueChange = { viewModel.setAiApiKey(it) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("AI API key") },
-                    placeholder = { Text("Paste your API key") },
+                    label = { Text(stringResource(R.string.settings_ai_api_key)) },
+                    placeholder = { Text(stringResource(R.string.settings_ai_api_key_placeholder)) },
                     singleLine = true
                 )
             }
@@ -251,8 +260,8 @@ fun SettingsScreen(
                     value = uiState.aiModel,
                     onValueChange = { viewModel.setAiModel(it) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("AI Model") },
-                    placeholder = { Text("gpt-4o-mini") },
+                    label = { Text(stringResource(R.string.settings_ai_model)) },
+                    placeholder = { Text(stringResource(R.string.settings_ai_model_placeholder)) },
                     singleLine = true
                 )
             }
@@ -262,8 +271,8 @@ fun SettingsScreen(
                     value = uiState.aiPrompt,
                     onValueChange = { viewModel.setAiPrompt(it) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("AI Cleaning Prompt") },
-                    placeholder = { Text("Describe how subtitle text should be cleaned") },
+                    label = { Text(stringResource(R.string.settings_ai_cleaning_prompt)) },
+                    placeholder = { Text(stringResource(R.string.settings_ai_prompt_placeholder)) },
                     minLines = 6,
                     maxLines = 12
                 )
@@ -271,7 +280,7 @@ fun SettingsScreen(
 
             item {
                 Text(
-                    text = "Backup & Restore",
+                    text = stringResource(R.string.settings_backup_restore),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -279,10 +288,10 @@ fun SettingsScreen(
 
             item {
                 BackupActionSection(
-                    title = "Preferences",
-                    description = "Theme, reader defaults, language favorites and AI settings.",
-                    exportLabel = "Export preferences",
-                    importLabel = "Import preferences",
+                    title = stringResource(R.string.settings_preferences),
+                    description = stringResource(R.string.settings_preferences_description),
+                    exportLabel = stringResource(R.string.settings_preferences_export),
+                    importLabel = stringResource(R.string.settings_preferences_import),
                     enabled = !isBusy,
                     onExport = {
                         exportPreferencesLauncher.launch(buildPreferencesBackupFileName())
@@ -295,10 +304,10 @@ fun SettingsScreen(
 
             item {
                 BackupActionSection(
-                    title = "Data",
-                    description = "Library, collections, annotations, bookmarks and highlights.",
-                    exportLabel = "Export data",
-                    importLabel = "Import data",
+                    title = stringResource(R.string.settings_data),
+                    description = stringResource(R.string.settings_data_description),
+                    exportLabel = stringResource(R.string.settings_data_export),
+                    importLabel = stringResource(R.string.settings_data_import),
                     enabled = !isBusy,
                     onExport = {
                         exportDataLauncher.launch(buildDataBackupFileName())
@@ -314,7 +323,7 @@ fun SettingsScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         Text(
-                            text = "Working...",
+                            text = stringResource(R.string.settings_working),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -334,14 +343,20 @@ fun SettingsScreen(
             },
             properties = DialogProperties(dismissOnBackPress = !isBusy, dismissOnClickOutside = !isBusy),
             title = {
-                Text(if (target == SettingsImportTarget.PREFERENCES) "Import preferences?" else "Import data?")
+                Text(
+                    if (target == SettingsImportTarget.PREFERENCES) {
+                        stringResource(R.string.settings_preferences_import_confirm)
+                    } else {
+                        stringResource(R.string.settings_data_import_confirm)
+                    }
+                )
             },
             text = {
                 Text(
                     if (target == SettingsImportTarget.PREFERENCES) {
-                        "This replaces your current preferences."
+                        stringResource(R.string.settings_preferences_import_message)
                     } else {
-                        "This replaces the current app data, including library, collections and annotations."
+                        stringResource(R.string.settings_data_import_message)
                     }
                 )
             },
@@ -356,17 +371,17 @@ fun SettingsScreen(
                                 importPreferencesBackup(context, appContainer, uri.toString())
                                 pendingImportTarget = null
                                 pendingImportUri = null
-                                "Preferences imported."
+                                context.getString(R.string.settings_preferences_imported)
                             } else {
                                 importDataBackup(context, appContainer, uri.toString())
                                 pendingImportTarget = null
                                 pendingImportUri = null
-                                "Data imported."
+                                context.getString(R.string.settings_data_imported)
                             }
                         }
                     }
                 ) {
-                    Text("Import")
+                    Text(stringResource(R.string.settings_import))
                 }
             },
             dismissButton = {
@@ -377,7 +392,7 @@ fun SettingsScreen(
                         pendingImportUri = null
                     }
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )

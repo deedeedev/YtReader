@@ -1,5 +1,6 @@
 package com.deedeedev.ytreader.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -25,6 +26,7 @@ import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.deedeedev.ytreader.AppContainer
+import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.ui.home.HomeViewModel
 import com.deedeedev.ytreader.ui.home.CollectionDetailScreen
 import com.deedeedev.ytreader.ui.home.CollectionsScreen
@@ -35,15 +37,19 @@ import com.deedeedev.ytreader.ui.reader.VideoNotesSheetRoute
 import com.deedeedev.ytreader.ui.settings.SettingsScreen
 import kotlinx.coroutines.launch
 
-sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    object Search : Screen("search", "Search", Icons.Default.Search)
-    object Library : Screen("library", "Library", Icons.Default.Home)
-    object Collections : Screen("collections", "Collections", Icons.Default.CollectionsBookmark)
-    object CollectionDetail : Screen("collection/{collectionId}", "Collection", Icons.Default.CollectionsBookmark)
-    object Settings : Screen("settings", "Settings", Icons.Default.Settings)
+sealed class Screen(
+    val route: String,
+    @StringRes val labelRes: Int,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    object Search : Screen("search", R.string.screen_search, Icons.Default.Search)
+    object Library : Screen("library", R.string.library, Icons.Default.Home)
+    object Collections : Screen("collections", R.string.collections, Icons.Default.CollectionsBookmark)
+    object CollectionDetail : Screen("collection/{collectionId}", R.string.collection, Icons.Default.CollectionsBookmark)
+    object Settings : Screen("settings", R.string.screen_settings, Icons.Default.Settings)
     object Reader : Screen(
         "reader/{subtitleId}?highlightStart={highlightStart}&highlightEnd={highlightEnd}&bookmarkStart={bookmarkStart}",
-        "Reader",
+        R.string.screen_reader,
         Icons.AutoMirrored.Filled.MenuBook
     ) {
         fun createRoute(
@@ -67,7 +73,7 @@ sealed class Screen(val route: String, val label: String, val icon: androidx.com
             }
         }
     }
-    object VideoNotes : Screen("video_notes/{videoId}", "Highlights & Notes", Icons.AutoMirrored.Filled.MenuBook)
+    object VideoNotes : Screen("video_notes/{videoId}", R.string.highlights_and_notes, Icons.AutoMirrored.Filled.MenuBook)
 }
 
 @Composable
@@ -79,6 +85,7 @@ fun MainScreen(
     onReaderSubtitleHandled: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(
         factory = HomeViewModel.provideFactory(
+            appContainer.appContext,
             appContainer.youtubeRepository,
             appContainer.subtitleDao,
             appContainer.highlightNoteDao,

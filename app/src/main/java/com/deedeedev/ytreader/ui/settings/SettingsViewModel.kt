@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.ui.FontOption
 import com.deedeedev.ytreader.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,8 +14,8 @@ import kotlinx.coroutines.launch
 
 data class SettingsUiState(
     val defaultFontSize: Float = 16f,
-    val fontFamily: String = "Default",
-    val availableFonts: List<String> = listOf("Default", "Serif", "SansSerif", "Monospace", "Cursive"),
+    val fontFamily: String = FontOption.DEFAULT.storageValue,
+    val availableFonts: List<String> = FontOption.entries.map { it.storageValue },
     val lineHeightMultiplier: Float = 1.5f,
     val appTheme: AppTheme = AppTheme.SYSTEM,
     val availableThemes: List<AppTheme> = AppTheme.entries,

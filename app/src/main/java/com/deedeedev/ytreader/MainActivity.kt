@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
             YtReaderTheme(appTheme = appTheme) {
                 val viewModel: HomeViewModel = viewModel(
                     factory = HomeViewModel.provideFactory(
+                        appContainer.appContext,
                         appContainer.youtubeRepository,
                         appContainer.subtitleDao,
                         appContainer.highlightNoteDao,

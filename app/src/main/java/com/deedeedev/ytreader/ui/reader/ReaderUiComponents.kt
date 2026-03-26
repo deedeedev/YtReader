@@ -28,9 +28,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.deedeedev.ytreader.R
 
 @Composable
 internal fun HighlightSelectionToolbar(
@@ -41,6 +43,8 @@ internal fun HighlightSelectionToolbar(
     showDelete: Boolean,
     onDeleteHighlight: () -> Unit
 ) {
+    val editNoteLabel = stringResource(R.string.reader_edit_note)
+    val deleteHighlightLabel = stringResource(R.string.reader_remove_highlight)
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.extraLarge,
@@ -75,7 +79,7 @@ internal fun HighlightSelectionToolbar(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.StickyNote2,
-                    contentDescription = "Edit note"
+                    contentDescription = editNoteLabel
                 )
             }
             if (showDelete) {
@@ -91,7 +95,7 @@ internal fun HighlightSelectionToolbar(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
-                        contentDescription = "Delete highlight"
+                        contentDescription = deleteHighlightLabel
                     )
                 }
             }
@@ -106,6 +110,9 @@ internal fun FindResultRow(
     progressPercent: Int,
     onClick: () -> Unit
 ) {
+    val previousSearchResultLabel = stringResource(R.string.reader_previous_search_result)
+    val nextSearchResultLabel = stringResource(R.string.reader_next_search_result)
+    val closeSearchResultsLabel = stringResource(R.string.reader_search_results_close)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -116,7 +123,7 @@ internal fun FindResultRow(
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Text(
-                text = "$number.",
+                text = stringResource(R.string.reader_find_result_number, number),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold
             )
@@ -126,7 +133,7 @@ internal fun FindResultRow(
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = "$progressPercent%",
+                text = stringResource(R.string.reader_progress_percent, progressPercent),
                 modifier = Modifier.padding(top = 6.dp),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.secondary
@@ -150,7 +157,7 @@ internal fun TinyProgressIndicator(
         shadowElevation = 0.dp
     ) {
         Text(
-            text = "$percent% $currentPage/$totalPages",
+            text = stringResource(R.string.reader_page_progress, percent, currentPage, totalPages),
             modifier = Modifier
                 .testTag(READER_PAGE_PROGRESS_TAG)
                 .padding(horizontal = 6.dp, vertical = 2.dp),
@@ -194,6 +201,9 @@ internal fun SearchResultsToolbar(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val previousSearchResultLabel = stringResource(R.string.reader_previous_search_result)
+    val nextSearchResultLabel = stringResource(R.string.reader_next_search_result)
+    val closeSearchResultsLabel = stringResource(R.string.reader_search_results_close)
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.extraLarge,
@@ -208,11 +218,11 @@ internal fun SearchResultsToolbar(
             IconButton(onClick = onPrevious, enabled = canGoPrevious) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Previous search result"
+                    contentDescription = previousSearchResultLabel
                 )
             }
             Text(
-                text = "$currentIndex/$totalResults",
+                text = stringResource(R.string.reader_search_results_counter, currentIndex, totalResults),
                 modifier = Modifier.testTag(READER_SEARCH_RESULTS_COUNT_TAG),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold
@@ -220,13 +230,13 @@ internal fun SearchResultsToolbar(
             IconButton(onClick = onNext, enabled = canGoNext) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Next search result"
+                    contentDescription = nextSearchResultLabel
                 )
             }
             IconButton(onClick = onClose) {
                 Icon(
                     imageVector = Icons.Filled.Close,
-                    contentDescription = "Close search results"
+                    contentDescription = closeSearchResultsLabel
                 )
             }
         }

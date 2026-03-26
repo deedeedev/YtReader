@@ -1,5 +1,6 @@
 package com.deedeedev.ytreader.ui.home
 
+import android.content.res.Resources
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -14,20 +15,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.deedeedev.ytreader.R
 
-fun sortLabel(sortOption: SortOption): String = when (sortOption) {
-    SortOption.TITLE -> "Title"
-    SortOption.CHANNEL_NAME -> "Channel Name"
-    SortOption.DATE_PUBLISHED -> "Date Published"
-    SortOption.DOWNLOADED -> "Downloaded"
-    SortOption.LAST_OPENED -> "Last opened"
+fun sortLabel(resources: Resources, sortOption: SortOption): String = when (sortOption) {
+    SortOption.TITLE -> resources.getString(R.string.library_sort_title)
+    SortOption.CHANNEL_NAME -> resources.getString(R.string.library_sort_channel_name)
+    SortOption.DATE_PUBLISHED -> resources.getString(R.string.library_sort_date_published)
+    SortOption.DOWNLOADED -> resources.getString(R.string.library_sort_downloaded)
+    SortOption.LAST_OPENED -> resources.getString(R.string.library_sort_last_opened)
 }
 
-fun visibilityLabel(filter: LibraryVisibilityFilter): String = when (filter) {
-    LibraryVisibilityFilter.ALL -> "All"
-    LibraryVisibilityFilter.NOT_IN_COLLECTIONS -> "Only not in collections"
-    LibraryVisibilityFilter.IN_COLLECTIONS -> "Only in collections"
+fun visibilityLabel(resources: Resources, filter: LibraryVisibilityFilter): String = when (filter) {
+    LibraryVisibilityFilter.ALL -> resources.getString(R.string.library_visibility_all)
+    LibraryVisibilityFilter.NOT_IN_COLLECTIONS -> resources.getString(R.string.library_visibility_not_in_collections)
+    LibraryVisibilityFilter.IN_COLLECTIONS -> resources.getString(R.string.library_visibility_in_collections)
 }
 
 val libraryVisibilityFilters: List<LibraryVisibilityFilter> = listOf(
@@ -58,6 +61,8 @@ fun LibraryListControls(
     onSortDirectionToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val resources = context.resources
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -74,7 +79,7 @@ fun LibraryListControls(
                     onExpandedChange = { expandedFilter = !expandedFilter }
                 ) {
                     OutlinedTextField(
-                        value = selectedChannelFilter ?: "All Channels",
+                        value = selectedChannelFilter ?: context.getString(R.string.library_all_channels),
                         onValueChange = {},
                         readOnly = true,
                         trailingIcon = {
@@ -83,14 +88,14 @@ fun LibraryListControls(
                         modifier = Modifier
                             .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
                             .fillMaxWidth(),
-                        label = { Text("Filter by Channel") }
+                        label = { Text(context.getString(R.string.library_filter_by_channel)) }
                     )
                     ExposedDropdownMenu(
                         expanded = expandedFilter,
                         onDismissRequest = { expandedFilter = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("All Channels") },
+                            text = { Text(context.getString(R.string.library_all_channels)) },
                             onClick = {
                                 onChannelFilterChange(null)
                                 expandedFilter = false
@@ -116,7 +121,7 @@ fun LibraryListControls(
                 IconButton(onClick = { expandedSort = true }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Sort,
-                        contentDescription = "Sort"
+                        contentDescription = context.getString(R.string.library_sort)
                     )
                 }
                 DropdownMenu(
@@ -125,7 +130,7 @@ fun LibraryListControls(
                 ) {
                     sortOptions.forEach { option ->
                         DropdownMenuItem(
-                            text = { Text(sortLabel(option)) },
+                            text = { Text(sortLabel(resources, option)) },
                             onClick = {
                                 onSortOptionChange(option)
                                 expandedSort = false
@@ -134,7 +139,7 @@ fun LibraryListControls(
                                 if (sortOption == option) {
                                     Icon(
                                         imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected"
+                                        contentDescription = context.getString(R.string.selected)
                                     )
                                 }
                             }
@@ -146,7 +151,11 @@ fun LibraryListControls(
             IconButton(onClick = onSortDirectionToggle) {
                 Icon(
                     imageVector = if (isAscending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                    contentDescription = if (isAscending) "Ascending" else "Descending"
+                    contentDescription = if (isAscending) {
+                        context.getString(R.string.library_sort_ascending)
+                    } else {
+                        context.getString(R.string.library_sort_descending)
+                    }
                 )
             }
         }
@@ -158,7 +167,7 @@ fun LibraryListControls(
                 onExpandedChange = { expandedVisibility = !expandedVisibility }
             ) {
                 OutlinedTextField(
-                    value = visibilityLabel(visibilityFilter),
+                    value = visibilityLabel(resources, visibilityFilter),
                     onValueChange = {},
                     readOnly = true,
                     trailingIcon = {
@@ -167,7 +176,7 @@ fun LibraryListControls(
                     modifier = Modifier
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
                         .fillMaxWidth(),
-                    label = { Text("Visibility") }
+                    label = { Text(context.getString(R.string.library_visibility)) }
                 )
                 ExposedDropdownMenu(
                     expanded = expandedVisibility,
@@ -175,7 +184,7 @@ fun LibraryListControls(
                 ) {
                     libraryVisibilityFilters.forEach { filter ->
                         DropdownMenuItem(
-                            text = { Text(visibilityLabel(filter)) },
+                            text = { Text(visibilityLabel(resources, filter)) },
                             onClick = {
                                 onVisibilityFilterChange(filter)
                                 expandedVisibility = false
@@ -184,7 +193,7 @@ fun LibraryListControls(
                                 if (filter == visibilityFilter) {
                                     Icon(
                                         imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected"
+                                        contentDescription = context.getString(R.string.selected)
                                     )
                                 }
                             }

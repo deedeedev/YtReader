@@ -1,8 +1,10 @@
 package com.deedeedev.ytreader.ui.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.CollectionRepository
 import com.deedeedev.ytreader.data.PersistedCollectionFilters
 import com.deedeedev.ytreader.data.PersistedLibraryFilters
@@ -62,6 +64,7 @@ data class CollectionFilterState(
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel(
+    private val appContext: Context,
     private val youtubeRepository: YoutubeRepository,
     private val subtitleDao: SubtitleDao,
     private val highlightNoteDao: HighlightNoteDao,
@@ -201,7 +204,12 @@ class HomeViewModel(
                 val info = youtubeRepository.getStreamInfo(url)
                 _uiState.update { it.copy(isLoading = false, streamInfo = info) }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = e.message ?: "Unknown error") }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = e.message ?: appContext.getString(R.string.unknown_error)
+                    )
+                }
             }
         }
     }
@@ -223,8 +231,9 @@ class HomeViewModel(
                     videoId = canonicalVideoRef.videoId,
                     videoUrl = canonicalVideoRef.videoUrl,
                     title = info.name,
-                    channelName = info.uploaderName ?: "Unknown Channel",
-                    languageCode = subtitle.languageTag ?: "unknown",
+                    channelName = info.uploaderName ?: appContext.getString(R.string.channel_unknown),
+                    languageCode = subtitle.languageTag
+                        ?: appContext.getString(R.string.library_unknown_code),
                     subtitleTrackId = subtitle.id,
                     trackIdentity = SubtitleIdentity.fromTrack(
                         subtitleTrackId = subtitle.id,
@@ -241,7 +250,12 @@ class HomeViewModel(
                 
                 _uiState.update { it.copy(isLoading = false, error = null) } // Success
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = e.message ?: "Download failed") }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = e.message ?: appContext.getString(R.string.download_failed)
+                    )
+                }
             }
         }
     }
@@ -258,7 +272,9 @@ class HomeViewModel(
                     savedSubtitle = subtitle,
                     streams = info.subtitles
                 )
-                    ?: throw IllegalStateException("Matching subtitle not found")
+                    ?: throw IllegalStateException(
+                        appContext.getString(R.string.matching_subtitle_not_found)
+                    )
 
                 val subtitleContent = matchingSubtitle.content
                 val rawContent = if (matchingSubtitle.isUrl) {
@@ -276,7 +292,12 @@ class HomeViewModel(
                 bookmarkDao.deleteBySubtitleId(subtitle.id)
                 _uiState.update { it.copy(isLoading = false, error = null) }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = e.message ?: "Download failed") }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = e.message ?: appContext.getString(R.string.download_failed)
+                    )
+                }
             } finally {
                 _uiState.update { state ->
                     state.copy(downloadingSubtitleIds = state.downloadingSubtitleIds - subtitle.id)
@@ -570,6 +591,7 @@ class HomeViewModel(
 
     companion object {
         fun provideFactory(
+            appContext: Context,
             repository: YoutubeRepository,
             dao: SubtitleDao,
             highlightNoteDao: HighlightNoteDao,
@@ -580,6 +602,7 @@ class HomeViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return HomeViewModel(
+                    appContext,
                     repository,
                     dao,
                     highlightNoteDao,

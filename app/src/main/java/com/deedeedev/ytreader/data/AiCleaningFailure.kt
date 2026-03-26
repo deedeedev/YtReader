@@ -1,5 +1,7 @@
 package com.deedeedev.ytreader.data
 
+import android.content.res.Resources
+import com.deedeedev.ytreader.R
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.SocketTimeoutException
@@ -18,6 +20,7 @@ internal object AiCleaningFailureFactory {
     private const val MAX_LOG_LENGTH = 8_000
 
     fun fromThrowable(
+        resources: Resources,
         throwable: Throwable,
         endpoint: String? = null,
         model: String? = null
@@ -25,48 +28,67 @@ internal object AiCleaningFailureFactory {
         return when (throwable) {
             is AiCleaningException -> throwable.failure
             is SocketTimeoutException -> buildFailure(
-                summary = "AI cleaning timed out. Try shorter text or check endpoint/model.",
+                resources = resources,
+                summary = resources.getString(R.string.ai_cleaning_timed_out),
                 lines = buildList {
-                    add("Error type: ${throwable::class.java.name}")
-                    endpoint?.takeIf { it.isNotBlank() }?.let { add("Endpoint: $it") }
-                    model?.takeIf { it.isNotBlank() }?.let { add("Model: $it") }
-                    throwable.message?.takeIf { it.isNotBlank() }?.let { add("Message: $it") }
-                    appendCauseChain(this, throwable)
+                    add(resources.getString(R.string.ai_cleaning_log_error_type, throwable::class.java.name))
+                    endpoint?.takeIf { it.isNotBlank() }
+                        ?.let { add(resources.getString(R.string.ai_cleaning_log_endpoint, it)) }
+                    model?.takeIf { it.isNotBlank() }
+                        ?.let { add(resources.getString(R.string.ai_cleaning_log_model, it)) }
+                    throwable.message?.takeIf { it.isNotBlank() }
+                        ?.let { add(resources.getString(R.string.ai_cleaning_log_message, it)) }
+                    appendCauseChain(resources, this, throwable)
                 }
             )
             else -> buildFailure(
-                summary = throwable.message?.takeIf { it.isNotBlank() } ?: "AI cleaning failed.",
+                resources = resources,
+                summary = throwable.message?.takeIf { it.isNotBlank() }
+                    ?: resources.getString(R.string.ai_cleaning_failed),
                 lines = buildList {
-                    add("Error type: ${throwable::class.java.name}")
-                    endpoint?.takeIf { it.isNotBlank() }?.let { add("Endpoint: $it") }
-                    model?.takeIf { it.isNotBlank() }?.let { add("Model: $it") }
-                    throwable.message?.takeIf { it.isNotBlank() }?.let { add("Message: $it") }
-                    appendCauseChain(this, throwable)
+                    add(resources.getString(R.string.ai_cleaning_log_error_type, throwable::class.java.name))
+                    endpoint?.takeIf { it.isNotBlank() }
+                        ?.let { add(resources.getString(R.string.ai_cleaning_log_endpoint, it)) }
+                    model?.takeIf { it.isNotBlank() }
+                        ?.let { add(resources.getString(R.string.ai_cleaning_log_model, it)) }
+                    throwable.message?.takeIf { it.isNotBlank() }
+                        ?.let { add(resources.getString(R.string.ai_cleaning_log_message, it)) }
+                    appendCauseChain(resources, this, throwable)
                     add("")
-                    add("Stack trace:")
+                    add(resources.getString(R.string.ai_cleaning_log_stack_trace))
                     add(sanitizeLog(buildStackTrace(throwable)))
                 }
             )
         }
     }
 
-    fun buildFailure(summary: String, lines: List<String>): AiCleaningFailure {
-        val detail = sanitizeLog(lines.filter { it.isNotBlank() }.joinToString("\n"))
+    fun buildFailure(resources: Resources, summary: String, lines: List<String>): AiCleaningFailure {
+        val detail = sanitizeLog(lines.filter { it.isNotBlank() }.joinToString("\n"), resources)
         return AiCleaningFailure(
-            summary = summary.ifBlank { "AI cleaning failed." },
-            detailedLog = if (detail.isBlank()) "No additional error details." else detail
+            summary = summary.ifBlank { resources.getString(R.string.ai_cleaning_failed) },
+            detailedLog = if (detail.isBlank()) {
+                resources.getString(R.string.ai_cleaning_no_additional_details)
+            } else {
+                detail
+            }
         )
     }
 
-    fun sanitizeLog(raw: String): String {
+    fun sanitizeLog(raw: String, resources: Resources? = null): String {
         if (raw.isBlank()) {
             return raw
         }
-        val redacted = raw.replace(Regex("(?i)(authorization\\s*:\\s*bearer\\s+)(\\S+)"), "$1<redacted>")
+        val replacement = resources?.getString(R.string.ai_cleaning_log_redacted) ?: "<redacted>"
+        val redacted = raw.replace(
+            Regex("(?i)(authorization\\s*:\\s*bearer\\s+)(\\S+)"),
+            "$1$replacement"
+        )
         return if (redacted.length <= MAX_LOG_LENGTH) {
             redacted
         } else {
-            redacted.take(MAX_LOG_LENGTH) + "\n… [truncated]"
+            redacted.take(MAX_LOG_LENGTH) + "\n" + (
+                resources?.getString(R.string.ai_cleaning_log_truncated) ?: "... [truncated]"
+            )
         }
     }
 
@@ -76,12 +98,18 @@ internal object AiCleaningFailureFactory {
         return writer.toString()
     }
 
-    private fun appendCauseChain(lines: MutableList<String>, throwable: Throwable) {
+    private fun appendCauseChain(resources: Resources, lines: MutableList<String>, throwable: Throwable) {
         generateSequence(throwable.cause) { it.cause }
             .take(5)
             .forEachIndexed { index, cause ->
-                val message = cause.message?.takeIf { it.isNotBlank() } ?: "<no message>"
-                lines += "Cause ${index + 1}: ${cause::class.java.name}: $message"
+                val message = cause.message?.takeIf { it.isNotBlank() }
+                    ?: resources.getString(R.string.ai_cleaning_log_no_message)
+                lines += resources.getString(
+                    R.string.ai_cleaning_log_cause,
+                    index + 1,
+                    cause::class.java.name,
+                    message
+                )
             }
     }
 }

@@ -26,11 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import kotlinx.coroutines.delay
@@ -50,6 +52,7 @@ fun LibraryScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val uniqueChannels by viewModel.libraryChannels.collectAsStateWithLifecycle()
     val libraryItems by viewModel.libraryItems.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var addToCollectionTargetVideoId by remember { mutableStateOf<String?>(null) }
@@ -80,7 +83,7 @@ fun LibraryScreen(
 
             LibraryListSection(
                 items = libraryItems,
-                emptyText = "No saved subtitles found.",
+                emptyText = stringResource(R.string.library_empty),
                 modifier = Modifier.fillMaxSize(),
                 key = { it.videoId }
             ) { item ->
@@ -91,7 +94,7 @@ fun LibraryScreen(
                                         viewModel.markVideoAsRead(item.videoId)
                                         coroutineScope.launch {
                                             snackbarHostState.showSnackbar(
-                                                message = "Marked as read",
+                                                message = context.getString(R.string.library_marked_read),
                                                 duration = SnackbarDuration.Short
                                             )
                                         }
@@ -107,8 +110,8 @@ fun LibraryScreen(
                                                 snackbarHostState.currentSnackbarData?.dismiss()
                                             }
                                             val result = snackbarHostState.showSnackbar(
-                                                message = "Removed from Library",
-                                                actionLabel = "Undo",
+                                                message = context.getString(R.string.library_removed),
+                                                actionLabel = context.getString(R.string.undo),
                                                 duration = SnackbarDuration.Indefinite
                                             )
                                             autoDismissJob.cancel()
@@ -195,7 +198,7 @@ fun LibraryScreen(
                 if (!created) {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar(
-                            message = "Could not create collection",
+                            message = context.getString(R.string.collection_create_error),
                             duration = SnackbarDuration.Short
                         )
                     }
@@ -207,7 +210,7 @@ fun LibraryScreen(
                 if (added) {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar(
-                            message = "Added to collection",
+                            message = context.getString(R.string.collection_add_success),
                             duration = SnackbarDuration.Short
                         )
                     }
@@ -215,7 +218,7 @@ fun LibraryScreen(
                 } else {
                     coroutineScope.launch {
                         snackbarHostState.showSnackbar(
-                            message = "Could not add to collection",
+                            message = context.getString(R.string.collection_add_error),
                             duration = SnackbarDuration.Short
                         )
                     }
@@ -247,6 +250,8 @@ fun LibraryItemCard(
     var showMenu by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
+    val removedFromLibraryLabel = stringResource(R.string.library_removed)
+    val readLabel = stringResource(R.string.library_read)
 
     Box {
         Card(
@@ -283,7 +288,7 @@ fun LibraryItemCard(
                     ) {
                         if (showLibraryStatusBadge && !item.isInLibrary) {
                             Text(
-                                text = "Removed from Library",
+                                text = removedFromLibraryLabel,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.secondary,
                                 modifier = Modifier.padding(vertical = 6.dp)
@@ -291,8 +296,11 @@ fun LibraryItemCard(
                         }
                         if (showCollectionBadge && item.isInCollections) {
                             Text(
-                                text = if (item.collectionCount == 1) "In 1 collection"
-                                else "In ${item.collectionCount} collections",
+                                text = if (item.collectionCount == 1) {
+                                    stringResource(R.string.library_in_collection_one)
+                                } else {
+                                    stringResource(R.string.library_in_collection_many, item.collectionCount)
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.secondary,
                                 modifier = Modifier.padding(vertical = 6.dp)
@@ -308,7 +316,7 @@ fun LibraryItemCard(
                             .padding(top = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        ReadingStatusBadge(text = "Read")
+                        ReadingStatusBadge(text = readLabel)
                     }
                 } else {
                     LibraryReadingProgress(
@@ -342,7 +350,7 @@ fun LibraryItemCard(
             onDismissRequest = { showMenu = false }
         ) {
             DropdownMenuItem(
-                text = { Text("Search again") },
+                text = { Text(stringResource(R.string.library_search_again)) },
                 onClick = {
                     onVideoSearchAgain(item.videoUrl)
                     showMenu = false
@@ -355,7 +363,7 @@ fun LibraryItemCard(
                 }
             )
             DropdownMenuItem(
-                text = { Text("Copy video URL") },
+                text = { Text(stringResource(R.string.library_copy_video_url)) },
                 onClick = {
                     clipboardManager.setText(AnnotatedString(item.videoUrl))
                     showMenu = false
@@ -368,7 +376,7 @@ fun LibraryItemCard(
                 }
             )
             DropdownMenuItem(
-                text = { Text("Share video URL") },
+                text = { Text(stringResource(R.string.library_share_video_url)) },
                 onClick = {
                     val sendIntent = Intent().apply {
                         action = Intent.ACTION_SEND
@@ -387,7 +395,7 @@ fun LibraryItemCard(
                 }
             )
             DropdownMenuItem(
-                text = { Text("Add to collection") },
+                text = { Text(stringResource(R.string.collection_add)) },
                 onClick = {
                     onAddToCollection()
                     showMenu = false
@@ -400,7 +408,7 @@ fun LibraryItemCard(
                 }
             )
             DropdownMenuItem(
-                text = { Text("Reset progress") },
+                text = { Text(stringResource(R.string.library_reset_progress)) },
                 onClick = {
                     onResetProgress()
                     showMenu = false
@@ -414,7 +422,7 @@ fun LibraryItemCard(
             )
             onRestoreToLibrary?.let { restoreToLibrary ->
                 DropdownMenuItem(
-                    text = { Text("Restore to Library") },
+                    text = { Text(stringResource(R.string.library_restore)) },
                     onClick = {
                         restoreToLibrary()
                         showMenu = false
@@ -429,7 +437,7 @@ fun LibraryItemCard(
             }
             onRemoveFromLibrary?.let { removeFromLibrary ->
                 DropdownMenuItem(
-                    text = { Text("Remove from Library") },
+                    text = { Text(stringResource(R.string.library_removed)) },
                     onClick = {
                         removeFromLibrary()
                         showMenu = false
@@ -444,7 +452,7 @@ fun LibraryItemCard(
             }
             onRemoveFromCollection?.let { removeFromCollection ->
                 DropdownMenuItem(
-                    text = { Text("Remove from this collection") },
+                    text = { Text(stringResource(R.string.collection_remove_from_this)) },
                     onClick = {
                         removeFromCollection()
                         showMenu = false
@@ -481,7 +489,7 @@ private fun ReadingStatusBadge(text: String) {
 @Composable
 private fun ReadingProgressText(percent: Int) {
     Text(
-        text = "$percent%",
+        text = stringResource(R.string.library_reading_progress, percent),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.secondary,
         modifier = Modifier.padding(vertical = 6.dp)
@@ -518,14 +526,14 @@ fun AddToCollectionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add to collection") },
+        title = { Text(stringResource(R.string.collection_add)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = newCollectionName,
                     onValueChange = { newCollectionName = it },
                     singleLine = true,
-                    label = { Text("New collection") },
+                    label = { Text(stringResource(R.string.collection_new_label)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 TextButton(
@@ -536,17 +544,17 @@ fun AddToCollectionDialog(
                         }
                     }
                 ) {
-                    Text("Create")
+                    Text(stringResource(R.string.collection_create))
                 }
 
                 if (collections.isEmpty()) {
                     Text(
-                        text = "No collections yet. Create one above.",
+                        text = stringResource(R.string.collections_empty_dialog),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 } else {
                     Text(
-                        text = "Choose a collection",
+                        text = stringResource(R.string.collection_choose),
                         style = MaterialTheme.typography.labelLarge
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -564,7 +572,7 @@ fun AddToCollectionDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.reader_close))
             }
         }
     )
@@ -583,6 +591,7 @@ fun SubtitleChip(
     var showDownloadAgainDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
+    val autoLabel = stringResource(R.string.library_subtitle_auto)
 
     Box {
         Surface(
@@ -609,7 +618,7 @@ fun SubtitleChip(
                     val languageLabel = buildString {
                         append(subtitle.languageCode.uppercase())
                         if (subtitle.isAutoGenerated) {
-                            append(" (AUTO)")
+                            append(autoLabel)
                         }
                     }
                     Text(
@@ -626,7 +635,7 @@ fun SubtitleChip(
             onDismissRequest = { showMenu = false }
         ) {
             DropdownMenuItem(
-                text = { Text("Copy subtitles") },
+                text = { Text(stringResource(R.string.library_copy_subtitles)) },
                 onClick = {
                     clipboardManager.setText(AnnotatedString(subtitle.content))
                     showMenu = false
@@ -639,7 +648,7 @@ fun SubtitleChip(
                 }
             )
             DropdownMenuItem(
-                text = { Text("Download again") },
+                text = { Text(stringResource(R.string.download_again)) },
                 onClick = {
                     showMenu = false
                     showDownloadAgainDialog = true
@@ -652,7 +661,7 @@ fun SubtitleChip(
                 }
             )
             DropdownMenuItem(
-                text = { Text("Delete subtitles") },
+                text = { Text(stringResource(R.string.library_delete_subtitles)) },
                 onClick = {
                     showMenu = false
                     showDeleteDialog = true
@@ -670,19 +679,19 @@ fun SubtitleChip(
     if (showDownloadAgainDialog) {
         AlertDialog(
             onDismissRequest = { showDownloadAgainDialog = false },
-            title = { Text("Overwrite subtitles?") },
-            text = { Text("This will replace the current version with a freshly downloaded one.") },
+            title = { Text(stringResource(R.string.library_overwrite_subtitles_title)) },
+            text = { Text(stringResource(R.string.library_overwrite_subtitles_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDownloadAgainDialog = false
                     onDownloadAgain()
                 }) {
-                    Text("Download")
+                    Text(stringResource(R.string.download))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDownloadAgainDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -691,19 +700,19 @@ fun SubtitleChip(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete subtitles?") },
-            text = { Text("This will permanently remove the subtitles from your library.") },
+            title = { Text(stringResource(R.string.library_delete_subtitles_title)) },
+            text = { Text(stringResource(R.string.library_delete_subtitles_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteDialog = false
                     onDelete()
                 }) {
-                    Text("Delete")
+                    Text(stringResource(R.string.delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )

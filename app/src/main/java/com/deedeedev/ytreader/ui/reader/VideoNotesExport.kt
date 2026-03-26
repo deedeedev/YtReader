@@ -3,9 +3,11 @@ package com.deedeedev.ytreader.ui.reader
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.content.res.Resources
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
+import com.deedeedev.ytreader.R
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -17,7 +19,9 @@ internal fun shareVideoNotesMarkdown(context: Context, markdown: String) {
         type = "text/markdown"
         putExtra(Intent.EXTRA_TEXT, markdown)
     }
-    context.startActivity(Intent.createChooser(shareIntent, "Export annotations"))
+    context.startActivity(
+        Intent.createChooser(shareIntent, context.getString(R.string.video_notes_export_annotations))
+    )
 }
 
 internal fun shareVideoNotesPdf(
@@ -45,48 +49,50 @@ internal fun shareVideoNotesPdf(
         clipData = ClipData.newRawUri(pdfFile.name, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(Intent.createChooser(shareIntent, "Export annotations"))
+    context.startActivity(
+        Intent.createChooser(shareIntent, context.getString(R.string.video_notes_export_annotations))
+    )
 }
 
 internal fun buildVideoNotesMarkdown(
+    context: Context,
     title: String,
     videoId: String,
     selectedTypes: Set<VideoAnnotationType>,
     items: List<VideoAnnotationItem>
 ): String {
     val exportTitle = title.ifBlank { videoId }
+    val resources = context.resources
     return buildString {
         append("# ")
         append(exportTitle)
         append("\n\n")
-        append("- Video ID: ")
-        append(videoId)
+        append("- ")
+        append(resources.getString(R.string.video_notes_export_video_id_label, videoId))
         append("\n")
-        append("- Filter: ")
-        append(annotationFilterLabel(selectedTypes))
+        append("- ")
+        append(resources.getString(R.string.video_notes_export_filter_label, annotationFilterLabel(resources, selectedTypes)))
         append("\n")
-        append("- Exported items: ")
-        append(items.size)
+        append("- ")
+        append(resources.getString(R.string.video_notes_export_items_label, items.size))
         append("\n\n")
 
         items.forEachIndexed { index, item ->
             append("## ")
-            append(index + 1)
-            append(". ")
-            append(annotationTypeLabel(item.type))
+            append(resources.getString(R.string.video_notes_export_item_type_format, index + 1, annotationTypeLabel(resources, item.type)))
             append("\n\n")
-            append("- Title: ")
-            append(item.title)
+            append("- ")
+            append(resources.getString(R.string.video_notes_export_title_label, item.title))
             append("\n")
-            append("- Updated: ")
-            append(formatVideoAnnotationUpdatedAt(item.updatedAt))
+            append("- ")
+            append(resources.getString(R.string.video_notes_export_updated_label, formatVideoAnnotationUpdatedAt(item.updatedAt)))
             append("\n")
-            append("- Position: ")
-            append(item.progressPercent)
-            append("%\n")
+            append("- ")
+            append(resources.getString(R.string.video_notes_export_position_label, item.progressPercent))
+            append("\n")
             item.note?.let { note ->
-                append("- Note: ")
-                append(note.replace("\n", " "))
+                append("- ")
+                append(resources.getString(R.string.video_notes_export_note_label, note.replace("\n", " ")))
                 append("\n")
             }
             append("\n")
@@ -95,7 +101,7 @@ internal fun buildVideoNotesMarkdown(
 }
 
 internal fun buildVideoNotesExportFileName(title: String, videoId: String, extension: String): String {
-    val baseName = sanitizeVideoNotesFileName(title.ifBlank { videoId })
+    val baseName = sanitizeVideoNotesFileName(title.ifBlank { videoId }, fallbackName = videoId)
     val normalizedExtension = extension.removePrefix(".").ifBlank { "txt" }
     return "$baseName.$normalizedExtension"
 }
@@ -106,18 +112,24 @@ internal fun formatVideoAnnotationUpdatedAt(updatedAt: Long): String {
     return formatter.format(Date(updatedAt))
 }
 
-internal fun annotationTypeLabel(type: VideoAnnotationType): String = when (type) {
-    VideoAnnotationType.BOOKMARK -> "Bookmark"
-    VideoAnnotationType.NOTE -> "Note"
-    VideoAnnotationType.HIGHLIGHT -> "Highlight"
+internal fun annotationTypeLabel(resources: Resources, type: VideoAnnotationType): String = when (type) {
+    VideoAnnotationType.BOOKMARK -> resources.getString(R.string.video_notes_type_bookmark)
+    VideoAnnotationType.NOTE -> resources.getString(R.string.video_notes_type_note)
+    VideoAnnotationType.HIGHLIGHT -> resources.getString(R.string.video_notes_type_highlight)
 }
 
-internal fun annotationFilterLabel(selectedTypes: Set<VideoAnnotationType>): String {
-    if (selectedTypes.isEmpty()) return "All"
+internal fun annotationFilterLabel(resources: Resources, selectedTypes: Set<VideoAnnotationType>): String {
+    if (selectedTypes.isEmpty()) return resources.getString(R.string.video_notes_filter_all)
     return buildList {
-        if (VideoAnnotationType.BOOKMARK in selectedTypes) add("Bookmarks")
-        if (VideoAnnotationType.HIGHLIGHT in selectedTypes) add("Highlights")
-        if (VideoAnnotationType.NOTE in selectedTypes) add("Notes")
+        if (VideoAnnotationType.BOOKMARK in selectedTypes) {
+            add(resources.getString(R.string.video_notes_filter_bookmarks))
+        }
+        if (VideoAnnotationType.HIGHLIGHT in selectedTypes) {
+            add(resources.getString(R.string.video_notes_filter_highlights))
+        }
+        if (VideoAnnotationType.NOTE in selectedTypes) {
+            add(resources.getString(R.string.video_notes_filter_notes))
+        }
     }.joinToString(", ")
 }
 
@@ -131,6 +143,7 @@ private fun createVideoNotesPdfFile(
     val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
     val outputFile = File(exportDir, buildVideoNotesExportFileName(title, videoId, "pdf"))
     createVideoNotesPdf(
+        resources = context.resources,
         outputFile = outputFile,
         title = title,
         videoId = videoId,
@@ -141,6 +154,7 @@ private fun createVideoNotesPdfFile(
 }
 
 private fun createVideoNotesPdf(
+    resources: Resources,
     outputFile: File,
     title: String,
     videoId: String,
@@ -151,19 +165,36 @@ private fun createVideoNotesPdf(
     try {
         val renderer = VideoNotesPdfRenderer(document)
         renderer.drawTitle(title.ifBlank { videoId })
-        renderer.drawBodyLine("Video ID: $videoId")
-        renderer.drawBodyLine("Filter: ${annotationFilterLabel(selectedTypes)}")
-        renderer.drawBodyLine("Exported items: ${items.size}")
+        renderer.drawBodyLine(resources.getString(R.string.video_notes_export_video_id_label, videoId))
+        renderer.drawBodyLine(
+            resources.getString(
+                R.string.video_notes_export_filter_label,
+                annotationFilterLabel(resources, selectedTypes)
+            )
+        )
+        renderer.drawBodyLine(resources.getString(R.string.video_notes_export_items_label, items.size))
         renderer.drawSpacer()
 
         items.forEachIndexed { index, item ->
-            renderer.drawSectionHeading("${index + 1}. ${annotationTypeLabel(item.type)}")
-            renderer.drawBodyLine("Title: ${item.title}")
-            val updatedLabel = formatVideoAnnotationUpdatedAt(item.updatedAt).ifBlank { "Unknown" }
-            renderer.drawBodyLine("Updated: $updatedLabel")
-            renderer.drawBodyLine("Position: ${item.progressPercent}%")
+            renderer.drawSectionHeading(
+                resources.getString(
+                    R.string.video_notes_export_item_type_format,
+                    index + 1,
+                    annotationTypeLabel(resources, item.type)
+                )
+            )
+            renderer.drawBodyLine(resources.getString(R.string.video_notes_export_title_label, item.title))
+            val updatedLabel = formatVideoAnnotationUpdatedAt(item.updatedAt)
+                .ifBlank { resources.getString(R.string.video_notes_export_unknown) }
+            renderer.drawBodyLine(resources.getString(R.string.video_notes_export_updated_label, updatedLabel))
+            renderer.drawBodyLine(resources.getString(R.string.video_notes_export_position_label, item.progressPercent))
             item.note?.let { note ->
-                renderer.drawBodyLine("Note: ${note.replace(Regex("\\s+"), " ").trim()}")
+                renderer.drawBodyLine(
+                    resources.getString(
+                        R.string.video_notes_export_note_label,
+                        note.replace(Regex("\\s+"), " ").trim()
+                    )
+                )
             }
             renderer.drawSpacer()
         }
@@ -175,12 +206,12 @@ private fun createVideoNotesPdf(
     }
 }
 
-private fun sanitizeVideoNotesFileName(value: String): String {
+private fun sanitizeVideoNotesFileName(value: String, fallbackName: String): String {
     val sanitized = value
         .replace(Regex("[^A-Za-z0-9._-]+"), "-")
         .trim('-')
         .take(60)
-    return sanitized.ifBlank { "annotations" }
+    return sanitized.ifBlank { fallbackName }
 }
 
 private class VideoNotesPdfRenderer(private val document: PdfDocument) {

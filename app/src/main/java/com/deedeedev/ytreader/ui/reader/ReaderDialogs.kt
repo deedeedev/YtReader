@@ -27,28 +27,34 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.deedeedev.ytreader.R
 
 @Composable
 internal fun UnsavedChangesDialog(
     onDiscard: () -> Unit,
     onCancel: () -> Unit
 ) {
+    val title = stringResource(R.string.reader_unsaved_changes)
+    val message = stringResource(R.string.reader_unsaved_changes_message)
+    val discard = stringResource(R.string.reader_discard)
+    val cancel = stringResource(R.string.cancel)
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Unsaved changes") },
-        text = { Text("Do you want to discard your unsaved changes?") },
+        title = { Text(title) },
+        text = { Text(message) },
         confirmButton = {
             TextButton(onClick = onDiscard) {
-                Text("Discard")
+                Text(discard)
             }
         },
         dismissButton = {
             TextButton(onClick = onCancel) {
-                Text("Cancel")
+                Text(cancel)
             }
         }
     )
@@ -74,6 +80,12 @@ internal fun FindDialog(
     isOriginalMode: Boolean,
     onClose: () -> Unit
 ) {
+    val findLabel = stringResource(R.string.find)
+    val regexLabel = stringResource(R.string.reader_regex)
+    val searchLabel = stringResource(R.string.reader_search)
+    val caseSensitiveLabel = stringResource(R.string.reader_case_sensitive)
+    val noResultsLabel = stringResource(R.string.reader_no_results)
+    val closeLabel = stringResource(R.string.reader_close)
     val noFindResults = hasSearchedFind &&
         findErrorMessage == null &&
         findResults.isEmpty() &&
@@ -82,7 +94,7 @@ internal fun FindDialog(
     AlertDialog(
         modifier = modifier,
         onDismissRequest = onClose,
-        title = { Text("Find") },
+        title = { Text(findLabel) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
@@ -100,7 +112,7 @@ internal fun FindDialog(
                             imeAction = ImeAction.Search
                         ),
                         keyboardActions = KeyboardActions(onSearch = { onRunSearch() }),
-                        label = { Text("Regex") },
+                        label = { Text(regexLabel) },
                         isError = findErrorMessage != null,
                         supportingText = {
                             val errorMessage = findErrorMessage
@@ -110,7 +122,7 @@ internal fun FindDialog(
                         }
                     )
                     IconButton(onClick = onRunSearch) {
-                        Icon(imageVector = Icons.Filled.Search, contentDescription = "Search")
+                        Icon(imageVector = Icons.Filled.Search, contentDescription = searchLabel)
                     }
                 }
                 Row(
@@ -123,7 +135,7 @@ internal fun FindDialog(
                         checked = isCaseSensitive,
                         onCheckedChange = onCaseSensitiveChange
                     )
-                    Text("Case sensitive")
+                    Text(caseSensitiveLabel)
                 }
                 when {
                     originalSegmentFindResults.isNotEmpty() -> {
@@ -172,7 +184,7 @@ internal fun FindDialog(
 
                     noFindResults -> {
                         Text(
-                            text = "No results.",
+                            text = noResultsLabel,
                             modifier = Modifier.padding(top = 16.dp)
                         )
                     }
@@ -182,7 +194,7 @@ internal fun FindDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onClose) {
-                Text("Close")
+                Text(closeLabel)
             }
         }
     )
@@ -202,9 +214,15 @@ internal fun FindReplaceDialog(
     onReplace: () -> Unit,
     onCancel: () -> Unit
 ) {
+    val title = stringResource(R.string.find_and_replace)
+    val regexLabel = stringResource(R.string.reader_regex)
+    val replaceWithLabel = stringResource(R.string.reader_replace_with)
+    val caseSensitiveLabel = stringResource(R.string.reader_case_sensitive)
+    val replaceLabel = stringResource(R.string.reader_replace)
+    val cancelLabel = stringResource(R.string.cancel)
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Find and replace") },
+        title = { Text(title) },
         text = {
             Column {
                 TextField(
@@ -216,7 +234,7 @@ internal fun FindReplaceDialog(
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.None
                     ),
-                    label = { Text("Regex") },
+                    label = { Text(regexLabel) },
                     isError = findReplaceErrorMessage != null,
                     supportingText = {
                         val errorMessage = findReplaceErrorMessage
@@ -235,7 +253,7 @@ internal fun FindReplaceDialog(
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.None
                     ),
-                    label = { Text("Replace with") }
+                    label = { Text(replaceWithLabel) }
                 )
                 Row(
                     modifier = Modifier
@@ -247,18 +265,18 @@ internal fun FindReplaceDialog(
                         checked = isCaseSensitive,
                         onCheckedChange = onCaseSensitiveChange
                     )
-                    Text("Case sensitive")
+                    Text(caseSensitiveLabel)
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onReplace) {
-                Text("Replace")
+                Text(replaceLabel)
             }
         },
         dismissButton = {
             TextButton(onClick = onCancel) {
-                Text("Cancel")
+                Text(cancelLabel)
             }
         }
     )
@@ -270,9 +288,12 @@ internal fun AiPreviewDialog(
     onApply: () -> Unit,
     onCancel: () -> Unit
 ) {
+    val title = stringResource(R.string.reader_ai_cleaned_text)
+    val applyLabel = stringResource(R.string.reader_apply)
+    val cancelLabel = stringResource(R.string.cancel)
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("AI cleaned text") },
+        title = { Text(title) },
         text = {
             Column(
                 modifier = Modifier
@@ -285,12 +306,12 @@ internal fun AiPreviewDialog(
         },
         confirmButton = {
             TextButton(onClick = onApply) {
-                Text("Apply")
+                Text(applyLabel)
             }
         },
         dismissButton = {
             TextButton(onClick = onCancel) {
-                Text("Cancel")
+                Text(cancelLabel)
             }
         }
     )
@@ -303,9 +324,12 @@ internal fun AiErrorDialog(
     onCopyError: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val title = stringResource(R.string.ai_cleaning_failed)
+    val copyErrorLabel = stringResource(R.string.reader_copy_error)
+    val dismissLabel = stringResource(R.string.reader_dismiss)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("AI cleaning failed") },
+        title = { Text(title) },
         text = {
             Column(
                 modifier = Modifier
@@ -327,12 +351,12 @@ internal fun AiErrorDialog(
         },
         confirmButton = {
             TextButton(onClick = onCopyError) {
-                Text("Copy error")
+                Text(copyErrorLabel)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Dismiss")
+                Text(dismissLabel)
             }
         }
     )
@@ -340,13 +364,16 @@ internal fun AiErrorDialog(
 
 @Composable
 internal fun EmptyTextDialog(onOk: () -> Unit) {
+    val title = stringResource(R.string.reader_empty_text)
+    val message = stringResource(R.string.reader_subtitle_text_empty)
+    val okLabel = stringResource(R.string.reader_ok)
     AlertDialog(
         onDismissRequest = onOk,
-        title = { Text("Empty text") },
-        text = { Text("Subtitle text cannot be empty.") },
+        title = { Text(title) },
+        text = { Text(message) },
         confirmButton = {
             TextButton(onClick = onOk) {
-                Text("OK")
+                Text(okLabel)
             }
         }
     )
@@ -361,9 +388,14 @@ internal fun HighlightNoteDialog(
     onDismiss: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val title = stringResource(R.string.reader_highlight_note)
+    val noteLabel = stringResource(R.string.reader_note_label)
+    val saveLabel = stringResource(R.string.save)
+    val removeNoteLabel = stringResource(R.string.reader_remove_note)
+    val cancelLabel = stringResource(R.string.cancel)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Highlight note") },
+        title = { Text(title) },
         text = {
             TextField(
                 value = noteText,
@@ -371,24 +403,24 @@ internal fun HighlightNoteDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 120.dp),
-                label = { Text("Note") },
+                label = { Text(noteLabel) },
                 maxLines = 8
             )
         },
         confirmButton = {
             TextButton(onClick = onSave) {
-                Text("Save")
+                Text(saveLabel)
             }
         },
         dismissButton = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (hasExistingNote) {
                     TextButton(onClick = onDelete) {
-                        Text("Remove note")
+                        Text(removeNoteLabel)
                     }
                 }
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(cancelLabel)
                 }
             }
         }
@@ -402,9 +434,14 @@ internal fun BookmarkTitleDialog(
     onSave: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val title = stringResource(R.string.reader_add_bookmark)
+    val bookmarkTitleLabel = stringResource(R.string.reader_bookmark_title_label)
+    val bookmarkSupportingText = stringResource(R.string.reader_bookmark_title_supporting)
+    val saveLabel = stringResource(R.string.save)
+    val cancelLabel = stringResource(R.string.cancel)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add bookmark") },
+        title = { Text(title) },
         text = {
             TextField(
                 value = titleText,
@@ -412,21 +449,21 @@ internal fun BookmarkTitleDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 96.dp),
-                label = { Text("Title") },
+                label = { Text(bookmarkTitleLabel) },
                 supportingText = {
-                    Text("Leave empty to use the current top line.")
+                    Text(bookmarkSupportingText)
                 },
                 maxLines = 4
             )
         },
         confirmButton = {
             TextButton(onClick = onSave) {
-                Text("Save")
+                Text(saveLabel)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(cancelLabel)
             }
         }
     )

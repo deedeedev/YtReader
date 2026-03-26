@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.AiCleaningWorkScheduler
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.BookmarkDao
@@ -311,11 +312,13 @@ class ReaderViewModel(
         val model = userPreferencesRepository.getAiModel().trim()
         if (endpoint.isBlank() || key.isBlank() || model.isBlank()) {
             return Result.failure(
-                IllegalStateException("Set AI endpoint, API key, and model in Settings.")
+                IllegalStateException(appContext.getString(R.string.ai_cleaning_missing_settings))
             )
         }
         if (_uiState.value.isAiCleaning) {
-            return Result.failure(IllegalStateException("AI cleaning is already running."))
+            return Result.failure(
+                IllegalStateException(appContext.getString(R.string.ai_cleaning_already_running))
+            )
         }
 
         return try {
@@ -329,7 +332,8 @@ class ReaderViewModel(
         } catch (error: Exception) {
             subtitleDao.storeAiCleaningFailure(
                 id = subtitleId,
-                summary = error.message?.takeIf { it.isNotBlank() } ?: "Failed to start AI cleaning.",
+                summary = error.message?.takeIf { it.isNotBlank() }
+                    ?: appContext.getString(R.string.ai_cleaning_start_failed),
                 log = error.stackTraceToString(),
                 updatedAt = System.currentTimeMillis()
             )

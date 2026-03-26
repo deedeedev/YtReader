@@ -50,11 +50,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
@@ -110,6 +113,13 @@ private fun VideoNotesScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedTypes by remember { mutableStateOf(setOf<VideoAnnotationType>()) }
     var showExportMenu by remember { mutableStateOf(false) }
+    val defaultTitle = stringResource(R.string.video_notes_default_title)
+    val subtitleLabel = stringResource(R.string.video_notes_from_start_to_finish)
+    val closeLabel = stringResource(R.string.video_notes_close)
+    val exportAnnotationsLabel = stringResource(R.string.video_notes_export_annotations)
+    val markdownLabel = stringResource(R.string.video_notes_format_markdown)
+    val pdfLabel = stringResource(R.string.video_notes_format_pdf)
+    val loadingLabel = stringResource(R.string.video_notes_loading)
 
     val filteredItems = remember(uiState.items, selectedTypes) {
         if (selectedTypes.isEmpty()) {
@@ -121,6 +131,7 @@ private fun VideoNotesScreen(
 
     val markdownExport = remember(filteredItems, uiState.title, videoId, selectedTypes) {
         buildVideoNotesMarkdown(
+            context = context,
             title = uiState.title,
             videoId = videoId,
             selectedTypes = selectedTypes,
@@ -136,12 +147,12 @@ private fun VideoNotesScreen(
                 title = {
                     Column {
                         Text(
-                            text = if (uiState.title.isNotBlank()) uiState.title else "Highlights & notes",
+                            text = if (uiState.title.isNotBlank()) uiState.title else defaultTitle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "From start to finish",
+                            text = subtitleLabel,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.secondary
                         )
@@ -149,7 +160,7 @@ private fun VideoNotesScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = closeLabel)
                     }
                 },
                 actions = {
@@ -158,21 +169,21 @@ private fun VideoNotesScreen(
                             onClick = { showExportMenu = true },
                             enabled = filteredItems.isNotEmpty()
                         ) {
-                            Icon(Icons.Default.IosShare, contentDescription = "Export annotations")
+                            Icon(Icons.Default.IosShare, contentDescription = exportAnnotationsLabel)
                         }
                         DropdownMenu(
                             expanded = showExportMenu,
                             onDismissRequest = { showExportMenu = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Markdown") },
+                                text = { Text(markdownLabel) },
                                 onClick = {
                                     showExportMenu = false
                                     shareVideoNotesMarkdown(context, markdownExport)
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("PDF") },
+                                text = { Text(pdfLabel) },
                                 onClick = {
                                     showExportMenu = false
                                     shareVideoNotesPdf(
@@ -217,7 +228,7 @@ private fun VideoNotesScreen(
 
             if (uiState.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Loading annotations...")
+                    Text(loadingLabel)
                 }
             } else if (filteredItems.isEmpty()) {
                 VideoNotesEmptyState(
@@ -257,9 +268,15 @@ private fun VideoNotesSummary(
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        VideoNotesStatChip(text = "$totalBookmarks bookmarks")
-        VideoNotesStatChip(text = "$totalHighlights highlights")
-        VideoNotesStatChip(text = "$totalNotes notes")
+        VideoNotesStatChip(
+            text = pluralStringResource(R.plurals.video_notes_bookmarks_count, totalBookmarks, totalBookmarks)
+        )
+        VideoNotesStatChip(
+            text = pluralStringResource(R.plurals.video_notes_highlights_count, totalHighlights, totalHighlights)
+        )
+        VideoNotesStatChip(
+            text = pluralStringResource(R.plurals.video_notes_notes_count, totalNotes, totalNotes)
+        )
     }
 }
 
@@ -317,6 +334,7 @@ private fun AnnotationFilterToggle(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val label = annotationTypeLabel(type)
     IconToggleButton(
         checked = selected,
         onCheckedChange = { onClick() },
@@ -332,7 +350,7 @@ private fun AnnotationFilterToggle(
     ) {
         Icon(
             imageVector = annotationFilterIcon(type),
-            contentDescription = annotationTypeLabel(type)
+            contentDescription = label
         )
     }
 }
@@ -342,22 +360,26 @@ private fun VideoNotesEmptyState(
     hasAnyAnnotations: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val emptyMessage = stringResource(R.string.video_notes_empty_message)
+    val emptySupporting = stringResource(R.string.video_notes_empty_supporting)
+    val filteredMessage = stringResource(R.string.video_notes_empty_filtered_message)
+    val filteredSupporting = stringResource(R.string.video_notes_empty_filtered_supporting)
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = if (hasAnyAnnotations) "No annotations match this filter." else "No annotations yet.",
+                text = if (hasAnyAnnotations) filteredMessage else emptyMessage,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = if (hasAnyAnnotations) {
-                    "Toggle the icons off to review every bookmark, highlight, and note."
+                    filteredSupporting
                 } else {
-                    "Create bookmarks, highlights, or notes in the reader to review them here."
+                    emptySupporting
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary
@@ -372,6 +394,7 @@ private fun VideoAnnotationCard(
     onOpenAnnotation: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val openLabel = stringResource(R.string.video_notes_open)
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -447,17 +470,24 @@ private fun VideoAnnotationCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "${item.progressPercent}% through track",
+                        text = stringResource(R.string.video_notes_progress, item.progressPercent),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.secondary
                     )
                     TextButton(onClick = onOpenAnnotation) {
-                        Text("Open")
+                        Text(openLabel)
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun annotationTypeLabel(type: VideoAnnotationType): String = when (type) {
+    VideoAnnotationType.BOOKMARK -> stringResource(R.string.video_notes_type_bookmark)
+    VideoAnnotationType.HIGHLIGHT -> stringResource(R.string.video_notes_type_highlight)
+    VideoAnnotationType.NOTE -> stringResource(R.string.video_notes_type_note)
 }
 
 private fun annotationFilterIcon(type: VideoAnnotationType) = when (type) {
