@@ -1,7 +1,10 @@
 package com.deedeedev.ytreader.ui.reader
 
 import android.Manifest
+import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -597,6 +600,23 @@ fun ReaderScreen(
         }
     }
 
+    fun openOriginalTimestamp(videoId: String, timestampMillis: Long) {
+        val url = buildTimestampedYoutubeUrl(videoId = videoId, timestampMillis = timestampMillis)
+        if (url.isBlank()) {
+            return
+        }
+
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            if (context !is Activity) {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        }
+        try {
+            context.startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+        }
+    }
+
     ReaderCoreEffects(
         subtitleId = subtitle.id,
         subtitleLastStudyScroll = subtitle.lastStudyScroll,
@@ -842,6 +862,9 @@ fun ReaderScreen(
         onApplyReaderBrightness = { applyReaderBrightness(activity, it) },
         onPersistBrightnessPreference = { userPreferencesRepository.setAppBrightness(it) },
         onReaderTap = { handleReaderTap(it) },
+        onOriginalTimestampTap = { timestampMillis ->
+            openOriginalTimestamp(subtitle.videoId, timestampMillis)
+        },
         onSelectionRangeChanged = { start, end ->
             val normalizedStart = minOf(start, end)
             val normalizedEnd = maxOf(start, end)

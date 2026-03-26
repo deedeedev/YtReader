@@ -187,6 +187,22 @@ class ReaderScreenActionsTest {
     }
 
     @Test
+    fun `buildTimestampedYoutubeUrl appends youtube timestamp parameter`() {
+        val url = buildTimestampedYoutubeUrl(videoId = "abc123DEF45", timestampMillis = 83_000)
+
+        assertEquals("https://www.youtube.com/watch?v=abc123DEF45&t=83s", url)
+    }
+
+    @Test
+    fun `buildTimestampedYoutubeUrl clamps negative timestamps and blank video ids`() {
+        assertEquals("", buildTimestampedYoutubeUrl(videoId = "   ", timestampMillis = 10_000))
+        assertEquals(
+            "https://www.youtube.com/watch?v=abc123DEF45&t=0s",
+            buildTimestampedYoutubeUrl(videoId = "abc123DEF45", timestampMillis = -1_000)
+        )
+    }
+
+    @Test
     fun `search results navigation clamps at edges`() {
         val initial = SearchResultsMode.Study(
             results = listOf(

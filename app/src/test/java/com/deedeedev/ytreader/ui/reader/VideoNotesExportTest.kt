@@ -40,7 +40,16 @@ class VideoNotesExportTest {
                     title = "Important concept",
                     note = "Remember this\nfor later",
                     updatedAt = 0L,
-                    progressPercent = 42
+                    progressPercent = 42,
+                    action = VideoAnnotationAction.Highlight(
+                        subtitleId = 1L,
+                        highlight = TextHighlight(
+                            start = 2,
+                            end = 8,
+                            color = HighlightColor.YELLOW,
+                            note = "Remember this\nfor later"
+                        )
+                    )
                 )
             )
         )

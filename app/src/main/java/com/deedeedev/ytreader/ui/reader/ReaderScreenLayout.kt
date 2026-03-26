@@ -59,6 +59,7 @@ internal fun ReaderScreenMainLayer(
     onApplyReaderBrightness: (Float) -> Unit,
     onPersistBrightnessPreference: (Float) -> Unit,
     onReaderTap: (ReaderTapPosition) -> Unit,
+    onOriginalTimestampTap: (Long) -> Unit,
     onSelectionRangeChanged: (Int, Int) -> Unit,
     onHighlightTapped: (TextHighlight?) -> Unit,
     hasActiveHighlight: () -> Boolean,
@@ -127,7 +128,8 @@ internal fun ReaderScreenMainLayer(
                 activeOriginalSegmentSearchResult = activeOriginalSegmentSearchResult,
                 originalSelectionCoordinator = originalSelectionCoordinator,
                 onReaderTap = onReaderTap,
-                onOriginalFallbackViewportChanged = onOriginalFallbackViewportChanged
+                onOriginalFallbackViewportChanged = onOriginalFallbackViewportChanged,
+                onOriginalTimestampTap = onOriginalTimestampTap
             )
         } else {
             ReaderStudyPane(

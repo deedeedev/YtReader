@@ -1,5 +1,6 @@
 package com.deedeedev.ytreader.ui.reader
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,7 +48,8 @@ internal fun ReaderOriginalPane(
     activeOriginalSegmentSearchResult: OriginalSegmentFindResult?,
     originalSelectionCoordinator: OriginalSelectionCoordinator,
     onReaderTap: (ReaderTapPosition) -> Unit,
-    onOriginalFallbackViewportChanged: (Int) -> Unit
+    onOriginalFallbackViewportChanged: (Int) -> Unit,
+    onOriginalTimestampTap: (Long) -> Unit
 ) {
     if (originalSegments.isEmpty()) {
         Column(
@@ -138,6 +140,7 @@ internal fun ReaderOriginalPane(
                 if (showTimestamps) {
                     Text(
                         text = formatTime(segment.startTime),
+                        modifier = Modifier.clickable { onOriginalTimestampTap(segment.startTime) },
                         fontSize = (fontSize * 0.8f).sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.secondary,

@@ -3,6 +3,7 @@ package com.deedeedev.ytreader.ui.reader
 import android.content.Context
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.domain.SubtitleSegment
+import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 
 internal enum class ReaderTapZone {
     PREVIOUS_PAGE,
@@ -169,6 +170,16 @@ internal fun buildExternalAiCleaningShareText(prompt: String, studyText: String)
         normalizedStudyText.isEmpty() -> normalizedPrompt
         else -> "$normalizedPrompt\n\n$normalizedStudyText"
     }
+}
+
+internal fun buildTimestampedYoutubeUrl(videoId: String, timestampMillis: Long): String {
+    val normalizedVideoId = videoId.trim()
+    if (normalizedVideoId.isEmpty()) {
+        return ""
+    }
+
+    val timestampSeconds = (timestampMillis / 1000L).coerceAtLeast(0L)
+    return "${YouTubeVideoIdNormalizer.canonicalWatchUrl(normalizedVideoId)}&t=${timestampSeconds}s"
 }
 
 internal fun classifyReaderTapZone(tapPosition: ReaderTapPosition): ReaderTapZone {

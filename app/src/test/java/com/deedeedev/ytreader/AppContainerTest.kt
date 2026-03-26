@@ -4,6 +4,7 @@ import android.content.Context
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 
 class AppContainerTest {
 
@@ -11,6 +12,7 @@ class AppContainerTest {
     fun testDefaultAppContainerInitialization() {
         // Given
         val mockContext = mock(Context::class.java)
+        `when`(mockContext.applicationContext).thenReturn(mockContext)
 
         // When
         val container = DefaultAppContainer(mockContext)
