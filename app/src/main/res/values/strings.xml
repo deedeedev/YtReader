@@ -114,6 +114,7 @@
     <string name="reader_bookmark_title_supporting">Leave empty to use the current top line.</string>
     <string name="reader_case_sensitive">Case sensitive</string>
     <string name="reader_close">Close</string>
+    <string name="reader_clipboard_empty">Clipboard is empty.</string>
     <string name="reader_copy_error">Copy error</string>
     <string name="reader_enter_regex">Enter a regex to search.</string>
     <string name="reader_excerpt_ellipsis">...</string>
@@ -131,6 +132,7 @@
     <string name="reader_remove_highlight">Delete highlight</string>
     <string name="reader_remove_note">Remove note</string>
     <string name="reader_replace">Replace</string>
+    <string name="reader_replace_with_clipboard">Replace with Clipboard</string>
     <string name="reader_replace_with">Replace with</string>
     <string name="reader_search">Search</string>
     <string name="reader_find_result_number">%1$d.</string>

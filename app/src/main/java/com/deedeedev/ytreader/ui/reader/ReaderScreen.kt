@@ -885,6 +885,18 @@ fun ReaderScreen(
                 Intent.createChooser(shareIntent, context.getString(R.string.share_text_title))
             )
         },
+        onReplaceWithClipboard = {
+            val clipboardText = clipboardManager.getText()?.text?.toString().orEmpty()
+            if (clipboardText.isBlank()) {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.reader_clipboard_empty)
+                    )
+                }
+            } else {
+                applyTextUpdate(clipboardText)
+            }
+        },
         onRemoveEmptyLines = {
             val cleaned = currentText()
                 .lines()

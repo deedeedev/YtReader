@@ -123,6 +123,7 @@ internal fun ReaderBottomBar(
     onIncreaseFontSize: () -> Unit,
     onChangeFontFamily: (String) -> Unit,
     onShareText: (String) -> Unit,
+    onReplaceWithClipboard: () -> Unit,
     onRemoveEmptyLines: () -> Unit,
     onShowFind: () -> Unit,
     onShowVideoNotes: () -> Unit,
@@ -143,6 +144,7 @@ internal fun ReaderBottomBar(
     val selectedLabel = stringResource(R.string.selected)
     val moreOptionsLabel = stringResource(R.string.more_options)
     val shareTextLabel = stringResource(R.string.share_text)
+    val replaceWithClipboardLabel = stringResource(R.string.reader_replace_with_clipboard)
     val highlightsAndNotesLabel = stringResource(R.string.highlights_and_notes)
     val removeEmptyLinesLabel = stringResource(R.string.remove_empty_lines)
     val findLabel = stringResource(R.string.find)
@@ -270,17 +272,17 @@ internal fun ReaderBottomBar(
                             }
                             if (!isOriginalMode) {
                                 DropdownMenuItem(
-                                    text = { Text(externalAiCleaningLabel) },
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        onStartExternalAiCleaning(currentText)
-                                    }
-                                )
-                                DropdownMenuItem(
                                     text = { Text(findAndReplaceLabel) },
                                     onClick = {
                                         showOverflowMenu = false
                                         onShowFindAndReplace()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(replaceWithClipboardLabel) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onReplaceWithClipboard()
                                     }
                                 )
                                 DropdownMenuItem(
@@ -296,6 +298,13 @@ internal fun ReaderBottomBar(
                                         }
                                     },
                                     enabled = !isAiCleaning
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(externalAiCleaningLabel) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onStartExternalAiCleaning(currentText)
+                                    }
                                 )
                             }
                         }

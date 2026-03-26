@@ -1,6 +1,8 @@
 package com.deedeedev.ytreader.ui.reader
 
 import android.content.Context
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
@@ -185,21 +187,24 @@ class ReaderScreenTest {
     }
 
     @Test
-    fun overflowMenu_showsFindAboveFindAndReplace_inStudyMode() {
+    fun overflowMenu_keepsReplaceClipboardAiAndExternalAiAsLastThreeInStudyMode() {
         setReaderContent()
 
         showChrome()
         openOverflowMenu()
 
-        val externalAiCleaningTop = composeTestRule.onNodeWithText("AI Cleaning (ext)").assertIsDisplayed()
-            .fetchSemanticsNode().boundsInRoot.top
-        val findTop = composeTestRule.onNodeWithText("Find").assertIsDisplayed()
-            .fetchSemanticsNode().boundsInRoot.top
         val findAndReplaceTop = composeTestRule.onNodeWithText("Find and replace").assertIsDisplayed()
             .fetchSemanticsNode().boundsInRoot.top
+        val replaceWithClipboardTop = composeTestRule.onNodeWithText("Replace with Clipboard").assertIsDisplayed()
+            .fetchSemanticsNode().boundsInRoot.top
+        val aiCleaningTop = composeTestRule.onNodeWithText("AI Cleaning").assertIsDisplayed()
+            .fetchSemanticsNode().boundsInRoot.top
+        val externalAiCleaningTop = composeTestRule.onNodeWithText("AI Cleaning (ext)").assertIsDisplayed()
+            .fetchSemanticsNode().boundsInRoot.top
 
-        assertTrue(externalAiCleaningTop < findAndReplaceTop)
-        assertTrue(findTop < findAndReplaceTop)
+        assertTrue(findAndReplaceTop < replaceWithClipboardTop)
+        assertTrue(replaceWithClipboardTop < aiCleaningTop)
+        assertTrue(aiCleaningTop < externalAiCleaningTop)
     }
 
     @Test
@@ -210,6 +215,7 @@ class ReaderScreenTest {
         openOverflowMenu()
 
         composeTestRule.onNodeWithText("Find").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("Replace with Clipboard").assertCountEquals(0)
         composeTestRule.onAllNodesWithText("AI Cleaning (ext)").assertCountEquals(0)
         composeTestRule.onAllNodesWithText("Find and replace").assertCountEquals(0)
     }
@@ -224,7 +230,43 @@ class ReaderScreenTest {
         openOverflowMenu()
 
         composeTestRule.onAllNodesWithText("Find").assertCountEquals(0)
+        composeTestRule.onNodeWithText("Replace with Clipboard").assertIsDisplayed()
         composeTestRule.onNodeWithText("Find and replace").assertIsDisplayed()
+    }
+
+    @Test
+    fun replaceWithClipboard_replacesStudyText() {
+        setClipboardText("Clipboard replacement")
+        setReaderContent()
+
+        openOverflowMenu()
+        composeTestRule.onNodeWithText("Replace with Clipboard").assertIsDisplayed().performClick()
+        composeTestRule.waitForIdle()
+
+        val updatedContent = runBlocking {
+            db.subtitleDao().getById(subtitleId)?.studyContent
+        }
+        assertEquals("Clipboard replacement", updatedContent)
+    }
+
+    @Test
+    fun replaceWithClipboard_withEmptyClipboardShowsSnackbarAndDoesNotReplace() {
+        setClipboardText("")
+        setReaderContent()
+
+        val beforeContent = runBlocking {
+            db.subtitleDao().getById(subtitleId)?.studyContent
+        }
+
+        openOverflowMenu()
+        composeTestRule.onNodeWithText("Replace with Clipboard").assertIsDisplayed().performClick()
+
+        composeTestRule.onNodeWithText("Clipboard is empty.").assertIsDisplayed()
+
+        val afterContent = runBlocking {
+            db.subtitleDao().getById(subtitleId)?.studyContent
+        }
+        assertEquals(beforeContent, afterContent)
     }
 
     @Test
@@ -549,6 +591,12 @@ class ReaderScreenTest {
         composeTestRule.runOnUiThread {
             composeTestRule.activity.onBackPressedDispatcher.onBackPressed()
         }
+    }
+
+    private fun setClipboardText(text: String) {
+        val clipboardManager = ApplicationProvider.getApplicationContext<Context>()
+            .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboardManager.setPrimaryClip(ClipData.newPlainText("reader-test", text))
     }
 
     private fun showChrome() {
