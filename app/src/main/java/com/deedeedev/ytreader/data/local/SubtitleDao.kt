@@ -213,6 +213,17 @@ interface SubtitleDao {
     @Query("SELECT * FROM subtitles WHERE id = :id")
     suspend fun getById(id: Long): SubtitleEntity?
 
+    @Query(
+        """
+        SELECT *
+        FROM subtitles
+        WHERE videoId = :videoId
+        ORDER BY lastOpenedAt DESC, createdAt DESC, id DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getPreferredSubtitleForVideo(videoId: String): SubtitleEntity?
+
     @Query("SELECT COUNT(*) FROM subtitles WHERE videoId = :videoId")
     suspend fun countByVideoId(videoId: String): Int
 

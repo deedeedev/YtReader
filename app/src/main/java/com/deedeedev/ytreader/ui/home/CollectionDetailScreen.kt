@@ -50,6 +50,7 @@ fun CollectionDetailScreen(
     collectionId: String,
     onSubtitleClick: (Long) -> Unit,
     onVideoClick: (String) -> Unit,
+    onVideoSearchAgain: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -246,6 +247,7 @@ fun CollectionDetailScreen(
                                 item = item,
                                 onSubtitleClick = onSubtitleClick,
                                 onVideoClick = onVideoClick,
+                                onVideoSearchAgain = onVideoSearchAgain,
                                 onAddToCollection = { addToCollectionTargetVideoId = item.videoId },
                                 onResetProgress = { viewModel.resetVideoProgress(item.videoId) },
                                 showLibraryStatusBadge = false,

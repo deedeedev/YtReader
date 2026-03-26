@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Share
@@ -43,6 +44,7 @@ fun LibraryScreen(
     viewModel: HomeViewModel,
     onSubtitleClick: (Long) -> Unit,
     onVideoClick: (String) -> Unit,
+    onVideoSearchAgain: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -165,6 +167,7 @@ fun LibraryScreen(
                                 item = item,
                                 onSubtitleClick = onSubtitleClick,
                                 onVideoClick = onVideoClick,
+                                onVideoSearchAgain = onVideoSearchAgain,
                                 onAddToCollection = { addToCollectionTargetVideoId = item.videoId },
                                 onResetProgress = { viewModel.resetVideoProgress(item.videoId) },
                                 onRemoveFromLibrary = {
@@ -229,6 +232,7 @@ fun LibraryItemCard(
     item: LibraryItem,
     onSubtitleClick: (Long) -> Unit,
     onVideoClick: (String) -> Unit,
+    onVideoSearchAgain: (String) -> Unit,
     onAddToCollection: () -> Unit,
     onResetProgress: () -> Unit,
     showLibraryStatusBadge: Boolean = true,
@@ -249,7 +253,7 @@ fun LibraryItemCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .combinedClickable(
-                    onClick = { onVideoClick(item.videoUrl) },
+                    onClick = { onVideoClick(item.videoId) },
                     onLongClick = { showMenu = true }
                 ),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -337,6 +341,19 @@ fun LibraryItemCard(
             expanded = showMenu,
             onDismissRequest = { showMenu = false }
         ) {
+            DropdownMenuItem(
+                text = { Text("Search again") },
+                onClick = {
+                    onVideoSearchAgain(item.videoUrl)
+                    showMenu = false
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null
+                    )
+                }
+            )
             DropdownMenuItem(
                 text = { Text("Copy video URL") },
                 onClick = {

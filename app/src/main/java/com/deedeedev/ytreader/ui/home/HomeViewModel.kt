@@ -183,6 +183,10 @@ class HomeViewModel(
         }
     }
 
+    suspend fun getPreferredSubtitleIdForVideo(videoId: String): Long? {
+        return subtitleDao.getPreferredSubtitleForVideo(videoId)?.id
+    }
+
     fun clearSelection() {
         _uiState.update { it.copy(selectedSubtitle = null) }
     }

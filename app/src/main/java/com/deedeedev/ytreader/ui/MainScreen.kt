@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -32,6 +33,7 @@ import com.deedeedev.ytreader.ui.home.SearchScreen
 import com.deedeedev.ytreader.ui.reader.ReaderScreen
 import com.deedeedev.ytreader.ui.reader.VideoNotesSheetRoute
 import com.deedeedev.ytreader.ui.settings.SettingsScreen
+import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     object Search : Screen("search", "Search", Icons.Default.Search)
@@ -87,8 +89,30 @@ fun MainScreen(
     )
 ) {
     val navController = rememberNavController()
+    val coroutineScope = rememberCoroutineScope()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    val openPreferredSubtitleForVideo: (String) -> Unit = { videoId ->
+        coroutineScope.launch {
+            val subtitleId = viewModel.getPreferredSubtitleIdForVideo(videoId) ?: return@launch
+            navController.navigate(Screen.Reader.createRoute(subtitleId)) {
+                launchSingleTop = true
+            }
+        }
+    }
+
+    val searchVideoAgain: (String) -> Unit = { url ->
+        viewModel.onUrlChange(url)
+        viewModel.searchVideo()
+        navController.navigate(Screen.Search.route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
 
     LaunchedEffect(requestedHomeRoute) {
         val route = requestedHomeRoute ?: return@LaunchedEffect
@@ -169,17 +193,8 @@ fun MainScreen(
                     onSubtitleClick = { id ->
                         navController.navigate(Screen.Reader.createRoute(id))
                     },
-                    onVideoClick = { url ->
-                        viewModel.onUrlChange(url)
-                        viewModel.searchVideo()
-                        navController.navigate(Screen.Search.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
+                    onVideoClick = openPreferredSubtitleForVideo,
+                    onVideoSearchAgain = searchVideoAgain
                 )
             }
             composable(
@@ -224,17 +239,8 @@ fun MainScreen(
                         navController.navigate(Screen.Reader.createRoute(id))
                     },
                     onBack = { navController.popBackStack() },
-                    onVideoClick = { url ->
-                        viewModel.onUrlChange(url)
-                        viewModel.searchVideo()
-                        navController.navigate(Screen.Search.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
+                    onVideoClick = openPreferredSubtitleForVideo,
+                    onVideoSearchAgain = searchVideoAgain
                 )
             }
             composable(
