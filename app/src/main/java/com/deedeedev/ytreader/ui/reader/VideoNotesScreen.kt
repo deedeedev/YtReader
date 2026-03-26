@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.StickyNote2
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FormatColorText
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material3.Card
@@ -36,15 +37,22 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +69,8 @@ import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,7 +120,9 @@ private fun VideoNotesScreen(
     )
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
     var selectedTypes by remember { mutableStateOf(setOf<VideoAnnotationType>()) }
     var showExportMenu by remember { mutableStateOf(false) }
     val defaultTitle = stringResource(R.string.video_notes_default_title)
@@ -120,6 +132,10 @@ private fun VideoNotesScreen(
     val markdownLabel = stringResource(R.string.video_notes_format_markdown)
     val pdfLabel = stringResource(R.string.video_notes_format_pdf)
     val loadingLabel = stringResource(R.string.video_notes_loading)
+    val deletedBookmarkLabel = stringResource(R.string.video_notes_deleted_bookmark)
+    val deletedHighlightLabel = stringResource(R.string.video_notes_deleted_highlight)
+    val deletedNoteLabel = stringResource(R.string.video_notes_deleted_note)
+    val undoLabel = stringResource(R.string.undo)
 
     val filteredItems = remember(uiState.items, selectedTypes) {
         if (selectedTypes.isEmpty()) {
@@ -142,6 +158,7 @@ private fun VideoNotesScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -243,11 +260,78 @@ private fun VideoNotesScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(filteredItems, key = { item -> item.key }) { item ->
-                        VideoAnnotationCard(
-                            item = item,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            onOpenAnnotation = { onOpenAnnotation(item.navigationTarget) }
+                        val dismissState = rememberSwipeToDismissBoxState(
+                            confirmValueChange = { dismissValue ->
+                                when (dismissValue) {
+                                    SwipeToDismissBoxValue.EndToStart -> {
+                                        viewModel.deleteAnnotation(item)
+                                        coroutineScope.launch {
+                                            val autoDismissJob = launch {
+                                                delay(5_000)
+                                                snackbarHostState.currentSnackbarData?.dismiss()
+                                            }
+                                            val result = snackbarHostState.showSnackbar(
+                                                message = annotationDeletedMessage(
+                                                    item = item,
+                                                    bookmarkMessage = deletedBookmarkLabel,
+                                                    highlightMessage = deletedHighlightLabel,
+                                                    noteMessage = deletedNoteLabel
+                                                ),
+                                                actionLabel = undoLabel,
+                                                duration = SnackbarDuration.Indefinite
+                                            )
+                                            autoDismissJob.cancel()
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                viewModel.restoreAnnotation(item)
+                                            }
+                                        }
+                                        true
+                                    }
+
+                                    SwipeToDismissBoxValue.StartToEnd,
+                                    SwipeToDismissBoxValue.Settled -> false
+                                }
+                            }
                         )
+
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            enableDismissFromStartToEnd = false,
+                            backgroundContent = {
+                                val isEndToStart =
+                                    dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
+                                val color = if (isEndToStart) {
+                                    MaterialTheme.colorScheme.errorContainer
+                                } else {
+                                    Color.Transparent
+                                }
+                                val tint = if (isEndToStart) {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                } else {
+                                    Color.Transparent
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(color)
+                                        .padding(horizontal = 20.dp),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = tint
+                                    )
+                                }
+                            }
+                        ) {
+                            VideoAnnotationCard(
+                                item = item,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                onOpenAnnotation = { onOpenAnnotation(item.navigationTarget) }
+                            )
+                        }
                     }
                 }
             }
@@ -394,7 +478,6 @@ private fun VideoAnnotationCard(
     onOpenAnnotation: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val openLabel = stringResource(R.string.video_notes_open)
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -463,24 +546,25 @@ private fun VideoAnnotationCard(
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(R.string.video_notes_progress, item.progressPercent),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                    TextButton(onClick = onOpenAnnotation) {
-                        Text(openLabel)
-                    }
-                }
+                Text(
+                    text = stringResource(R.string.video_notes_progress, item.progressPercent),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
             }
         }
     }
+}
+
+private fun annotationDeletedMessage(
+    item: VideoAnnotationItem,
+    bookmarkMessage: String,
+    highlightMessage: String,
+    noteMessage: String
+): String = when (item.type) {
+    VideoAnnotationType.BOOKMARK -> bookmarkMessage
+    VideoAnnotationType.HIGHLIGHT -> highlightMessage
+    VideoAnnotationType.NOTE -> noteMessage
 }
 
 @Composable

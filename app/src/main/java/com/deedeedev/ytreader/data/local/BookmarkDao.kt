@@ -31,6 +31,15 @@ interface BookmarkDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(bookmark: BookmarkEntity): Long
 
+    @Query(
+        """
+        DELETE FROM bookmarks
+        WHERE subtitleId = :subtitleId
+          AND anchorStart = :anchorStart
+        """
+    )
+    suspend fun deleteByAnchor(subtitleId: Long, anchorStart: Int)
+
     @Query("DELETE FROM bookmarks WHERE subtitleId = :subtitleId")
     suspend fun deleteBySubtitleId(subtitleId: Long)
 }

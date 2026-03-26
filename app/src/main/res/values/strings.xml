@@ -262,8 +262,10 @@
     <string name="video_notes_format_markdown">Markdown</string>
     <string name="video_notes_format_pdf">PDF</string>
     <string name="video_notes_from_start_to_finish">From start to finish</string>
+    <string name="video_notes_deleted_bookmark">Bookmark deleted</string>
+    <string name="video_notes_deleted_highlight">Highlight deleted</string>
+    <string name="video_notes_deleted_note">Note deleted</string>
     <string name="video_notes_loading">Loading annotations...</string>
-    <string name="video_notes_open">Open</string>
     <string name="video_notes_progress">%1$d%% through track</string>
     <string name="video_notes_type_bookmark">Bookmark</string>
     <string name="video_notes_type_highlight">Highlight</string>
