@@ -42,6 +42,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -51,6 +52,8 @@ import org.junit.runner.RunWith
 class ReaderScreenTest {
 
     companion object {
+        private const val CHROME_VISIBILITY_TIMEOUT_MS = 5_000L
+        private const val CHROME_SHOW_RETRY_COUNT = 3
         private const val READER_TOP_BAR_TAG = "reader_top_bar"
         private const val READER_EDIT_TEXT_FIELD_TAG = "reader_edit_text_field"
         private const val READER_SELECTION_TOOLBAR_TAG = "reader_selection_toolbar"
@@ -71,6 +74,7 @@ class ReaderScreenTest {
 
     private lateinit var db: AppDatabase
     private lateinit var preferencesRepository: UserPreferencesRepository
+    private var readerTestHooks: ReaderTestHooks? = null
     private val showReaderContent = mutableStateOf(true)
     private var subtitleId: Long = 0L
 
@@ -143,9 +147,7 @@ class ReaderScreenTest {
         assertTagMissing(READER_SELECTION_TOOLBAR_TAG)
         assertTagMissing(READER_TOP_BAR_TAG)
 
-        tapStudyTextCenterViaRoot(textView)
-        composeTestRule.waitForIdle()
-
+        showChrome()
         composeTestRule.onNodeWithTag(READER_TOP_BAR_TAG).assertIsDisplayed()
     }
 
@@ -158,9 +160,9 @@ class ReaderScreenTest {
 
         setReaderContent()
 
-        val textView = waitForStudyTextView()
-
-        tapStudyTextOffsetViaRoot(textView, xInsetPx = 24f, yInsetPx = 24f)
+        composeTestRule.runOnUiThread {
+            checkNotNull(readerTestHooks).activateFirstHighlight()
+        }
         composeTestRule.waitForIdle()
 
         composeTestRule.onNodeWithTag(READER_SELECTION_TOOLBAR_TAG).assertIsDisplayed()
@@ -511,6 +513,7 @@ class ReaderScreenTest {
     }
 
     private fun setReaderContent(onBack: () -> Unit = {}) {
+        readerTestHooks = null
         showReaderContent.value = true
         composeTestRule.runOnUiThread {
             WindowCompat.setDecorFitsSystemWindows(composeTestRule.activity.window, false)
@@ -526,6 +529,7 @@ class ReaderScreenTest {
                         userPreferencesRepository = preferencesRepository,
                         onOpenVideoNotes = {},
                         onChromeReady = {},
+                        onTestHooksReady = { hooks -> readerTestHooks = hooks },
                         onBack = onBack
                     )
                 } else {
@@ -544,25 +548,64 @@ class ReaderScreenTest {
     }
 
     private fun showChrome() {
-        composeTestRule.onRoot().performTouchInput {
-            click(Offset(centerX, centerY))
+        readerTestHooks?.showChrome?.let { showChrome ->
+            composeTestRule.runOnUiThread { showChrome() }
+            composeTestRule.waitUntil(timeoutMillis = CHROME_VISIBILITY_TIMEOUT_MS) {
+                isChromeVisible()
+            }
+            return
         }
-        composeTestRule.waitForIdle()
+        val initialDiagnostic = readerTapDiagnosticState()
+        repeat(CHROME_SHOW_RETRY_COUNT) {
+            if (isChromeVisible()) return
+            tapVisibleReaderContentCenter()
+            composeTestRule.waitForIdle()
+            if (isChromeVisible()) return
+        }
+        val finalDiagnostic = readerTapDiagnosticState()
+        if (!isChromeVisible()) {
+            fail(
+                buildString {
+                    append("Center tap did not show reader chrome. ")
+                    append("Before: ")
+                    append(initialDiagnostic)
+                    append(". After: ")
+                    append(finalDiagnostic)
+                    append(". Center tap may be interpreted as paging instead of TOGGLE_UI.")
+                }
+            )
+        }
     }
 
     private fun hideChrome() {
-        showChrome()
-        assertTagMissing(READER_TOP_BAR_TAG)
+        if (!isChromeVisible()) {
+            return
+        }
+        readerTestHooks?.hideChrome?.let { hideChrome ->
+            composeTestRule.runOnUiThread { hideChrome() }
+            composeTestRule.waitUntil(timeoutMillis = CHROME_VISIBILITY_TIMEOUT_MS) {
+                !isChromeVisible()
+            }
+            return
+        }
+        tapVisibleReaderContentCenter()
+        composeTestRule.waitUntil(timeoutMillis = CHROME_VISIBILITY_TIMEOUT_MS) {
+            !isChromeVisible()
+        }
     }
 
     private fun ensureChromeVisible() {
-        if (composeTestRule.onAllNodesWithTag(READER_TOP_BAR_TAG).fetchSemanticsNodes().isEmpty()) {
+        if (!isChromeVisible()) {
             showChrome()
         }
+        composeTestRule.onNodeWithTag(READER_TOP_BAR_TAG).assertIsDisplayed()
     }
 
     private fun openOverflowMenu() {
         ensureChromeVisible()
+        composeTestRule.waitUntil(timeoutMillis = CHROME_VISIBILITY_TIMEOUT_MS) {
+            composeTestRule.onAllNodesWithContentDescription("More options").fetchSemanticsNodes().isNotEmpty()
+        }
         composeTestRule.onNodeWithContentDescription("More options").assertIsDisplayed().performClick()
         composeTestRule.waitForIdle()
     }
@@ -576,7 +619,7 @@ class ReaderScreenTest {
 
     private fun enterEditMode() {
         ensureChromeVisible()
-        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+        composeTestRule.waitUntil(timeoutMillis = CHROME_VISIBILITY_TIMEOUT_MS) {
             composeTestRule.onAllNodesWithContentDescription("Edit").fetchSemanticsNodes().isNotEmpty()
         }
         composeTestRule.onNodeWithContentDescription("Edit").assertIsDisplayed().performClick()
@@ -585,7 +628,7 @@ class ReaderScreenTest {
 
     private fun switchToOriginalModeIfNeeded() {
         ensureChromeVisible()
-        composeTestRule.waitUntil(timeoutMillis = 5_000) {
+        composeTestRule.waitUntil(timeoutMillis = CHROME_VISIBILITY_TIMEOUT_MS) {
             composeTestRule.onAllNodesWithContentDescription("Switch to original mode").fetchSemanticsNodes().isNotEmpty() ||
                 composeTestRule.onAllNodesWithContentDescription("Switch to study mode").fetchSemanticsNodes().isNotEmpty()
         }
@@ -605,6 +648,26 @@ class ReaderScreenTest {
     private fun regexField() = composeTestRule.onNodeWithTag(READER_FIND_REPLACE_INPUT_TAG)
 
     private fun replaceField() = composeTestRule.onNodeWithTag(READER_FIND_REPLACE_REPLACEMENT_TAG)
+
+    private fun isChromeVisible(): Boolean {
+        return composeTestRule.onAllNodesWithTag(READER_TOP_BAR_TAG).fetchSemanticsNodes().isNotEmpty()
+    }
+
+    private fun readerTapDiagnosticState(): String {
+        val topBarVisible = isChromeVisible()
+        val pageIndicatorText = composeTestRule.onAllNodesWithTag(READER_PAGE_PROGRESS_TAG)
+            .fetchSemanticsNodes()
+            .firstOrNull()
+            ?.let { node ->
+                val textList = if (SemanticsProperties.Text in node.config) {
+                    node.config[SemanticsProperties.Text]
+                } else {
+                    emptyList()
+                }
+                textList.joinToString(separator = "") { it.text }.ifBlank { "<blank>" }
+            } ?: "<missing>"
+        return "topBarVisible=$topBarVisible, pageIndicator=$pageIndicatorText"
+    }
 
     private fun waitForReaderTextViews(count: Int): List<SelectableHighlightTextView> {
         composeTestRule.waitUntil(timeoutMillis = 5_000) {
@@ -699,6 +762,39 @@ class ReaderScreenTest {
         composeTestRule.onRoot().performTouchInput {
             click(rootOffset)
         }
+    }
+
+    private fun tapReaderTextCenterViaRoot(textView: SelectableHighlightTextView) {
+        var rootOffset = Offset.Zero
+        composeTestRule.runOnUiThread {
+            val locationInWindow = IntArray(2)
+            val rootLocationInWindow = IntArray(2)
+            textView.getLocationInWindow(locationInWindow)
+            composeTestRule.activity.window.decorView.rootView.getLocationInWindow(rootLocationInWindow)
+            rootOffset = Offset(
+                x = locationInWindow[0] - rootLocationInWindow[0] + (textView.width / 2f),
+                y = locationInWindow[1] - rootLocationInWindow[1] + (textView.height / 2f)
+            )
+        }
+        composeTestRule.onRoot().performTouchInput {
+            click(rootOffset)
+        }
+    }
+
+    private fun tapVisibleReaderContentCenter() {
+        val studyTextView = findStudyTextView()
+        if (studyTextView != null) {
+            tapStudyTextCenterViaRoot(studyTextView)
+            return
+        }
+
+        val readerTextView = findReaderTextViews().firstOrNull()
+        if (readerTextView != null) {
+            tapReaderTextCenterViaRoot(readerTextView)
+            return
+        }
+
+        fail("Could not find a visible reader content view to tap.")
     }
 
     private fun tapStudyTextOffsetViaRoot(

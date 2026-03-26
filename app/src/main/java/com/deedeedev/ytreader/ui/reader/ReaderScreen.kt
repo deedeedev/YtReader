@@ -28,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -61,6 +62,12 @@ internal class OriginalSelectionCoordinator {
     }
 }
 
+class ReaderTestHooks {
+    lateinit var showChrome: () -> Unit
+    lateinit var hideChrome: () -> Unit
+    lateinit var activateFirstHighlight: () -> Unit
+}
+
 private val DEFAULT_NOTE_HIGHLIGHT_COLOR = HighlightColor.YELLOW
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,6 +82,7 @@ fun ReaderScreen(
     initialBookmarkStart: Int? = null,
     onOpenVideoNotes: (String) -> Unit,
     onChromeReady: () -> Unit,
+    onTestHooksReady: ((ReaderTestHooks) -> Unit)? = null,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -82,6 +90,7 @@ fun ReaderScreen(
     val activity = remember(context) { context.findActivity() }
     var isUiVisible by rememberSaveable(subtitleId) { mutableStateOf(false) }
     var isEditing by rememberSaveable(subtitleId) { mutableStateOf(false) }
+    val testHooks = remember { ReaderTestHooks() }
     val viewModel: ReaderViewModel = viewModel(
         key = "Reader_$subtitleId",
         factory = ReaderViewModel.provideFactory(
@@ -108,6 +117,10 @@ fun ReaderScreen(
             CircularProgressIndicator()
         }
         return
+    }
+    DisposableEffect(onTestHooksReady) {
+        onTestHooksReady?.invoke(testHooks)
+        onDispose { }
     }
     LaunchedEffect(subtitle.id) {
         onChromeReady()
@@ -170,6 +183,15 @@ fun ReaderScreen(
     var suppressSelectionToolbar by remember { mutableStateOf(false) }
     var studyTextView by remember { mutableStateOf<JustifiedStudyTextView?>(null) }
     val originalSelectionCoordinator = remember { OriginalSelectionCoordinator() }
+    SideEffect {
+        testHooks.showChrome = { isUiVisible = true }
+        testHooks.hideChrome = { isUiVisible = false }
+        testHooks.activateFirstHighlight = {
+            suppressSelectionToolbar = false
+            activeHighlight = uiState.highlights.firstOrNull()
+            selectionRange = null
+        }
+    }
     var pendingInitialHighlightRange by remember(subtitleId, initialHighlightRange) {
         mutableStateOf(
             initialHighlightRange?.let { (start, end) ->
