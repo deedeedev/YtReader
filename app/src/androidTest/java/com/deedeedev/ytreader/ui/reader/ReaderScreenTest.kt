@@ -387,6 +387,34 @@ class ReaderScreenTest {
     }
 
     @Test
+    fun leftEdgeSwipeUp_reachesMaximumBrightness() {
+        preferencesRepository.setAppBrightness(MIN_READER_BRIGHTNESS)
+        setReaderContent()
+        setWindowBrightness(MIN_READER_BRIGHTNESS)
+
+        repeat(3) {
+            swipeBrightnessGestureUp()
+        }
+
+        composeTestRule.onNodeWithTag(READER_BRIGHTNESS_INDICATOR_TAG).assertIsDisplayed()
+        assertEquals(1f, currentWindowBrightness(), 0.001f)
+    }
+
+    @Test
+    fun leftEdgeSwipeDown_reachesMinimumBrightness() {
+        preferencesRepository.setAppBrightness(1f)
+        setReaderContent()
+        setWindowBrightness(1f)
+
+        repeat(3) {
+            swipeBrightnessGestureDown()
+        }
+
+        composeTestRule.onNodeWithTag(READER_BRIGHTNESS_INDICATOR_TAG).assertIsDisplayed()
+        assertEquals(MIN_READER_BRIGHTNESS, currentWindowBrightness(), 0.001f)
+    }
+
+    @Test
     fun editMode_leftEdgeSwipeDoesNotChangeBrightness() {
         preferencesRepository.setAppBrightness(0.55f)
         setReaderContent()
@@ -718,6 +746,28 @@ class ReaderScreenTest {
                     y = height * yFraction.coerceIn(0f, 1f)
                 )
             )
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    private fun swipeBrightnessGestureUp() {
+        composeTestRule.onNodeWithTag(READER_BRIGHTNESS_GESTURE_TAG).performTouchInput {
+            val start = Offset(x = centerX, y = height * 0.9f)
+            val end = Offset(x = centerX, y = height * 0.1f)
+            down(start)
+            moveTo(end)
+            up()
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    private fun swipeBrightnessGestureDown() {
+        composeTestRule.onNodeWithTag(READER_BRIGHTNESS_GESTURE_TAG).performTouchInput {
+            val start = Offset(x = centerX, y = height * 0.1f)
+            val end = Offset(x = centerX, y = height * 0.9f)
+            down(start)
+            moveTo(end)
+            up()
         }
         composeTestRule.waitForIdle()
     }
