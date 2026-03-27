@@ -35,10 +35,22 @@ fun visibilityLabel(resources: Resources, filter: LibraryVisibilityFilter): Stri
     LibraryVisibilityFilter.IN_COLLECTIONS -> resources.getString(R.string.library_visibility_in_collections)
 }
 
+fun readStatusLabel(resources: Resources, filter: ReadStatusFilter): String = when (filter) {
+    ReadStatusFilter.ALL -> resources.getString(R.string.library_visibility_all)
+    ReadStatusFilter.READ -> resources.getString(R.string.library_visibility_read)
+    ReadStatusFilter.NOT_READ -> resources.getString(R.string.library_visibility_not_read)
+}
+
 val libraryVisibilityFilters: List<LibraryVisibilityFilter> = listOf(
     LibraryVisibilityFilter.ALL,
     LibraryVisibilityFilter.NOT_IN_COLLECTIONS,
     LibraryVisibilityFilter.IN_COLLECTIONS
+)
+
+val readStatusFilters: List<ReadStatusFilter> = listOf(
+    ReadStatusFilter.ALL,
+    ReadStatusFilter.READ,
+    ReadStatusFilter.NOT_READ
 )
 
 val sortOptions: List<SortOption> = listOf(
@@ -55,16 +67,19 @@ fun LibraryListControls(
     channels: List<String>,
     selectedChannelFilter: String?,
     visibilityFilter: LibraryVisibilityFilter? = null,
+    readStatusFilter: ReadStatusFilter? = null,
     sortOption: SortOption,
     isAscending: Boolean,
     onChannelFilterChange: (String?) -> Unit,
     onVisibilityFilterChange: ((LibraryVisibilityFilter) -> Unit)? = null,
+    onReadStatusFilterChange: ((ReadStatusFilter) -> Unit)? = null,
     onSortOptionChange: (SortOption) -> Unit,
     onSortDirectionToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val resources = context.resources
+    val hasAnyVisibilityFilter = visibilityFilter != null || readStatusFilter != null
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -135,8 +150,9 @@ fun LibraryListControls(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            if (visibilityFilter != null && onVisibilityFilterChange != null) {
-                val isVisibilityFilterActive = visibilityFilter != LibraryVisibilityFilter.ALL
+            if (hasAnyVisibilityFilter) {
+                val isVisibilityFilterActive = visibilityFilter != null && visibilityFilter != LibraryVisibilityFilter.ALL
+                        || readStatusFilter != null && readStatusFilter != ReadStatusFilter.ALL
 
                 Box {
                     IconButton(
@@ -158,22 +174,62 @@ fun LibraryListControls(
                         expanded = expandedVisibility,
                         onDismissRequest = { expandedVisibility = false }
                     ) {
-                        libraryVisibilityFilters.forEach { filter ->
-                            DropdownMenuItem(
-                                text = { Text(visibilityLabel(resources, filter)) },
-                                onClick = {
-                                    onVisibilityFilterChange(filter)
-                                    expandedVisibility = false
-                                },
-                                trailingIcon = {
-                                    if (filter == visibilityFilter) {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = context.getString(R.string.selected)
-                                        )
-                                    }
-                                }
+                        if (visibilityFilter != null && onVisibilityFilterChange != null) {
+                            Text(
+                                text = resources.getString(R.string.library_filter_group_collections),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
                             )
+                            libraryVisibilityFilters.forEach { filter ->
+                                DropdownMenuItem(
+                                    text = { Text(visibilityLabel(resources, filter)) },
+                                    onClick = {
+                                        onVisibilityFilterChange(filter)
+                                        expandedVisibility = false
+                                    },
+                                    trailingIcon = {
+                                        if (filter == visibilityFilter) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = context.getString(R.string.selected)
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        if (visibilityFilter != null && onVisibilityFilterChange != null
+                            && readStatusFilter != null && onReadStatusFilterChange != null
+                        ) {
+                            HorizontalDivider()
+                        }
+
+                        if (readStatusFilter != null && onReadStatusFilterChange != null) {
+                            Text(
+                                text = resources.getString(R.string.library_filter_group_reading_status),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                            readStatusFilters.forEach { filter ->
+                                DropdownMenuItem(
+                                    text = { Text(readStatusLabel(resources, filter)) },
+                                    onClick = {
+                                        onReadStatusFilterChange(filter)
+                                        expandedVisibility = false
+                                    },
+                                    trailingIcon = {
+                                        if (filter == readStatusFilter) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = context.getString(R.string.selected)
+                                            )
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                 }

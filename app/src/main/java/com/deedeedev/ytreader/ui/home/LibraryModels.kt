@@ -7,6 +7,10 @@ enum class LibraryVisibilityFilter {
     ALL, NOT_IN_COLLECTIONS, IN_COLLECTIONS
 }
 
+enum class ReadStatusFilter {
+    ALL, READ, NOT_READ
+}
+
 data class LibraryItem(
     val videoId: String,
     val videoUrl: String,
@@ -46,4 +50,12 @@ internal fun List<LibraryItem>.filterByVisibility(
     LibraryVisibilityFilter.ALL -> this
     LibraryVisibilityFilter.NOT_IN_COLLECTIONS -> filterNot { it.isInCollections }
     LibraryVisibilityFilter.IN_COLLECTIONS -> filter { it.isInCollections }
+}
+
+internal fun List<LibraryItem>.filterByReadStatus(
+    readStatusFilter: ReadStatusFilter
+): List<LibraryItem> = when (readStatusFilter) {
+    ReadStatusFilter.ALL -> this
+    ReadStatusFilter.READ -> filter { it.isRead }
+    ReadStatusFilter.NOT_READ -> filterNot { it.isRead }
 }

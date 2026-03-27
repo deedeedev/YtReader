@@ -55,6 +55,7 @@ data class HomeUiState(
     val favoriteLanguages: Set<String> = emptySet(),
     val selectedChannelFilter: String? = null,
     val libraryVisibilityFilter: LibraryVisibilityFilter = LibraryVisibilityFilter.ALL,
+    val libraryReadStatusFilter: ReadStatusFilter = ReadStatusFilter.ALL,
     val sortOption: SortOption = SortOption.DOWNLOADED,
     val isAscending: Boolean = false,
     val downloadingSubtitleIds: Set<Long> = emptySet(),
@@ -65,6 +66,7 @@ data class HomeUiState(
 
 data class CollectionFilterState(
     val selectedChannelFilter: String? = null,
+    val readStatusFilter: ReadStatusFilter = ReadStatusFilter.ALL,
     val sortOption: SortOption = SortOption.DOWNLOADED,
     val isAscending: Boolean = false
 )
@@ -98,6 +100,7 @@ class HomeViewModel(
             LibraryQueryParams(
                 channelName = state.selectedChannelFilter,
                 visibilityFilter = state.libraryVisibilityFilter,
+                readStatusFilter = state.libraryReadStatusFilter,
                 sortOption = state.sortOption,
                 isAscending = state.isAscending
             )
@@ -110,7 +113,10 @@ class HomeViewModel(
                 isAscending = params.isAscending
             ).flatMapLatest { rows ->
                 observeLibraryItemsForRows(rows)
-                    .map { items -> items.filterByVisibility(params.visibilityFilter) }
+                    .map { items ->
+                        items.filterByVisibility(params.visibilityFilter)
+                            .filterByReadStatus(params.readStatusFilter)
+                    }
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -161,6 +167,12 @@ class HomeViewModel(
         }
     }
 
+    fun setLibraryReadStatusFilter(readStatusFilter: ReadStatusFilter) {
+        _uiState.update {
+            it.copy(libraryReadStatusFilter = readStatusFilter).also(::persistLibraryFilterState)
+        }
+    }
+
     fun setSortOption(sortOption: SortOption) {
         _uiState.update {
             it.copy(sortOption = sortOption).also(::persistLibraryFilterState)
@@ -183,6 +195,10 @@ class HomeViewModel(
 
     fun setCollectionSortOption(collectionId: String, sortOption: SortOption) {
         updateCollectionFilterState(collectionId) { it.copy(sortOption = sortOption) }
+    }
+
+    fun setCollectionReadStatusFilter(collectionId: String, readStatusFilter: ReadStatusFilter) {
+        updateCollectionFilterState(collectionId) { it.copy(readStatusFilter = readStatusFilter) }
     }
 
     fun toggleCollectionSortOrder(collectionId: String) {
@@ -518,6 +534,7 @@ class HomeViewModel(
     fun observeCollectionItems(
         videoIds: List<String>,
         channelName: String?,
+        readStatusFilter: ReadStatusFilter = ReadStatusFilter.ALL,
         sortOption: SortOption,
         isAscending: Boolean
     ): Flow<List<LibraryItem>> {
@@ -533,6 +550,7 @@ class HomeViewModel(
             isAscending = isAscending
         ).flatMapLatest { rows ->
             observeLibraryItemsForRows(rows)
+                .map { items -> items.filterByReadStatus(readStatusFilter) }
         }
     }
 
@@ -656,6 +674,7 @@ class HomeViewModel(
         return HomeUiState(
             selectedChannelFilter = libraryFilters.selectedChannelFilter,
             libraryVisibilityFilter = libraryFilters.visibilityFilter.toLibraryVisibilityFilter(),
+            libraryReadStatusFilter = libraryFilters.readStatusFilter.toReadStatusFilter(),
             sortOption = libraryFilters.sortOption.toSortOption(),
             isAscending = libraryFilters.isAscending,
             collectionFilterStates = collectionFilters
@@ -667,6 +686,7 @@ class HomeViewModel(
             PersistedLibraryFilters(
                 selectedChannelFilter = state.selectedChannelFilter,
                 visibilityFilter = state.libraryVisibilityFilter.name,
+                readStatusFilter = state.libraryReadStatusFilter.name,
                 sortOption = state.sortOption.name,
                 isAscending = state.isAscending
             )
@@ -691,6 +711,7 @@ class HomeViewModel(
                 collectionId = collectionId,
                 state = PersistedCollectionFilters(
                     selectedChannelFilter = state.selectedChannelFilter,
+                    readStatusFilter = state.readStatusFilter.name,
                     sortOption = state.sortOption.name,
                     isAscending = state.isAscending
                 )
@@ -706,9 +727,14 @@ class HomeViewModel(
         return LibraryVisibilityFilter.entries.firstOrNull { it.name == this } ?: LibraryVisibilityFilter.ALL
     }
 
+    private fun String.toReadStatusFilter(): ReadStatusFilter {
+        return ReadStatusFilter.entries.firstOrNull { it.name == this } ?: ReadStatusFilter.ALL
+    }
+
     private fun PersistedCollectionFilters.toUiState(): CollectionFilterState {
         return CollectionFilterState(
             selectedChannelFilter = selectedChannelFilter,
+            readStatusFilter = readStatusFilter.toReadStatusFilter(),
             sortOption = sortOption.toSortOption(),
             isAscending = isAscending
         )
@@ -717,6 +743,7 @@ class HomeViewModel(
     private data class LibraryQueryParams(
         val channelName: String?,
         val visibilityFilter: LibraryVisibilityFilter,
+        val readStatusFilter: ReadStatusFilter,
         val sortOption: SortOption,
         val isAscending: Boolean
     )

@@ -92,12 +92,14 @@ fun CollectionDetailScreen(
     val sortedItems by remember(
         collectionVideoIds,
         filterState.selectedChannelFilter,
+        filterState.readStatusFilter,
         filterState.sortOption,
         filterState.isAscending
     ) {
         viewModel.observeCollectionItems(
             videoIds = collectionVideoIds,
             channelName = filterState.selectedChannelFilter,
+            readStatusFilter = filterState.readStatusFilter,
             sortOption = filterState.sortOption,
             isAscending = filterState.isAscending
         )
@@ -174,9 +176,11 @@ fun CollectionDetailScreen(
             LibraryListControls(
                 channels = uniqueChannels,
                 selectedChannelFilter = filterState.selectedChannelFilter,
+                readStatusFilter = filterState.readStatusFilter,
                 sortOption = filterState.sortOption,
                 isAscending = filterState.isAscending,
                 onChannelFilterChange = { viewModel.setCollectionChannelFilter(collectionId, it) },
+                onReadStatusFilterChange = { viewModel.setCollectionReadStatusFilter(collectionId, it) },
                 onSortOptionChange = { viewModel.setCollectionSortOption(collectionId, it) },
                 onSortDirectionToggle = { viewModel.toggleCollectionSortOrder(collectionId) },
                 modifier = Modifier.padding(vertical = 16.dp)

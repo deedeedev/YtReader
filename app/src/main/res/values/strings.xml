@@ -107,7 +107,11 @@
     <string name="library_unknown">Unknown</string>
     <string name="library_unknown_code">unknown</string>
     <string name="library_visibility">Visibility</string>
+    <string name="library_filter_group_collections">Collections</string>
+    <string name="library_filter_group_reading_status">Reading status</string>
     <string name="library_visibility_all">All</string>
+    <string name="library_visibility_read">Read</string>
+    <string name="library_visibility_not_read">Not read</string>
     <string name="library_visibility_in_collections">Only in collections</string>
     <string name="library_visibility_not_in_collections">Only not in collections</string>
     <string name="more_options">More options</string>

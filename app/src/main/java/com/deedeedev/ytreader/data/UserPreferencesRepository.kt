@@ -13,12 +13,14 @@ import kotlinx.coroutines.flow.asStateFlow
 data class PersistedLibraryFilters(
     val selectedChannelFilter: String? = null,
     val visibilityFilter: String = "ALL",
+    val readStatusFilter: String = "ALL",
     val sortOption: String = "DOWNLOADED",
     val isAscending: Boolean = false
 )
 
 data class PersistedCollectionFilters(
     val selectedChannelFilter: String? = null,
+    val readStatusFilter: String = "ALL",
     val sortOption: String = "DOWNLOADED",
     val isAscending: Boolean = false
 )

@@ -91,10 +91,12 @@ fun LibraryScreen(
                 channels = uniqueChannels,
                 selectedChannelFilter = uiState.selectedChannelFilter,
                 visibilityFilter = uiState.libraryVisibilityFilter,
+                readStatusFilter = uiState.libraryReadStatusFilter,
                 sortOption = uiState.sortOption,
                 isAscending = uiState.isAscending,
                 onChannelFilterChange = viewModel::setChannelFilter,
                 onVisibilityFilterChange = viewModel::setLibraryVisibilityFilter,
+                onReadStatusFilterChange = viewModel::setLibraryReadStatusFilter,
                 onSortOptionChange = viewModel::setSortOption,
                 onSortDirectionToggle = viewModel::toggleSortOrder,
                 modifier = Modifier.padding(bottom = 16.dp)
