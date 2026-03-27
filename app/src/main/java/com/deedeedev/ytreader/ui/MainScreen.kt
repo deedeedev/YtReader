@@ -1,5 +1,6 @@
 package com.deedeedev.ytreader.ui
 
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.padding
@@ -13,7 +14,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -32,6 +36,8 @@ import com.deedeedev.ytreader.ui.home.CollectionDetailScreen
 import com.deedeedev.ytreader.ui.home.CollectionsScreen
 import com.deedeedev.ytreader.ui.home.LibraryScreen
 import com.deedeedev.ytreader.ui.home.SearchScreen
+import com.deedeedev.ytreader.ui.reader.JumpBackState
+import com.deedeedev.ytreader.ui.reader.ReaderLocation
 import com.deedeedev.ytreader.ui.reader.ReaderScreen
 import com.deedeedev.ytreader.ui.reader.VideoNotesSheetRoute
 import com.deedeedev.ytreader.ui.settings.SettingsScreen
@@ -76,6 +82,8 @@ sealed class Screen(
     object VideoNotes : Screen("video_notes/{videoId}", R.string.highlights_and_notes, Icons.AutoMirrored.Filled.MenuBook)
 }
 
+private const val TAG = "MainScreen"
+
 @Composable
 fun MainScreen(
     appContainer: AppContainer,
@@ -100,10 +108,15 @@ fun MainScreen(
     val coroutineScope = rememberCoroutineScope()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    var pendingReaderInitialLocation by remember { mutableStateOf<ReaderLocation?>(null) }
+    var pendingReaderJumpBackState by remember { mutableStateOf<JumpBackState?>(null) }
+    var navigatingFromVideoNotes by remember { mutableStateOf(false) }
 
     val openPreferredSubtitleForVideo: (String) -> Unit = { videoId ->
         coroutineScope.launch {
             val subtitleId = viewModel.getPreferredSubtitleIdForVideo(videoId) ?: return@launch
+            pendingReaderInitialLocation = null
+            pendingReaderJumpBackState = null
             navController.navigate(Screen.Reader.createRoute(subtitleId)) {
                 launchSingleTop = true
             }
@@ -122,6 +135,14 @@ fun MainScreen(
         }
     }
 
+    val openReader: (Long) -> Unit = { subtitleId ->
+        pendingReaderInitialLocation = null
+        pendingReaderJumpBackState = null
+        navController.navigate(Screen.Reader.createRoute(subtitleId)) {
+            launchSingleTop = true
+        }
+    }
+
     LaunchedEffect(requestedHomeRoute) {
         val route = requestedHomeRoute ?: return@LaunchedEffect
         navController.navigate(route) {
@@ -136,9 +157,7 @@ fun MainScreen(
 
     LaunchedEffect(requestedReaderSubtitleId) {
         val subtitleId = requestedReaderSubtitleId ?: return@LaunchedEffect
-        navController.navigate(Screen.Reader.createRoute(subtitleId)) {
-            launchSingleTop = true
-        }
+        openReader(subtitleId)
         onReaderSubtitleHandled()
     }
 
@@ -185,7 +204,7 @@ fun MainScreen(
                 SearchScreen(
                     viewModel = viewModel,
                     onSubtitleClick = { id ->
-                        navController.navigate(Screen.Reader.createRoute(id))
+                        openReader(id)
                     }
                 )
             }
@@ -199,7 +218,7 @@ fun MainScreen(
                 LibraryScreen(
                     viewModel = viewModel,
                     onSubtitleClick = { id ->
-                        navController.navigate(Screen.Reader.createRoute(id))
+                        openReader(id)
                     },
                     onVideoClick = openPreferredSubtitleForVideo,
                     onVideoSearchAgain = searchVideoAgain
@@ -244,7 +263,7 @@ fun MainScreen(
                     viewModel = viewModel,
                     collectionId = collectionId,
                     onSubtitleClick = { id ->
-                        navController.navigate(Screen.Reader.createRoute(id))
+                        openReader(id)
                     },
                     onBack = { navController.popBackStack() },
                     onVideoClick = openPreferredSubtitleForVideo,
@@ -284,16 +303,38 @@ fun MainScreen(
                     highlightNoteDao = appContainer.highlightNoteDao,
                     bookmarkDao = appContainer.bookmarkDao,
                     userPreferencesRepository = appContainer.userPreferencesRepository,
+                    initialReaderLocation = pendingReaderInitialLocation?.takeIf { it.subtitleId == subtitleId },
+                    initialJumpBackState = pendingReaderJumpBackState.also {
+                        Log.d(TAG, "ReaderScreen initialJumpBackState=$it pendingReaderJumpBackState=$pendingReaderJumpBackState")
+                    },
                     initialHighlightRange = if (highlightStart >= 0 && highlightEnd > highlightStart) {
                         highlightStart to highlightEnd
                     } else {
                         null
                     },
                     initialBookmarkStart = bookmarkStart.takeIf { it >= 0 },
-                    onOpenVideoNotes = { videoId ->
+                    onOpenVideoNotes = { videoId, jumpBackState ->
+                        Log.d(TAG, "onOpenVideoNotes: setting pendingReaderJumpBackState=$jumpBackState")
+                        pendingReaderJumpBackState = jumpBackState
                         navController.navigate("video_notes/$videoId") {
                             launchSingleTop = true
                         }
+                    },
+                    onNavigateToReaderLocation = { location ->
+                        pendingReaderInitialLocation = location
+                        pendingReaderJumpBackState = null
+                        navController.navigate(Screen.Reader.createRoute(location.subtitleId)) {
+                            navController.currentBackStackEntry?.destination?.id?.let { currentDestinationId ->
+                                popUpTo(currentDestinationId) {
+                                    inclusive = true
+                                }
+                            }
+                        }
+                    },
+                    onInitialNavigationConsumed = {
+                        Log.d(TAG, "onInitialNavigationConsumed: clearing pendingReaderJumpBackState=$pendingReaderJumpBackState", Exception("stacktrace"))
+                        pendingReaderInitialLocation = null
+                        pendingReaderJumpBackState = null
                     },
                     onChromeReady = {},
                     onBack = { navController.popBackStack() }
@@ -315,6 +356,7 @@ fun MainScreen(
                     highlightNoteDao = appContainer.highlightNoteDao,
                     bookmarkDao = appContainer.bookmarkDao,
                     onOpenAnnotation = { target ->
+                        navigatingFromVideoNotes = true
                         navController.navigate(
                             Screen.Reader.createRoute(
                                 subtitleId = target.subtitleId,
@@ -330,7 +372,14 @@ fun MainScreen(
                             }
                         }
                     },
-                    onDismiss = { navController.popBackStack() }
+                    onDismiss = {
+                        Log.d(TAG, "VideoNotes onDismiss: navigatingFromVideoNotes=$navigatingFromVideoNotes pendingReaderJumpBackState=$pendingReaderJumpBackState")
+                        if (!navigatingFromVideoNotes) {
+                            pendingReaderJumpBackState = null
+                            navController.popBackStack()
+                        }
+                        navigatingFromVideoNotes = false
+                    }
                 )
             }
         }

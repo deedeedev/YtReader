@@ -177,6 +177,14 @@ class SelectableHighlightTextView @JvmOverloads constructor(
         return totalPaddingTop + textLayout.getLineTop(line)
     }
 
+    fun topVisibleLineAnchor(scrollOffset: Int): Int? {
+        val textLayout = layout ?: return null
+        val textLength = text.length
+        if (textLength == 0) return null
+        val line = textLayout.getLineForVertical(scrollOffset.coerceAtLeast(0))
+        return textLayout.getLineStart(line).coerceIn(0, textLength - 1)
+    }
+
     fun selectedText(): String? {
         val spannable = text as? Spannable ?: return null
         val start = selectionStart

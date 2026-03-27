@@ -1,6 +1,7 @@
 package com.deedeedev.ytreader.ui.reader
 
 import android.Manifest
+import android.util.Log
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -73,19 +74,25 @@ class ReaderTestHooks {
     lateinit var activateFirstHighlight: () -> Unit
 }
 
+private const val TAG = "ReaderScreen"
+
 private val DEFAULT_NOTE_HIGHLIGHT_COLOR = HighlightColor.YELLOW
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReaderScreen(
+internal fun ReaderScreen(
     subtitleId: Long,
     subtitleDao: SubtitleDao,
     highlightNoteDao: HighlightNoteDao,
     bookmarkDao: BookmarkDao,
     userPreferencesRepository: UserPreferencesRepository,
+    initialReaderLocation: ReaderLocation? = null,
+    initialJumpBackState: JumpBackState? = null,
     initialHighlightRange: Pair<Int, Int>? = null,
     initialBookmarkStart: Int? = null,
-    onOpenVideoNotes: (String) -> Unit,
+    onOpenVideoNotes: (String, JumpBackState?) -> Unit,
+    onNavigateToReaderLocation: (ReaderLocation) -> Unit,
+    onInitialNavigationConsumed: () -> Unit,
     onChromeReady: () -> Unit,
     onTestHooksReady: ((ReaderTestHooks) -> Unit)? = null,
     onBack: () -> Unit
@@ -208,6 +215,14 @@ fun ReaderScreen(
     var pendingInitialBookmarkStart by remember(subtitleId, initialBookmarkStart) {
         mutableStateOf(initialBookmarkStart)
     }
+    var pendingInitialReaderLocation by remember(subtitleId) {
+        mutableStateOf(initialReaderLocation?.takeIf { it.subtitleId == subtitleId })
+    }
+    var jumpBackState by remember(subtitleId) {
+        mutableStateOf(initialJumpBackState).also {
+            Log.d(TAG, "jumpBackState init: subtitleId=$subtitleId initialJumpBackState=$initialJumpBackState")
+        }
+    }
     var lastKnownStudyScroll by rememberSaveable(subtitle.id) {
         mutableStateOf(subtitle.lastStudyScroll)
     }
@@ -228,7 +243,15 @@ fun ReaderScreen(
         viewModel.updateLastStudyScroll(scrollToSave)
     })
 
-    val hasInitialNavigationTarget = initialHighlightRange != null || initialBookmarkStart != null
+    val hasInitialNavigationTarget = initialReaderLocation != null ||
+        initialHighlightRange != null ||
+        initialBookmarkStart != null
+
+    LaunchedEffect(subtitleId, pendingInitialReaderLocation, jumpBackState) {
+        if (pendingInitialReaderLocation != null || jumpBackState != null) {
+            onInitialNavigationConsumed()
+        }
+    }
 
     DisposableEffect(Unit) {
         onDispose { brightnessHideJob?.cancel() }
@@ -280,6 +303,115 @@ fun ReaderScreen(
     fun clearSearchResultsMode() {
         searchResultsMode = null
         pendingFindSelection = null
+    }
+
+    fun clearJumpBackState() {
+        Log.d(TAG, "clearJumpBackState called, previous=$jumpBackState", Exception("clearJumpBackState stacktrace"))
+        jumpBackState = null
+    }
+
+    fun captureCurrentLocation(): ReaderLocation? {
+        val anchor = when (readerMode) {
+            ReaderMode.STUDY -> {
+                val anchorStart = studyTextView?.topVisibleLineAnchor(studyScrollState.value) ?: return null
+                ReaderAnchor.Study(anchorStart)
+            }
+
+            ReaderMode.ORIGINAL -> {
+                if (originalSegments.isEmpty()) {
+                    val textView = originalSelectionCoordinator.textViews[-1] ?: return null
+                    val anchorStart = textView.topVisibleLineAnchor(originalFallbackScrollState.value) ?: return null
+                    ReaderAnchor.OriginalFallback(anchorStart)
+                } else {
+                    ReaderAnchor.OriginalSegment(originalListState.firstVisibleItemIndex)
+                }
+            }
+        }
+        return ReaderLocation(subtitleId = subtitle.id, anchor = anchor)
+    }
+
+    fun registerProgrammaticJump(
+        reason: ReaderJumpReason,
+        label: String? = null,
+        replaceExisting: Boolean = true
+    ) {
+        if (!replaceExisting && jumpBackState != null) {
+            return
+        }
+        val origin = captureCurrentLocation() ?: return
+        jumpBackState = JumpBackState(origin = origin, reason = reason, label = label)
+    }
+
+    fun closeSearchResults() {
+        clearSearchResultsMode()
+        if (jumpBackState?.reason == ReaderJumpReason.SEARCH) {
+            clearJumpBackState()
+        }
+    }
+
+    suspend fun jumpBackTo(state: JumpBackState) {
+        val origin = state.origin
+        if (origin.subtitleId != subtitle.id) {
+            clearSearchResultsMode()
+            clearJumpBackState()
+            onNavigateToReaderLocation(origin)
+            return
+        }
+
+        when (val anchor = origin.anchor) {
+            is ReaderAnchor.Study -> {
+                if (readerMode != ReaderMode.STUDY) {
+                    readerMode = ReaderMode.STUDY
+                    repeat(10) {
+                        val textView = studyTextView
+                        if (textView != null && textView.isLaidOut) {
+                            val targetScroll = textView.verticalOffsetForSelection(anchor.anchorStart)
+                                .coerceIn(0, studyScrollState.maxValue)
+                            studyScrollState.animateScrollTo(targetScroll)
+                            clearSearchResultsMode()
+                            clearJumpBackState()
+                            return
+                        }
+                        delay(16)
+                    }
+                    return
+                }
+
+                val textView = studyTextView ?: return
+                val targetScroll = textView.verticalOffsetForSelection(anchor.anchorStart)
+                    .coerceIn(0, studyScrollState.maxValue)
+                studyScrollState.animateScrollTo(targetScroll)
+            }
+
+            is ReaderAnchor.OriginalFallback -> {
+                if (readerMode != ReaderMode.ORIGINAL) {
+                    readerMode = ReaderMode.ORIGINAL
+                }
+                repeat(10) {
+                    val textView = originalSelectionCoordinator.textViews[-1]
+                    if (textView != null && textView.isShown) {
+                        val targetScroll = textView.verticalOffsetForSelection(anchor.textOffset)
+                            .coerceIn(0, originalFallbackScrollState.maxValue)
+                        originalFallbackScrollState.animateScrollTo(targetScroll)
+                        clearSearchResultsMode()
+                        clearJumpBackState()
+                        return
+                    }
+                    delay(16)
+                }
+                return
+            }
+
+            is ReaderAnchor.OriginalSegment -> {
+                if (readerMode != ReaderMode.ORIGINAL) {
+                    readerMode = ReaderMode.ORIGINAL
+                }
+                originalListState.animateScrollToItem(anchor.segmentIndex)
+            }
+        }
+
+        clearSearchResultsMode()
+        clearJumpBackState()
     }
 
     fun dismissHighlightNoteDialog() {
@@ -334,6 +466,10 @@ fun ReaderScreen(
     }
 
     fun activateSearchResultsMode(mode: SearchResultsMode) {
+        registerProgrammaticJump(
+            reason = ReaderJumpReason.SEARCH,
+            replaceExisting = jumpBackState?.reason != ReaderJumpReason.SEARCH
+        )
         searchResultsMode = mode
         pendingFindSelection = activePendingFindSelection(mode)
     }
@@ -518,12 +654,78 @@ fun ReaderScreen(
     }
 
     LaunchedEffect(
+        pendingInitialReaderLocation,
+        studyTextView,
+        studyScrollState.maxValue,
+        originalFallbackScrollState.maxValue,
+        originalListState,
+        readerMode
+    ) {
+        val location = pendingInitialReaderLocation ?: return@LaunchedEffect
+        when (val anchor = location.anchor) {
+            is ReaderAnchor.Study -> {
+                if (readerMode != ReaderMode.STUDY) {
+                    readerMode = ReaderMode.STUDY
+                    return@LaunchedEffect
+                }
+
+                val textView = studyTextView ?: return@LaunchedEffect
+                if (!textView.isLaidOut) return@LaunchedEffect
+                val targetScroll = textView.verticalOffsetForSelection(anchor.anchorStart)
+                    .coerceIn(0, studyScrollState.maxValue)
+                studyScrollState.scrollTo(targetScroll)
+            }
+
+            is ReaderAnchor.OriginalFallback -> {
+                if (readerMode != ReaderMode.ORIGINAL) {
+                    readerMode = ReaderMode.ORIGINAL
+                    return@LaunchedEffect
+                }
+
+                repeat(10) {
+                    val textView = originalSelectionCoordinator.textViews[-1]
+                    if (textView != null && textView.isShown) {
+                        val targetScroll = textView.verticalOffsetForSelection(anchor.textOffset)
+                            .coerceIn(0, originalFallbackScrollState.maxValue)
+                        originalFallbackScrollState.scrollTo(targetScroll)
+                        pendingInitialReaderLocation = null
+                        return@LaunchedEffect
+                    }
+                    delay(16)
+                }
+                return@LaunchedEffect
+            }
+
+            is ReaderAnchor.OriginalSegment -> {
+                if (readerMode != ReaderMode.ORIGINAL) {
+                    readerMode = ReaderMode.ORIGINAL
+                    return@LaunchedEffect
+                }
+
+                originalListState.scrollToItem(anchor.segmentIndex)
+            }
+        }
+
+        selectionRange = null
+        activeHighlight = null
+        suppressSelectionToolbar = false
+        dismissHighlightNoteDialog()
+        dismissBookmarkDialog()
+        studyTextView?.clearSelection()
+        originalSelectionCoordinator.clearAllSelections()
+        clearSearchResultsMode()
+        isUiVisible = false
+        pendingInitialReaderLocation = null
+    }
+
+    LaunchedEffect(
         pendingInitialHighlightRange,
         studyTextView,
         studyScrollState.maxValue,
         uiState.highlights,
         readerMode
     ) {
+        if (pendingInitialReaderLocation != null) return@LaunchedEffect
         val targetRange = pendingInitialHighlightRange ?: return@LaunchedEffect
         if (readerMode != ReaderMode.STUDY) {
             readerMode = ReaderMode.STUDY
@@ -556,6 +758,7 @@ fun ReaderScreen(
         studyScrollState.maxValue,
         readerMode
     ) {
+        if (pendingInitialReaderLocation != null) return@LaunchedEffect
         val bookmarkStart = pendingInitialBookmarkStart ?: return@LaunchedEffect
         if (readerMode != ReaderMode.STUDY) {
             readerMode = ReaderMode.STUDY
@@ -662,6 +865,7 @@ fun ReaderScreen(
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
             clearSearchResultsMode()
+            clearJumpBackState()
         },
         onShowAiPreviewDialog = { showAiPreviewDialog = true },
         onShowAiErrorDialog = { showAiErrorDialog = true },
@@ -708,10 +912,14 @@ fun ReaderScreen(
     )
 
     BackHandler {
-        if (searchResultsMode != null) {
-            clearSearchResultsMode()
+        if (searchResultsMode != null && jumpBackState?.reason == ReaderJumpReason.SEARCH) {
+            coroutineScope.launch { jumpBackTo(jumpBackState ?: return@launch) }
+        } else if (searchResultsMode != null) {
+            closeSearchResults()
         } else if (isUiVisible) {
             isUiVisible = false
+        } else if (jumpBackState != null) {
+            coroutineScope.launch { jumpBackTo(jumpBackState ?: return@launch) }
         } else {
             requestAction(PendingAction.ExitScreen)
         }
@@ -723,13 +931,16 @@ fun ReaderScreen(
         !suppressSelectionToolbar &&
         (selectionRange != null || activeHighlight != null)
     val showSearchResultsToolbar = !isEditing && searchResultsMode != null
+    val showJumpBackToolbar = !isEditing && searchResultsMode == null && jumpBackState != null
+    Log.d(TAG, "showJumpBackToolbar=$showJumpBackToolbar isEditing=$isEditing searchResultsMode=$searchResultsMode jumpBackState=$jumpBackState")
     val topContentPadding by animateDpAsState(
         targetValue = if (isUiVisible) TopAppBarDefaults.TopAppBarExpandedHeight else 0.dp,
         label = "readerTopContentPadding"
     )
     val bottomContentPadding by animateDpAsState(
         targetValue = (if (isUiVisible) READER_BOTTOM_BAR_HEIGHT else 0.dp) +
-            (if (showSearchResultsToolbar) READER_SEARCH_RESULTS_BAR_HEIGHT else 0.dp),
+            (if (showSearchResultsToolbar) READER_SEARCH_RESULTS_BAR_HEIGHT else 0.dp) +
+            (if (showJumpBackToolbar) READER_JUMP_BACK_BAR_HEIGHT else 0.dp),
         label = "readerBottomContentPadding"
     )
 
@@ -950,7 +1161,16 @@ fun ReaderScreen(
             showFindDialog = true
         },
         onShowVideoNotes = {
-            subtitle.videoId.takeIf { it.isNotBlank() }?.let(onOpenVideoNotes)
+            subtitle.videoId.takeIf { it.isNotBlank() }?.let { videoId ->
+                val currentLocation = captureCurrentLocation()
+                Log.d(TAG, "onShowVideoNotes: videoId=$videoId currentLocation=$currentLocation studyTextView=${studyTextView != null}")
+                onOpenVideoNotes(
+                    videoId,
+                    currentLocation?.let {
+                        JumpBackState(origin = it, reason = ReaderJumpReason.ANNOTATION)
+                    }
+                )
+            }
         },
         onShowFindAndReplace = {
             clearSearchResultsMode()
@@ -1034,13 +1254,22 @@ fun ReaderScreen(
             openBookmarkDialog(bookmark)
         },
         showSearchResultsToolbar = showSearchResultsToolbar,
+        showJumpBackToolbar = showJumpBackToolbar,
         searchResultsCurrentIndex = (searchResultsMode?.activeIndex ?: 0) + 1,
         searchResultsTotalCount = searchResultsMode?.totalResults ?: 0,
         canNavigateToPreviousSearchResult = canNavigateToPreviousSearchResult(searchResultsMode),
         canNavigateToNextSearchResult = canNavigateToNextSearchResult(searchResultsMode),
+        onReturnToSearchOrigin = jumpBackState
+            ?.takeIf { it.reason == ReaderJumpReason.SEARCH }
+            ?.let { state -> { coroutineScope.launch { jumpBackTo(state) } } },
         onNavigateToPreviousSearchResult = { moveSearchResultsBackward() },
         onNavigateToNextSearchResult = { moveSearchResultsForward() },
-        onCloseSearchResults = { clearSearchResultsMode() },
+        onCloseSearchResults = { closeSearchResults() },
+        onJumpBack = {
+            jumpBackState?.let { state ->
+                coroutineScope.launch { jumpBackTo(state) }
+            }
+        },
         fullscreenProgressPercent = fullscreenProgressPercent,
         fullscreenPageProgress = fullscreenPageProgress,
         showBrightnessIndicator = showBrightnessIndicator,

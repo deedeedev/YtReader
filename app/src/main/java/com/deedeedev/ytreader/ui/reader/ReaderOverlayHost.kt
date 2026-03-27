@@ -27,13 +27,16 @@ internal fun BoxScope.ReaderOverlayHost(
     onDeleteHighlight: () -> Unit,
     hasActiveHighlight: Boolean,
     showSearchResultsToolbar: Boolean,
+    showJumpBackToolbar: Boolean,
     searchResultsCurrentIndex: Int,
     searchResultsTotalCount: Int,
     canNavigateToPreviousSearchResult: Boolean,
     canNavigateToNextSearchResult: Boolean,
+    onReturnToSearchOrigin: (() -> Unit)?,
     onNavigateToPreviousSearchResult: () -> Unit,
     onNavigateToNextSearchResult: () -> Unit,
     onCloseSearchResults: () -> Unit,
+    onJumpBack: () -> Unit,
     fullscreenProgressPercent: Int,
     fullscreenPageProgress: PageProgress,
     showBrightnessIndicator: Boolean,
@@ -81,10 +84,30 @@ internal fun BoxScope.ReaderOverlayHost(
             totalResults = searchResultsTotalCount,
             canGoPrevious = canNavigateToPreviousSearchResult,
             canGoNext = canNavigateToNextSearchResult,
+            onReturnToOrigin = onReturnToSearchOrigin,
             onPrevious = onNavigateToPreviousSearchResult,
             onNext = onNavigateToNextSearchResult,
             onClose = onCloseSearchResults,
             modifier = Modifier.testTag(READER_SEARCH_RESULTS_BAR_TAG)
+        )
+    }
+
+    AnimatedVisibility(
+        visible = showJumpBackToolbar,
+        enter = slideInVertically(initialOffsetY = { it }),
+        exit = slideOutVertically(targetOffsetY = { it }),
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(
+                start = 16.dp,
+                end = 16.dp,
+                bottom = if (isUiVisible) 84.dp else 16.dp
+            )
+            .navigationBarsPadding()
+    ) {
+        JumpBackToolbar(
+            onJumpBack = onJumpBack,
+            modifier = Modifier.testTag(READER_JUMP_BACK_BAR_TAG)
         )
     }
 

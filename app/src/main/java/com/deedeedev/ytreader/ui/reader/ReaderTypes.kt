@@ -27,6 +27,29 @@ internal sealed interface PendingFindSelection {
     data class OriginalFallback(val start: Int, val end: Int) : PendingFindSelection
 }
 
+internal sealed interface ReaderAnchor {
+    data class Study(val anchorStart: Int) : ReaderAnchor
+    data class OriginalSegment(val segmentIndex: Int) : ReaderAnchor
+    data class OriginalFallback(val textOffset: Int) : ReaderAnchor
+}
+
+internal data class ReaderLocation(
+    val subtitleId: Long,
+    val anchor: ReaderAnchor
+)
+
+internal enum class ReaderJumpReason {
+    SEARCH,
+    ANNOTATION,
+    INITIAL_TARGET
+}
+
+internal data class JumpBackState(
+    val origin: ReaderLocation,
+    val reason: ReaderJumpReason,
+    val label: String? = null
+)
+
 internal sealed interface SearchResultsMode {
     val activeIndex: Int
     val totalResults: Int
