@@ -363,9 +363,25 @@ class ReaderScreenTest {
         openFindAndReplaceDialog()
         regexField().performTextInput("(")
         replaceField().performTextInput("updated")
-        composeTestRule.onNodeWithText("Replace").performClick()
+        composeTestRule.onNodeWithText("Replace All").performClick()
 
         composeTestRule.onNodeWithText("Invalid regex.").assertIsDisplayed()
+    }
+
+    @Test
+    fun findAndReplaceDialog_showsReplacementCountSnackbar() {
+        setReaderContent()
+
+        enterEditMode()
+        openFindAndReplaceDialog()
+        regexField().performTextInput("line")
+        replaceField().performTextInput("sentence")
+        composeTestRule.onNodeWithText("Replace All").performClick()
+
+        composeTestRule.onNodeWithText("2 occurrences replaced").assertIsDisplayed()
+        composeTestRule.onNodeWithTag(READER_EDIT_TEXT_FIELD_TAG).assertTextEquals(
+            "1\n00:00:00.000 --> 00:00:01.000\nFirst sentence\n\n2\n00:00:01.000 --> 00:00:02.000\nSecond sentence"
+        )
     }
 
     @Test

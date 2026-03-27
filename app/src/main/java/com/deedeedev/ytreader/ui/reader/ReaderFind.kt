@@ -19,6 +19,11 @@ internal data class OriginalSegmentFindResult(
     val progressPercent: Int
 )
 
+internal data class ReplaceRegexResult(
+    val updatedText: String,
+    val replacementCount: Int
+)
+
 private const val FIND_EXCERPT_RADIUS = 24
 
 internal fun compileFindRegex(
@@ -65,7 +70,7 @@ internal fun replaceRegexMatches(
     isCaseSensitive: Boolean,
     emptyQueryMessage: String,
     invalidRegexMessage: String
-): Result<String> {
+): Result<ReplaceRegexResult> {
     val regex = compileReaderRegex(
         query = query,
         isCaseSensitive = isCaseSensitive,
@@ -73,7 +78,13 @@ internal fun replaceRegexMatches(
         invalidRegexMessage = invalidRegexMessage
     )
         .getOrElse { return Result.failure(it) }
-    return Result.success(regex.replace(text, replacement))
+    val matches = regex.findAll(text).toList()
+    return Result.success(
+        ReplaceRegexResult(
+            updatedText = regex.replace(text, replacement),
+            replacementCount = matches.size
+        )
+    )
 }
 
 internal fun findRegexMatches(

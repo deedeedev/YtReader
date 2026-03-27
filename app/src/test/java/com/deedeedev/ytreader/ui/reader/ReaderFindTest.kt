@@ -117,7 +117,8 @@ class ReaderFindTest {
             invalidRegexMessage = invalidRegexMessage
         ).getOrThrow()
 
-        assertEquals("First [line]\nSecond [line]", updated)
+        assertEquals("First [line]\nSecond [line]", updated.updatedText)
+        assertEquals(2, updated.replacementCount)
     }
 
     @Test
@@ -146,7 +147,8 @@ class ReaderFindTest {
             invalidRegexMessage = invalidRegexMessage
         ).getOrThrow()
 
-        assertEquals("match match match", updated)
+        assertEquals("match match match", updated.updatedText)
+        assertEquals(3, updated.replacementCount)
     }
 
     @Test
@@ -160,6 +162,7 @@ class ReaderFindTest {
             invalidRegexMessage = invalidRegexMessage
         ).getOrThrow()
 
-        assertEquals("Line match LINE", updated)
+        assertEquals("Line match LINE", updated.updatedText)
+        assertEquals(1, updated.replacementCount)
     }
 }

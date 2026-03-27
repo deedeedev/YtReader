@@ -218,7 +218,7 @@ internal fun FindReplaceDialog(
     val regexLabel = stringResource(R.string.reader_regex)
     val replaceWithLabel = stringResource(R.string.reader_replace_with)
     val caseSensitiveLabel = stringResource(R.string.reader_case_sensitive)
-    val replaceLabel = stringResource(R.string.reader_replace)
+    val replaceLabel = stringResource(R.string.reader_replace_all)
     val cancelLabel = stringResource(R.string.cancel)
     AlertDialog(
         onDismissRequest = onCancel,
