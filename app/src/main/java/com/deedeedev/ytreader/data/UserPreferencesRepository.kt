@@ -27,6 +27,7 @@ data class VideoCollection(
     val id: String,
     val name: String,
     val videoIds: List<String> = emptyList(),
+    val sortOrder: Int = 0,
     val createdAt: Long = System.currentTimeMillis()
 )
 

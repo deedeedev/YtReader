@@ -8,5 +8,6 @@ data class CollectionEntity(
     @PrimaryKey
     val id: String,
     val name: String,
+    val sortOrder: Int = 0,
     val createdAt: Long = System.currentTimeMillis()
 )

@@ -39,6 +39,7 @@
     <string name="collections">Collections</string>
     <string name="collections_empty">No collections yet. Create one to organize videos.</string>
     <string name="collections_empty_dialog">No collections yet. Create one above.</string>
+    <string name="collections_reorder_hint">Long press and drag a collection to reorder it.</string>
     <string name="copy_text">Copy text</string>
     <string name="decrease_font_size">Decrease Font Size</string>
     <string name="delete">Delete</string>

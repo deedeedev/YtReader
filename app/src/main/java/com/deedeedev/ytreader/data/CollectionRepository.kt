@@ -18,6 +18,7 @@ class CollectionRepository(
                 id = item.collection.id,
                 name = item.collection.name,
                 videoIds = item.videoIds,
+                sortOrder = item.collection.sortOrder,
                 createdAt = item.collection.createdAt
             )
         }
@@ -35,12 +36,13 @@ class CollectionRepository(
         if (legacyCollections.isNotEmpty()) {
             collectionDao.clearCollectionVideos()
             collectionDao.clearCollections()
-            legacyCollections.forEach { collection ->
+            legacyCollections.forEachIndexed { index, collection ->
                 val normalizedVideoIds = normalizeVideoIds(collection.videoIds)
                 collectionDao.insertCollection(
                     CollectionEntity(
                         id = collection.id,
                         name = collection.name.trim(),
+                        sortOrder = index,
                         createdAt = collection.createdAt
                     )
                 )
@@ -74,7 +76,8 @@ class CollectionRepository(
         collectionDao.insertCollection(
             CollectionEntity(
                 id = UUID.randomUUID().toString(),
-                name = trimmedName
+                name = trimmedName,
+                sortOrder = collectionDao.nextCollectionSortOrder()
             )
         )
         return true
@@ -96,6 +99,10 @@ class CollectionRepository(
 
     suspend fun deleteCollection(collectionId: String) {
         collectionDao.deleteCollection(collectionId)
+    }
+
+    suspend fun reorderCollections(collectionIds: List<String>) {
+        collectionDao.updateCollectionSortOrders(collectionIds)
     }
 
     suspend fun addVideoToCollection(collectionId: String, videoId: String): Boolean {

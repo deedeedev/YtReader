@@ -393,6 +393,19 @@ class HomeViewModel(
         }
     }
 
+    fun reorderCollections(collectionIds: List<String>) {
+        val currentIds = _uiState.value.collections.map { it.id }
+        if (collectionIds == currentIds || collectionIds.size != currentIds.size) {
+            return
+        }
+        if (collectionIds.toSet() != currentIds.toSet()) {
+            return
+        }
+        viewModelScope.launch {
+            collectionRepository.reorderCollections(collectionIds)
+        }
+    }
+
     fun addVideoToCollection(collectionId: String, videoId: String): Boolean {
         val collection = _uiState.value.collections.firstOrNull { it.id == collectionId } ?: return false
         val normalizedVideoId = YouTubeVideoIdNormalizer.extractVideoId(videoId.trim()) ?: videoId.trim()

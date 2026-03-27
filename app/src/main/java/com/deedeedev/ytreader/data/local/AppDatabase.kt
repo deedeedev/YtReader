@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CollectionEntity::class,
         CollectionVideoEntity::class
     ],
-    version = 19,
+    version = 20,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -144,6 +144,33 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "ALTER TABLE `subtitles` ADD COLUMN `totalPages` INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `collections` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    """
+                    UPDATE `collections`
+                    SET `sortOrder` = (
+                        SELECT COUNT(*)
+                        FROM `collections` AS c2
+                        WHERE c2.`createdAt` > `collections`.`createdAt`
+                            OR (
+                                c2.`createdAt` = `collections`.`createdAt`
+                                AND c2.`name` COLLATE NOCASE < `collections`.`name` COLLATE NOCASE
+                            )
+                            OR (
+                                c2.`createdAt` = `collections`.`createdAt`
+                                AND c2.`name` = `collections`.`name`
+                                AND c2.`id` < `collections`.`id`
+                            )
+                    )
+                    """.trimIndent()
                 )
             }
         }

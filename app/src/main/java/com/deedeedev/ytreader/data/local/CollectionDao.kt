@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CollectionDao {
     @Transaction
-    @Query("SELECT * FROM collections ORDER BY createdAt DESC, name COLLATE NOCASE ASC")
+    @Query("SELECT * FROM collections ORDER BY sortOrder ASC, createdAt DESC, name COLLATE NOCASE ASC")
     fun observeCollections(): Flow<List<CollectionWithVideos>>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
@@ -24,6 +24,9 @@ interface CollectionDao {
 
     @Query("UPDATE collections SET name = :name WHERE id = :collectionId")
     suspend fun renameCollection(collectionId: String, name: String): Int
+
+    @Query("UPDATE collections SET sortOrder = :sortOrder WHERE id = :collectionId")
+    suspend fun updateCollectionSortOrder(collectionId: String, sortOrder: Int)
 
     @Query("DELETE FROM collections WHERE id = :collectionId")
     suspend fun deleteCollection(collectionId: String)
@@ -45,6 +48,16 @@ interface CollectionDao {
 
     @Query("SELECT COUNT(*) FROM collections WHERE id != :collectionId AND LOWER(name) = LOWER(:name)")
     suspend fun countCollectionsByNameExcludingId(collectionId: String, name: String): Int
+
+    @Query("SELECT COALESCE(MAX(sortOrder), -1) + 1 FROM collections")
+    suspend fun nextCollectionSortOrder(): Int
+
+    @Transaction
+    suspend fun updateCollectionSortOrders(collectionIds: List<String>) {
+        collectionIds.forEachIndexed { index, collectionId ->
+            updateCollectionSortOrder(collectionId, index)
+        }
+    }
 
     @Query("DELETE FROM collection_videos")
     suspend fun clearCollectionVideos()
