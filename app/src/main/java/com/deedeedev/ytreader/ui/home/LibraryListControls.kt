@@ -7,6 +7,8 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -72,51 +74,113 @@ fun LibraryListControls(
             verticalAlignment = Alignment.CenterVertically
         ) {
             var expandedFilter by remember { mutableStateOf(false) }
+            var expandedVisibility by remember { mutableStateOf(false) }
+            var expandedSort by remember { mutableStateOf(false) }
+            val isChannelFilterActive = selectedChannelFilter != null
 
-            Box(modifier = Modifier.weight(1f)) {
-                ExposedDropdownMenuBox(
-                    expanded = expandedFilter,
-                    onExpandedChange = { expandedFilter = !expandedFilter }
-                ) {
-                    OutlinedTextField(
-                        value = selectedChannelFilter ?: context.getString(R.string.library_all_channels),
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFilter)
-                        },
-                        modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
-                            .fillMaxWidth(),
-                        label = { Text(context.getString(R.string.library_filter_by_channel)) }
+            Box {
+                IconButton(
+                    onClick = { expandedFilter = true },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        contentColor = if (isChannelFilterActive) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            LocalContentColor.current
+                        }
                     )
-                    ExposedDropdownMenu(
-                        expanded = expandedFilter,
-                        onDismissRequest = { expandedFilter = false }
-                    ) {
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = context.getString(R.string.library_filter_by_channel)
+                    )
+                }
+                DropdownMenu(
+                    expanded = expandedFilter,
+                    onDismissRequest = { expandedFilter = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(context.getString(R.string.library_all_channels)) },
+                        onClick = {
+                            onChannelFilterChange(null)
+                            expandedFilter = false
+                        },
+                        trailingIcon = {
+                            if (selectedChannelFilter == null) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = context.getString(R.string.selected)
+                                )
+                            }
+                        }
+                    )
+                    channels.forEach { channel ->
                         DropdownMenuItem(
-                            text = { Text(context.getString(R.string.library_all_channels)) },
+                            text = { Text(channel) },
                             onClick = {
-                                onChannelFilterChange(null)
+                                onChannelFilterChange(channel)
                                 expandedFilter = false
+                            },
+                            trailingIcon = {
+                                if (selectedChannelFilter == channel) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = context.getString(R.string.selected)
+                                    )
+                                }
                             }
                         )
-                        channels.forEach { channel ->
-                            DropdownMenuItem(
-                                text = { Text(channel) },
-                                onClick = {
-                                    onChannelFilterChange(channel)
-                                    expandedFilter = false
-                                }
-                            )
-                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            var expandedSort by remember { mutableStateOf(false) }
+            if (visibilityFilter != null && onVisibilityFilterChange != null) {
+                val isVisibilityFilterActive = visibilityFilter != LibraryVisibilityFilter.ALL
+
+                Box {
+                    IconButton(
+                        onClick = { expandedVisibility = true },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = if (isVisibilityFilterActive) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                LocalContentColor.current
+                            }
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Visibility,
+                            contentDescription = context.getString(R.string.library_visibility)
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expandedVisibility,
+                        onDismissRequest = { expandedVisibility = false }
+                    ) {
+                        libraryVisibilityFilters.forEach { filter ->
+                            DropdownMenuItem(
+                                text = { Text(visibilityLabel(resources, filter)) },
+                                onClick = {
+                                    onVisibilityFilterChange(filter)
+                                    expandedVisibility = false
+                                },
+                                trailingIcon = {
+                                    if (filter == visibilityFilter) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = context.getString(R.string.selected)
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
             Box {
                 IconButton(onClick = { expandedSort = true }) {
                     Icon(
@@ -157,49 +221,6 @@ fun LibraryListControls(
                         context.getString(R.string.library_sort_descending)
                     }
                 )
-            }
-        }
-
-        if (visibilityFilter != null && onVisibilityFilterChange != null) {
-            var expandedVisibility by remember { mutableStateOf(false) }
-            ExposedDropdownMenuBox(
-                expanded = expandedVisibility,
-                onExpandedChange = { expandedVisibility = !expandedVisibility }
-            ) {
-                OutlinedTextField(
-                    value = visibilityLabel(resources, visibilityFilter),
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedVisibility)
-                    },
-                    modifier = Modifier
-                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
-                        .fillMaxWidth(),
-                    label = { Text(context.getString(R.string.library_visibility)) }
-                )
-                ExposedDropdownMenu(
-                    expanded = expandedVisibility,
-                    onDismissRequest = { expandedVisibility = false }
-                ) {
-                    libraryVisibilityFilters.forEach { filter ->
-                        DropdownMenuItem(
-                            text = { Text(visibilityLabel(resources, filter)) },
-                            onClick = {
-                                onVisibilityFilterChange(filter)
-                                expandedVisibility = false
-                            },
-                            trailingIcon = {
-                                if (filter == visibilityFilter) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = context.getString(R.string.selected)
-                                    )
-                                }
-                            }
-                        )
-                    }
-                }
             }
         }
     }

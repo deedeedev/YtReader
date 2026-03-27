@@ -39,7 +39,7 @@ class LibraryListControlsTest {
             }
         }
 
-        composeTestRule.onNodeWithText("All Channels").performClick()
+        composeTestRule.onNodeWithContentDescription("Filter by Channel").performClick()
         composeTestRule.onNodeWithText("All Channels").assertIsDisplayed()
         composeTestRule.onNodeWithText("Channel A").assertIsDisplayed()
         composeTestRule.onNodeWithText("Channel B").assertIsDisplayed()
@@ -78,6 +78,37 @@ class LibraryListControlsTest {
         composeTestRule.onNodeWithText("Title").performClick()
         composeTestRule.runOnIdle {
             assertEquals(SortOption.TITLE, sortOption)
+        }
+    }
+
+    @Test
+    fun visibilityMenu_showsAllOptionsAndUpdatesSelection() {
+        var visibilityFilter by mutableStateOf(LibraryVisibilityFilter.ALL)
+
+        composeTestRule.setContent {
+            YtReaderTheme(appTheme = AppTheme.LIGHT) {
+                LibraryListControls(
+                    channels = emptyList(),
+                    selectedChannelFilter = null,
+                    visibilityFilter = visibilityFilter,
+                    sortOption = SortOption.DOWNLOADED,
+                    isAscending = false,
+                    onChannelFilterChange = {},
+                    onVisibilityFilterChange = { visibilityFilter = it },
+                    onSortOptionChange = {},
+                    onSortDirectionToggle = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("Visibility").performClick()
+        composeTestRule.onNodeWithText("All").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Only not in collections").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Only in collections").assertIsDisplayed()
+
+        composeTestRule.onNodeWithText("Only in collections").performClick()
+        composeTestRule.runOnIdle {
+            assertEquals(LibraryVisibilityFilter.IN_COLLECTIONS, visibilityFilter)
         }
     }
 
