@@ -190,6 +190,7 @@ internal fun ReaderScreen(
     var highlightNoteTarget by remember { mutableStateOf<TextHighlight?>(null) }
     var highlightNoteSelectionRange by remember { mutableStateOf<SelectionRange?>(null) }
     var showBookmarkDialog by remember { mutableStateOf(false) }
+    var showJumpToTimeDialog by remember { mutableStateOf(false) }
     var bookmarkTitleDraft by remember { mutableStateOf("") }
     var editingBookmark by remember { mutableStateOf<BookmarkEntity?>(null) }
     var pendingBookmarkAnchorStart by remember { mutableStateOf<Int?>(null) }
@@ -1309,6 +1310,8 @@ internal fun ReaderScreen(
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         },
+        hasTimestampedSegments = originalSegments.isNotEmpty(),
+        onShowJumpToTime = { showJumpToTimeDialog = true },
         isAiCleaning = uiState.isAiCleaning,
         showSelectionToolbar = showSelectionToolbar,
         onSelectionColorSelected = { color ->
@@ -1590,6 +1593,32 @@ internal fun ReaderScreen(
             }
             dismissBookmarkDialog()
         },
+        showJumpToTimeDialog = showJumpToTimeDialog,
+        maxTimeMillis = originalSegments.lastOrNull()?.endTime ?: 0L,
+        onJumpToTime = { targetMillis ->
+            showJumpToTimeDialog = false
+            val index = originalSegments.indexOfLast { it.startTime <= targetMillis }
+                .coerceAtLeast(0)
+            registerProgrammaticJump(ReaderJumpReason.TIME_JUMP)
+            coroutineScope.launch { originalListState.animateScrollToItem(index) }
+        },
+        onJumpToStart = {
+            showJumpToTimeDialog = false
+            if (originalSegments.isNotEmpty()) {
+                registerProgrammaticJump(ReaderJumpReason.TIME_JUMP)
+                coroutineScope.launch { originalListState.animateScrollToItem(0) }
+            }
+        },
+        onJumpToEnd = {
+            showJumpToTimeDialog = false
+            if (originalSegments.isNotEmpty()) {
+                registerProgrammaticJump(ReaderJumpReason.TIME_JUMP)
+                coroutineScope.launch {
+                    originalListState.animateScrollToItem(originalSegments.lastIndex)
+                }
+            }
+        },
+        onDismissJumpToTime = { showJumpToTimeDialog = false },
         snackbarHostState = snackbarHostState,
         coroutineScope = coroutineScope
     )

@@ -87,6 +87,8 @@ internal fun ReaderScreenMainLayer(
     onStartExternalAiCleaning: (String) -> Unit,
     onStartAiCleaning: (String) -> Unit,
     onRequestNotificationPermission: (String) -> Unit,
+    hasTimestampedSegments: Boolean,
+    onShowJumpToTime: () -> Unit,
     isAiCleaning: Boolean,
     showSelectionToolbar: Boolean,
     onSelectionColorSelected: (HighlightColor) -> Unit,
@@ -237,7 +239,9 @@ internal fun ReaderScreenMainLayer(
             onShowFindAndReplace = onShowFindAndReplace,
             onStartExternalAiCleaning = onStartExternalAiCleaning,
             onStartAiCleaning = onStartAiCleaning,
-            onRequestNotificationPermission = onRequestNotificationPermission
+            onRequestNotificationPermission = onRequestNotificationPermission,
+            hasTimestampedSegments = hasTimestampedSegments,
+            onShowJumpToTime = onShowJumpToTime
         )
 
         ReaderModeFab(

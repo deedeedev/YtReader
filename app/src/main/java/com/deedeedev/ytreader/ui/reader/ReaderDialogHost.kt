@@ -67,6 +67,12 @@ internal fun ReaderDialogHost(
     onSaveBookmark: () -> Unit,
     onDismissBookmark: () -> Unit,
     onDeleteBookmark: () -> Unit,
+    showJumpToTimeDialog: Boolean,
+    maxTimeMillis: Long,
+    onJumpToTime: (Long) -> Unit,
+    onJumpToStart: () -> Unit,
+    onJumpToEnd: () -> Unit,
+    onDismissJumpToTime: () -> Unit,
     snackbarHostState: SnackbarHostState,
     coroutineScope: CoroutineScope
 ) {
@@ -172,6 +178,16 @@ internal fun ReaderDialogHost(
             onSave = onSaveBookmark,
             onDismiss = onDismissBookmark,
             onDelete = onDeleteBookmark
+        )
+    }
+
+    if (showJumpToTimeDialog) {
+        JumpToTimeDialog(
+            maxTimeMillis = maxTimeMillis,
+            onJumpToTime = onJumpToTime,
+            onJumpToStart = onJumpToStart,
+            onJumpToEnd = onJumpToEnd,
+            onDismiss = onDismissJumpToTime
         )
     }
 }

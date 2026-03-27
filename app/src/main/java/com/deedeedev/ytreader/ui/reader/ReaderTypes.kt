@@ -41,7 +41,8 @@ internal data class ReaderLocation(
 internal enum class ReaderJumpReason {
     SEARCH,
     ANNOTATION,
-    INITIAL_TARGET
+    INITIAL_TARGET,
+    TIME_JUMP
 }
 
 internal data class JumpBackState(

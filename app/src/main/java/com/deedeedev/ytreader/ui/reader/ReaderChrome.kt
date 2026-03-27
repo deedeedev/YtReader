@@ -130,7 +130,9 @@ internal fun ReaderBottomBar(
     onShowFindAndReplace: () -> Unit,
     onStartExternalAiCleaning: (String) -> Unit,
     onStartAiCleaning: (String) -> Unit,
-    onRequestNotificationPermission: (String) -> Unit
+    onRequestNotificationPermission: (String) -> Unit,
+    hasTimestampedSegments: Boolean,
+    onShowJumpToTime: () -> Unit
 ) {
     val context = LocalContext.current
     val copyTextLabel = stringResource(R.string.copy_text)
@@ -152,6 +154,7 @@ internal fun ReaderBottomBar(
     val findAndReplaceLabel = stringResource(R.string.find_and_replace)
     val aiCleaningLabel = stringResource(R.string.ai_cleaning_menu_label)
     val aiCleaningRunningLabel = stringResource(R.string.ai_cleaning_running_menu_label)
+    val jumpToTimeLabel = stringResource(R.string.reader_jump_to_time)
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically(initialOffsetY = { it }),
@@ -267,6 +270,15 @@ internal fun ReaderBottomBar(
                                     onClick = {
                                         showOverflowMenu = false
                                         onShowFind()
+                                    }
+                                )
+                            }
+                            if (isOriginalMode && hasTimestampedSegments) {
+                                DropdownMenuItem(
+                                    text = { Text(jumpToTimeLabel) },
+                                    onClick = {
+                                        showOverflowMenu = false
+                                        onShowJumpToTime()
                                     }
                                 )
                             }

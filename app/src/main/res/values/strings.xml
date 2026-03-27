@@ -163,9 +163,9 @@
     <string name="reader_unsaved_changes">Unsaved changes</string>
     <string name="reader_unsaved_changes_message">Do you want to discard your unsaved changes?</string>
     <string name="reader_jump_to_time">Jump to time</string>
-    <string name="reader_hours">Hours</string>
-    <string name="reader_minutes">Minutes</string>
-    <string name="reader_seconds">Seconds</string>
+    <string name="reader_hours">hh</string>
+    <string name="reader_minutes">mm</string>
+    <string name="reader_seconds">ss</string>
     <string name="reader_start">Start</string>
     <string name="reader_end">End</string>
     <string name="reader_max_time">Maximum: %1$s</string>

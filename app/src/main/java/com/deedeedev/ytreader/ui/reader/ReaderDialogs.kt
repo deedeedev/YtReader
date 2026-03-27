@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -24,6 +25,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -31,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.deedeedev.ytreader.R
 
@@ -485,6 +491,112 @@ internal fun BookmarkTitleDialog(
                 TextButton(onClick = onDismiss) {
                     Text(cancelLabel)
                 }
+            }
+        }
+    )
+}
+
+@Composable
+internal fun JumpToTimeDialog(
+    maxTimeMillis: Long,
+    onJumpToTime: (Long) -> Unit,
+    onJumpToStart: () -> Unit,
+    onJumpToEnd: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var hoursText by remember { mutableStateOf("") }
+    var minutesText by remember { mutableStateOf("") }
+    var secondsText by remember { mutableStateOf("") }
+
+    val title = stringResource(R.string.reader_jump_to_time)
+    val hoursLabel = stringResource(R.string.reader_hours)
+    val minutesLabel = stringResource(R.string.reader_minutes)
+    val secondsLabel = stringResource(R.string.reader_seconds)
+    val startLabel = stringResource(R.string.reader_start)
+    val endLabel = stringResource(R.string.reader_end)
+    val cancelLabel = stringResource(R.string.cancel)
+    val jumpLabel = stringResource(R.string.reader_jump_to_time)
+    val maxTimeLabel = stringResource(R.string.reader_max_time, formatTime(maxTimeMillis))
+    val fieldWidth = 72.dp
+
+    fun performJump() {
+        val hours = hoursText.toIntOrNull() ?: 0
+        val minutes = minutesText.toIntOrNull() ?: 0
+        val seconds = secondsText.toIntOrNull() ?: 0
+        val totalMillis = (hours * 3600L + minutes * 60L + seconds) * 1000L
+        onJumpToTime(totalMillis)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = hoursText,
+                        onValueChange = { hoursText = it.filter { c -> c.isDigit() } },
+                        modifier = Modifier.width(fieldWidth),
+                        label = { Text(hoursLabel) },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Next
+                        ),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = minutesText,
+                        onValueChange = { minutesText = it.filter { c -> c.isDigit() } },
+                        modifier = Modifier.width(fieldWidth),
+                        label = { Text(minutesLabel) },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Next
+                        ),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = secondsText,
+                        onValueChange = { secondsText = it.filter { c -> c.isDigit() } },
+                        modifier = Modifier.width(fieldWidth),
+                        label = { Text(secondsLabel) },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(onDone = { performJump() }),
+                        singleLine = true
+                    )
+                }
+                Spacer(modifier = Modifier.padding(top = 12.dp))
+                Text(
+                    text = maxTimeLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onJumpToStart) {
+                    Text(startLabel)
+                }
+                TextButton(onClick = onJumpToEnd) {
+                    Text(endLabel)
+                }
+                TextButton(onClick = { performJump() }) {
+                    Text(jumpLabel)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(cancelLabel)
             }
         }
     )
