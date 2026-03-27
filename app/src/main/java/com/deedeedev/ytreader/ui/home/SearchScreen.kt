@@ -32,14 +32,37 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.R
+import android.net.Uri
 
 private fun isYouTubeUrl(text: String): Boolean {
-    val trimmed = text.trim().lowercase()
-    return trimmed.contains("youtube.com/watch") ||
-           trimmed.contains("youtu.be/") ||
-           trimmed.contains("youtube.com/shorts/") ||
-           trimmed.contains("youtube.com/playlist") ||
-           trimmed.contains("m.youtube.com")
+    val trimmed = text.trim()
+    if (trimmed.isEmpty()) return false
+
+    val uri = Uri.parse(trimmed)
+    val host = uri.host?.lowercase()?.removePrefix("www.") ?: return false
+    val pathSegments = uri.pathSegments ?: emptyList()
+
+    return when (host) {
+        "youtube.com", "m.youtube.com" -> {
+            when (pathSegments.firstOrNull()) {
+                "watch" -> {
+                    val videoId = uri.getQueryParameter("v")
+                    val playlistId = uri.getQueryParameter("list")
+                    !videoId.isNullOrBlank() && playlistId.isNullOrBlank()
+                }
+
+                "shorts" -> pathSegments.getOrNull(1)?.isNotBlank() == true
+                else -> false
+            }
+        }
+
+        "youtu.be" -> {
+            val videoId = pathSegments.firstOrNull()
+            !videoId.isNullOrBlank() && uri.getQueryParameter("list").isNullOrBlank()
+        }
+
+        else -> false
+    }
 }
 
 @Composable
