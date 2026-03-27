@@ -819,8 +819,12 @@ fun ReaderScreen(
         }
     }
 
-    LaunchedEffect(fullscreenProgressPercent) {
-        viewModel.updateReadingProgressPercent(fullscreenProgressPercent)
+    LaunchedEffect(fullscreenProgressPercent, fullscreenPageProgress) {
+        viewModel.updateReadingProgress(
+            percent = fullscreenProgressPercent,
+            currentPage = fullscreenPageProgress.currentPage,
+            totalPages = fullscreenPageProgress.totalPages
+        )
     }
 
     ReaderScreenMainLayer(
@@ -1141,9 +1145,18 @@ fun ReaderScreen(
                     ?: context.getString(R.string.invalid_regex)
             } else {
                 val updated = replaceResult.getOrThrow()
-                applyTextUpdate(updated)
+                applyTextUpdate(updated.updatedText)
                 resetFindReplaceDialogState()
                 showFindReplaceDialog = false
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(
+                        context.resources.getQuantityString(
+                            R.plurals.reader_replace_occurrences,
+                            updated.replacementCount,
+                            updated.replacementCount
+                        )
+                    )
+                }
             }
         },
         onCancelFindReplace = {

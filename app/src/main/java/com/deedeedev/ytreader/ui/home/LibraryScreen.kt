@@ -321,6 +321,8 @@ fun LibraryItemCard(
                 } else {
                     LibraryReadingProgress(
                         percent = item.readingProgressPercent,
+                        currentPage = item.currentPage,
+                        totalPages = item.totalPages,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
@@ -487,9 +489,17 @@ private fun ReadingStatusBadge(text: String) {
 }
 
 @Composable
-private fun ReadingProgressText(percent: Int) {
+private fun ReadingProgressText(
+    percent: Int,
+    currentPage: Int,
+    totalPages: Int
+) {
     Text(
-        text = stringResource(R.string.library_reading_progress, percent),
+        text = if (currentPage > 0 && totalPages > 0) {
+            stringResource(R.string.reader_page_progress, percent, currentPage, totalPages)
+        } else {
+            stringResource(R.string.library_reading_progress, percent)
+        },
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.secondary,
         modifier = Modifier.padding(vertical = 6.dp)
@@ -499,10 +509,16 @@ private fun ReadingProgressText(percent: Int) {
 @Composable
 private fun LibraryReadingProgress(
     percent: Int,
+    currentPage: Int,
+    totalPages: Int,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        ReadingProgressText(percent = percent)
+        ReadingProgressText(
+            percent = percent,
+            currentPage = currentPage,
+            totalPages = totalPages
+        )
         LinearProgressIndicator(
             progress = { percent.coerceIn(0, 100) / 100f },
             modifier = Modifier

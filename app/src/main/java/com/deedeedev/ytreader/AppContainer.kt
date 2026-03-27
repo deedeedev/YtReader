@@ -46,6 +46,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             .addMigrations(AppDatabase.MIGRATION_15_16)
             .addMigrations(AppDatabase.MIGRATION_16_17)
             .addMigrations(AppDatabase.MIGRATION_17_18)
+            .addMigrations(AppDatabase.MIGRATION_18_19)
             .fallbackToDestructiveMigration(false)
             .build()
     }

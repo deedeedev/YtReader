@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CollectionEntity::class,
         CollectionVideoEntity::class
     ],
-    version = 18,
+    version = 19,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -133,6 +133,17 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_collection_videos_videoId` ON `collection_videos` (`videoId`)"
+                )
+            }
+        }
+
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `subtitles` ADD COLUMN `currentPage` INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE `subtitles` ADD COLUMN `totalPages` INTEGER NOT NULL DEFAULT 0"
                 )
             }
         }

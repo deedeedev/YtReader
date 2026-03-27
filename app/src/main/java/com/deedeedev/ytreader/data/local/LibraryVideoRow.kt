@@ -9,5 +9,7 @@ data class LibraryVideoRow(
     val lastDownloaded: Long,
     val lastOpenedAt: Long,
     val readingProgressPercent: Int,
+    val currentPage: Int,
+    val totalPages: Int,
     val isInLibrary: Boolean
 )

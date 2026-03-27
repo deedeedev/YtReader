@@ -91,6 +91,8 @@ class LibraryListSectionTest {
             lastDownloaded = 0L,
             lastOpenedAt = 0L,
             readingProgressPercent = 0,
+            currentPage = 0,
+            totalPages = 0,
             isInLibrary = true,
             collectionCount = collectionCount
         )

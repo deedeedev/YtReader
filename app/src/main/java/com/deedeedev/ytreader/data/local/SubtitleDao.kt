@@ -33,7 +33,7 @@ interface SubtitleDao {
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
                   AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.createdAt DESC, s.id DESC
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS videoUrl,
             COALESCE((
@@ -41,7 +41,7 @@ interface SubtitleDao {
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
                   AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.createdAt DESC, s.id DESC
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS title,
             COALESCE((
@@ -49,7 +49,7 @@ interface SubtitleDao {
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
                   AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.createdAt DESC, s.id DESC
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS channelName,
             COALESCE((
@@ -57,19 +57,41 @@ interface SubtitleDao {
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
                   AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.createdAt DESC, s.id DESC
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), 0) AS uploadDate,
             agg.lastDownloaded AS lastDownloaded,
             agg.lastOpenedAt AS lastOpenedAt,
-            agg.readingProgressPercent AS readingProgressPercent,
+            COALESCE((
+                SELECT s.readingProgressPercent
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), 0) AS readingProgressPercent,
+            COALESCE((
+                SELECT s.currentPage
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), 0) AS currentPage,
+            COALESCE((
+                SELECT s.totalPages
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), 0) AS totalPages,
             agg.isInLibrary AS isInLibrary
         FROM (
             SELECT
                 videoId,
                 MAX(createdAt) AS lastDownloaded,
                 MAX(lastOpenedAt) AS lastOpenedAt,
-                MAX(readingProgressPercent) AS readingProgressPercent,
                 MAX(isInLibrary) AS isInLibrary
             FROM subtitles
             WHERE isInLibrary = 1
@@ -117,7 +139,7 @@ interface SubtitleDao {
                 WHERE s.videoId = agg.videoId
                   AND s.videoId IN (:videoIds)
                   AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.createdAt DESC, s.id DESC
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS videoUrl,
             COALESCE((
@@ -126,7 +148,7 @@ interface SubtitleDao {
                 WHERE s.videoId = agg.videoId
                   AND s.videoId IN (:videoIds)
                   AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.createdAt DESC, s.id DESC
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS title,
             COALESCE((
@@ -135,7 +157,7 @@ interface SubtitleDao {
                 WHERE s.videoId = agg.videoId
                   AND s.videoId IN (:videoIds)
                   AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.createdAt DESC, s.id DESC
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS channelName,
             COALESCE((
@@ -144,19 +166,44 @@ interface SubtitleDao {
                 WHERE s.videoId = agg.videoId
                   AND s.videoId IN (:videoIds)
                   AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.createdAt DESC, s.id DESC
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), 0) AS uploadDate,
             agg.lastDownloaded AS lastDownloaded,
             agg.lastOpenedAt AS lastOpenedAt,
-            agg.readingProgressPercent AS readingProgressPercent,
+            COALESCE((
+                SELECT s.readingProgressPercent
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND s.videoId IN (:videoIds)
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), 0) AS readingProgressPercent,
+            COALESCE((
+                SELECT s.currentPage
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND s.videoId IN (:videoIds)
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), 0) AS currentPage,
+            COALESCE((
+                SELECT s.totalPages
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                  AND s.videoId IN (:videoIds)
+                  AND (:channelName IS NULL OR s.channelName = :channelName)
+                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), 0) AS totalPages,
             agg.isInLibrary AS isInLibrary
         FROM (
             SELECT
                 videoId,
                 MAX(createdAt) AS lastDownloaded,
                 MAX(lastOpenedAt) AS lastOpenedAt,
-                MAX(readingProgressPercent) AS readingProgressPercent,
                 MAX(isInLibrary) AS isInLibrary
             FROM subtitles
             WHERE videoId IN (:videoIds)
@@ -318,16 +365,25 @@ interface SubtitleDao {
     @Query(
         """
         UPDATE subtitles
-        SET readingProgressPercent = MAX(readingProgressPercent, :percent)
+        SET readingProgressPercent = :percent,
+            currentPage = :currentPage,
+            totalPages = :totalPages
         WHERE id = :id
         """
     )
-    suspend fun updateReadingProgressPercent(id: Long, percent: Int)
+    suspend fun updateReadingProgress(
+        id: Long,
+        percent: Int,
+        currentPage: Int,
+        totalPages: Int
+    )
 
     @Query(
         """
         UPDATE subtitles
         SET readingProgressPercent = 0,
+            currentPage = 0,
+            totalPages = 0,
             lastTimestamp = 0,
             lastStudyScroll = 0
         WHERE videoId = :videoId
@@ -338,7 +394,11 @@ interface SubtitleDao {
     @Query(
         """
         UPDATE subtitles
-        SET readingProgressPercent = 100
+        SET readingProgressPercent = 100,
+            currentPage = CASE
+                WHEN totalPages > 0 THEN totalPages
+                ELSE currentPage
+            END
         WHERE videoId = :videoId
         """
     )
@@ -445,7 +505,9 @@ interface SubtitleDao {
             highlights = '',
             lastTimestamp = 0,
             lastStudyScroll = 0,
-            readingProgressPercent = 0
+            readingProgressPercent = 0,
+            currentPage = 0,
+            totalPages = 0
         WHERE id = :id
         """
     )

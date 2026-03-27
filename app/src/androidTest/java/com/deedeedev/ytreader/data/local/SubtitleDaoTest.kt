@@ -246,7 +246,7 @@ class SubtitleDaoTest {
 
     @Test
     @Throws(Exception::class)
-    fun updateReadingProgressPercent_keepsMaximumValue() = runBlocking {
+    fun updateReadingProgress_overwritesProgressAndPages() = runBlocking {
         val subtitle = SubtitleEntity(
             videoId = "progress-123",
             title = "Progress Test",
@@ -257,12 +257,29 @@ class SubtitleDaoTest {
 
         val inserted = subtitleDao.getAll().first().first()
 
-        subtitleDao.updateReadingProgressPercent(inserted.id, 45)
-        subtitleDao.updateReadingProgressPercent(inserted.id, 30)
-        subtitleDao.updateReadingProgressPercent(inserted.id, 100)
+        subtitleDao.updateReadingProgress(
+            id = inserted.id,
+            percent = 45,
+            currentPage = 2,
+            totalPages = 5
+        )
+        subtitleDao.updateReadingProgress(
+            id = inserted.id,
+            percent = 30,
+            currentPage = 1,
+            totalPages = 5
+        )
+        subtitleDao.updateReadingProgress(
+            id = inserted.id,
+            percent = 100,
+            currentPage = 5,
+            totalPages = 5
+        )
 
         val fetched = subtitleDao.getById(inserted.id)
         assertEquals(100, fetched?.readingProgressPercent)
+        assertEquals(5, fetched?.currentPage)
+        assertEquals(5, fetched?.totalPages)
     }
 
     @Test

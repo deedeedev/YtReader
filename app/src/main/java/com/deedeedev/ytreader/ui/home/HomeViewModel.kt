@@ -485,6 +485,8 @@ class HomeViewModel(
                         lastDownloaded = row.lastDownloaded,
                         lastOpenedAt = row.lastOpenedAt,
                         readingProgressPercent = row.readingProgressPercent,
+                        currentPage = row.currentPage,
+                        totalPages = row.totalPages,
                         isInLibrary = row.isInLibrary,
                         collectionCount = collectionCounts[row.videoId] ?: 0
                     )

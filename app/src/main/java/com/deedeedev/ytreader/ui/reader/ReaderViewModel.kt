@@ -125,11 +125,13 @@ class ReaderViewModel(
         }
     }
 
-    fun updateReadingProgressPercent(percent: Int) {
+    fun updateReadingProgress(percent: Int, currentPage: Int, totalPages: Int) {
         viewModelScope.launch {
-            subtitleDao.updateReadingProgressPercent(
+            subtitleDao.updateReadingProgress(
                 id = subtitleId,
-                percent = percent.coerceIn(0, 100)
+                percent = percent.coerceIn(0, 100),
+                currentPage = currentPage.coerceAtLeast(0),
+                totalPages = totalPages.coerceAtLeast(0)
             )
         }
     }
