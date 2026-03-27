@@ -162,6 +162,13 @@
     <string name="reader_subtitle_text_empty">Subtitle text cannot be empty.</string>
     <string name="reader_unsaved_changes">Unsaved changes</string>
     <string name="reader_unsaved_changes_message">Do you want to discard your unsaved changes?</string>
+    <string name="reader_jump_to_time">Jump to time</string>
+    <string name="reader_hours">Hours</string>
+    <string name="reader_minutes">Minutes</string>
+    <string name="reader_seconds">Seconds</string>
+    <string name="reader_start">Start</string>
+    <string name="reader_end">End</string>
+    <string name="reader_max_time">Maximum: %1$s</string>
     <string name="nothing_to_clean">Nothing to clean.</string>
     <string name="notification_permission_denied_hint">Notifications are off. AI cleaning will continue without completion notifications.</string>
     <string name="notification_permission_denied_settings_hint">Notifications are blocked. Enable them in Settings to get AI cleaning completion alerts.</string>
@@ -325,6 +332,8 @@
     <string name="video_notes_filter_bookmarks">Bookmarks</string>
     <string name="video_notes_filter_highlights">Highlights</string>
     <string name="video_notes_filter_notes">Notes</string>
+    <string name="video_notes_format_csv">CSV</string>
+    <string name="video_notes_format_json">JSON</string>
     <string name="video_notes_format_markdown">Markdown</string>
     <string name="video_notes_format_pdf">PDF</string>
     <string name="video_notes_from_start_to_finish">From start to finish</string>

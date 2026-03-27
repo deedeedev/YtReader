@@ -131,6 +131,8 @@ private fun VideoNotesScreen(
     val exportAnnotationsLabel = stringResource(R.string.video_notes_export_annotations)
     val markdownLabel = stringResource(R.string.video_notes_format_markdown)
     val pdfLabel = stringResource(R.string.video_notes_format_pdf)
+    val jsonLabel = stringResource(R.string.video_notes_format_json)
+    val csvLabel = stringResource(R.string.video_notes_format_csv)
     val loadingLabel = stringResource(R.string.video_notes_loading)
     val deletedBookmarkLabel = stringResource(R.string.video_notes_deleted_bookmark)
     val deletedHighlightLabel = stringResource(R.string.video_notes_deleted_highlight)
@@ -204,6 +206,32 @@ private fun VideoNotesScreen(
                                 onClick = {
                                     showExportMenu = false
                                     shareVideoNotesPdf(
+                                        context = context,
+                                        title = uiState.title,
+                                        videoId = videoId,
+                                        selectedTypes = selectedTypes,
+                                        items = filteredItems
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(jsonLabel) },
+                                onClick = {
+                                    showExportMenu = false
+                                    shareVideoNotesJson(
+                                        context = context,
+                                        title = uiState.title,
+                                        videoId = videoId,
+                                        selectedTypes = selectedTypes,
+                                        items = filteredItems
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(csvLabel) },
+                                onClick = {
+                                    showExportMenu = false
+                                    shareVideoNotesCsv(
                                         context = context,
                                         title = uiState.title,
                                         videoId = videoId,

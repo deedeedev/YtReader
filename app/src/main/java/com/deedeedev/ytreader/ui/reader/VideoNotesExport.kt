@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
 import com.deedeedev.ytreader.R
+import com.google.gson.GsonBuilder
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -47,6 +48,60 @@ internal fun shareVideoNotesPdf(
         type = "application/pdf"
         putExtra(Intent.EXTRA_STREAM, uri)
         clipData = ClipData.newRawUri(pdfFile.name, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(
+        Intent.createChooser(shareIntent, context.getString(R.string.video_notes_export_annotations))
+    )
+}
+
+internal fun shareVideoNotesJson(
+    context: Context,
+    title: String,
+    videoId: String,
+    selectedTypes: Set<VideoAnnotationType>,
+    items: List<VideoAnnotationItem>
+) {
+    val json = buildVideoNotesJson(context, title, videoId, selectedTypes, items)
+    val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+    val outputFile = File(exportDir, buildVideoNotesExportFileName(title, videoId, "json"))
+    outputFile.writeText(json)
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        outputFile
+    )
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/json"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        clipData = ClipData.newRawUri(outputFile.name, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(
+        Intent.createChooser(shareIntent, context.getString(R.string.video_notes_export_annotations))
+    )
+}
+
+internal fun shareVideoNotesCsv(
+    context: Context,
+    title: String,
+    videoId: String,
+    selectedTypes: Set<VideoAnnotationType>,
+    items: List<VideoAnnotationItem>
+) {
+    val csv = buildVideoNotesCsv(context, title, videoId, selectedTypes, items)
+    val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+    val outputFile = File(exportDir, buildVideoNotesExportFileName(title, videoId, "csv"))
+    outputFile.writeText(csv)
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        outputFile
+    )
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/csv"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        clipData = ClipData.newRawUri(outputFile.name, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     context.startActivity(
@@ -97,6 +152,68 @@ internal fun buildVideoNotesMarkdown(
             }
             append("\n")
         }
+    }
+}
+
+internal fun buildVideoNotesJson(
+    context: Context,
+    title: String,
+    videoId: String,
+    selectedTypes: Set<VideoAnnotationType>,
+    items: List<VideoAnnotationItem>
+): String {
+    val resources = context.resources
+    val exportTitle = title.ifBlank { videoId }
+    val gson = GsonBuilder().setPrettyPrinting().create()
+    val root = linkedMapOf<String, Any?>(
+        "title" to exportTitle,
+        "videoId" to videoId,
+        "filter" to annotationFilterLabel(resources, selectedTypes),
+        "exportedItems" to items.size,
+        "items" to items.map { item ->
+            linkedMapOf<String, Any?>(
+                "type" to annotationTypeLabel(resources, item.type),
+                "title" to item.title,
+                "note" to item.note,
+                "color" to item.color?.name,
+                "updatedAt" to formatVideoAnnotationUpdatedAt(item.updatedAt),
+                "positionPercent" to item.progressPercent
+            )
+        }
+    )
+    return gson.toJson(root)
+}
+
+internal fun buildVideoNotesCsv(
+    context: Context,
+    title: String,
+    videoId: String,
+    selectedTypes: Set<VideoAnnotationType>,
+    items: List<VideoAnnotationItem>
+): String {
+    val resources = context.resources
+    val sb = StringBuilder()
+    sb.appendLine("Type,Title,Note,Color,Updated,Position %")
+    items.forEach { item ->
+        sb.appendLine(
+            listOf(
+                escapeCsvField(annotationTypeLabel(resources, item.type)),
+                escapeCsvField(item.title),
+                escapeCsvField(item.note.orEmpty()),
+                escapeCsvField(item.color?.name.orEmpty()),
+                escapeCsvField(formatVideoAnnotationUpdatedAt(item.updatedAt)),
+                escapeCsvField(item.progressPercent.toString())
+            ).joinToString(",")
+        )
+    }
+    return sb.toString()
+}
+
+private fun escapeCsvField(value: String): String {
+    return if (value.contains(',') || value.contains('"') || value.contains('\n')) {
+        "\"${value.replace("\"", "\"\"")}\""
+    } else {
+        value
     }
 }
 
