@@ -77,6 +77,7 @@
     <string name="library_filter_by_channel">Filter by Channel</string>
     <string name="library_in_collection_many">In %1$d collections</string>
     <string name="library_in_collection_one">In 1 collection</string>
+    <string name="library_mark_as_read">Mark as read</string>
     <string name="library_marked_read">Marked as read</string>
     <string name="library_overwrite_subtitles_message">This will replace the current version with a freshly downloaded one.</string>
     <string name="library_overwrite_subtitles_title">Overwrite subtitles?</string>
@@ -134,6 +135,7 @@
     <string name="reader_remove_highlight">Delete highlight</string>
     <string name="reader_remove_note">Remove note</string>
     <string name="reader_replace">Replace</string>
+    <string name="reader_replace_all">Replace All</string>
     <string name="reader_replace_with_clipboard">Replace with Clipboard</string>
     <string name="reader_replace_with">Replace with</string>
     <string name="reader_search">Search</string>
@@ -303,5 +305,9 @@
     <plurals name="video_notes_notes_count">
         <item quantity="one">%1$d note</item>
         <item quantity="other">%1$d notes</item>
+    </plurals>
+    <plurals name="reader_replace_occurrences">
+        <item quantity="one">%1$d occurrence replaced</item>
+        <item quantity="other">%1$d occurrences replaced</item>
     </plurals>
 </resources>

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -37,8 +38,6 @@ import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-import androidx.compose.material.icons.filled.Check
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -90,16 +89,6 @@ fun LibraryScreen(
                         val dismissState = rememberSwipeToDismissBoxState(
                             confirmValueChange = {
                                 when (it) {
-                                    SwipeToDismissBoxValue.StartToEnd -> {
-                                        viewModel.markVideoAsRead(item.videoId)
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar(
-                                                message = context.getString(R.string.library_marked_read),
-                                                duration = SnackbarDuration.Short
-                                            )
-                                        }
-                                        false
-                                    }
                                     SwipeToDismissBoxValue.EndToStart -> {
                                         val deletedSubtitles = item.subtitles
                                         viewModel.removeLibraryItem(deletedSubtitles)
@@ -121,32 +110,27 @@ fun LibraryScreen(
                                         }
                                         true
                                     }
+                                    SwipeToDismissBoxValue.StartToEnd,
                                     SwipeToDismissBoxValue.Settled -> false
                                 }
-                            }
+                            },
+                            positionalThreshold = { totalDistance -> totalDistance * 0.8f }
                         )
 
                         SwipeToDismissBox(
                             state = dismissState,
-                            enableDismissFromStartToEnd = true,
+                            enableDismissFromStartToEnd = false,
                             backgroundContent = {
-                                val isStartToEnd = dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd
                                 val isEndToStart = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
-                                val color = when {
-                                    isStartToEnd -> MaterialTheme.colorScheme.secondaryContainer
-                                    isEndToStart -> MaterialTheme.colorScheme.errorContainer
-                                    else -> Color.Transparent
+                                val color = if (isEndToStart) {
+                                    MaterialTheme.colorScheme.errorContainer
+                                } else {
+                                    Color.Transparent
                                 }
-                                val icon = when {
-                                    isStartToEnd -> Icons.Default.Check
-                                    isEndToStart -> Icons.Default.Delete
-                                    else -> null
-                                }
-                                val alignment = if (isStartToEnd) Alignment.CenterStart else Alignment.CenterEnd
-                                val tint = when {
-                                    isStartToEnd -> MaterialTheme.colorScheme.onSecondaryContainer
-                                    isEndToStart -> MaterialTheme.colorScheme.onErrorContainer
-                                    else -> Color.Transparent
+                                val tint = if (isEndToStart) {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                } else {
+                                    Color.Transparent
                                 }
 
                                 Box(
@@ -154,11 +138,11 @@ fun LibraryScreen(
                                         .fillMaxSize()
                                         .background(color)
                                         .padding(horizontal = 20.dp),
-                                    contentAlignment = alignment
+                                    contentAlignment = Alignment.CenterEnd
                                 ) {
-                                    icon?.let {
+                                    if (isEndToStart) {
                                         Icon(
-                                            imageVector = it,
+                                            imageVector = Icons.Default.Delete,
                                             contentDescription = null,
                                             tint = tint
                                         )
@@ -171,6 +155,15 @@ fun LibraryScreen(
                                 onSubtitleClick = onSubtitleClick,
                                 onVideoClick = onVideoClick,
                                 onVideoSearchAgain = onVideoSearchAgain,
+                                onMarkAsRead = {
+                                    viewModel.markVideoAsRead(item.videoId)
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = context.getString(R.string.library_marked_read),
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    }
+                                },
                                 onAddToCollection = { addToCollectionTargetVideoId = item.videoId },
                                 onResetProgress = { viewModel.resetVideoProgress(item.videoId) },
                                 onRemoveFromLibrary = {
@@ -236,6 +229,7 @@ fun LibraryItemCard(
     onSubtitleClick: (Long) -> Unit,
     onVideoClick: (String) -> Unit,
     onVideoSearchAgain: (String) -> Unit,
+    onMarkAsRead: (() -> Unit)? = null,
     onAddToCollection: () -> Unit,
     onResetProgress: () -> Unit,
     showLibraryStatusBadge: Boolean = true,
@@ -409,6 +403,23 @@ fun LibraryItemCard(
                     )
                 }
             )
+            if (!item.isRead) {
+                onMarkAsRead?.let { markAsRead ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.library_mark_as_read)) },
+                        onClick = {
+                            markAsRead()
+                            showMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Done,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                }
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.library_reset_progress)) },
                 onClick = {
