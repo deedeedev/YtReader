@@ -100,7 +100,8 @@ fun MainScreen(
             appContainer.highlightNoteDao,
             appContainer.bookmarkDao,
             appContainer.userPreferencesRepository,
-            appContainer.collectionRepository
+            appContainer.collectionRepository,
+            appContainer.searchHistoryDao
         )
     )
 ) {

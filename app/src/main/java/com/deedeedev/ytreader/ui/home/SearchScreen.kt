@@ -2,6 +2,7 @@ package com.deedeedev.ytreader.ui.home
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,6 +25,7 @@ import org.schabi.newpipe.extractor.stream.SubtitlesStream
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -32,7 +34,9 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.data.local.SearchHistoryEntity
 import android.net.Uri
+import android.text.format.DateUtils
 
 private fun isYouTubeUrl(text: String): Boolean {
     val trimmed = text.trim()
@@ -161,6 +165,40 @@ fun SearchScreen(
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
+        }
+
+        if (uiState.streamInfo == null && uiState.error == null && !uiState.isLoading) {
+            val showHistoryLabel = stringResource(R.string.search_show_history)
+            val historyEmptyLabel = stringResource(R.string.search_history_empty)
+            val deleteLabel = stringResource(R.string.delete)
+
+            TextButton(
+                onClick = { viewModel.toggleHistory() },
+                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp)
+            ) {
+                Text(text = showHistoryLabel)
+            }
+
+            if (uiState.showHistory) {
+                if (uiState.searchHistory.isEmpty()) {
+                    Text(
+                        text = historyEmptyLabel,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    LazyColumn(modifier = Modifier.weight(1f)) {
+                        items(uiState.searchHistory, key = { it.id }) { entry ->
+                            HistoryItem(
+                                entry = entry,
+                                onClick = { viewModel.searchFromHistory(entry.url) },
+                                onDelete = { viewModel.deleteHistoryEntry(entry.id) }
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         // Available Subtitles
@@ -314,6 +352,68 @@ fun SubtitleItem(
                     onToggleFavorite()
                     showMenu = false
                 }
+            )
+        }
+    }
+}
+
+@Composable
+private fun HistoryItem(
+    entry: SearchHistoryEntity,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val deleteLabel = stringResource(R.string.delete)
+    val relativeTime = remember(entry.searchedAt) {
+        DateUtils.getRelativeTimeSpanString(
+            entry.searchedAt,
+            System.currentTimeMillis(),
+            DateUtils.MINUTE_IN_MILLIS,
+            DateUtils.FORMAT_ABBREV_RELATIVE
+        ).toString()
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .clickable(onClick = onClick),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp)
+        ) {
+            Text(
+                text = entry.videoTitle,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = entry.channelName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+                Text(
+                    text = relativeTime,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = deleteLabel,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

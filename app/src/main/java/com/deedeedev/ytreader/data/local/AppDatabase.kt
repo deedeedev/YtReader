@@ -12,9 +12,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         HighlightNoteEntity::class,
         BookmarkEntity::class,
         CollectionEntity::class,
-        CollectionVideoEntity::class
+        CollectionVideoEntity::class,
+        SearchHistoryEntity::class
     ],
-    version = 21,
+    version = 22,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -23,6 +24,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun highlightNoteDao(): HighlightNoteDao
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun collectionDao(): CollectionDao
+    abstract fun searchHistoryDao(): SearchHistoryDao
 
     companion object {
         val MIGRATION_12_13 = object : Migration(12, 13) {
@@ -245,6 +247,25 @@ abstract class AppDatabase : RoomDatabase() {
                             )
                     )
                     """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `search_history` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `url` TEXT NOT NULL,
+                        `videoTitle` TEXT NOT NULL,
+                        `channelName` TEXT NOT NULL,
+                        `searchedAt` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_search_history_url` ON `search_history` (`url`)"
                 )
             }
         }

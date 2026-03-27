@@ -46,7 +46,8 @@ class MainActivity : ComponentActivity() {
                         appContainer.highlightNoteDao,
                         appContainer.bookmarkDao,
                         appContainer.userPreferencesRepository,
-                        appContainer.collectionRepository
+                        appContainer.collectionRepository,
+                        appContainer.searchHistoryDao
                     )
                 )
 

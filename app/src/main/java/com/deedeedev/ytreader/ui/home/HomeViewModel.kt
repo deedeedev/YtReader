@@ -17,6 +17,8 @@ import com.deedeedev.ytreader.data.local.VideoEntity
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.LibraryVideoRow
+import com.deedeedev.ytreader.data.local.SearchHistoryDao
+import com.deedeedev.ytreader.data.local.SearchHistoryEntity
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.domain.SubtitleIdentity
@@ -61,7 +63,9 @@ data class HomeUiState(
     val downloadingSubtitleIds: Set<Long> = emptySet(),
     val downloadingThumbnailVideoIds: Set<String> = emptySet(),
     val collections: List<VideoCollection> = emptyList(),
-    val collectionFilterStates: Map<String, CollectionFilterState> = emptyMap()
+    val collectionFilterStates: Map<String, CollectionFilterState> = emptyMap(),
+    val searchHistory: List<SearchHistoryEntity> = emptyList(),
+    val showHistory: Boolean = false
 )
 
 data class CollectionFilterState(
@@ -84,7 +88,8 @@ class HomeViewModel(
     private val highlightNoteDao: HighlightNoteDao,
     private val bookmarkDao: BookmarkDao,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val collectionRepository: CollectionRepository
+    private val collectionRepository: CollectionRepository,
+    private val searchHistoryDao: SearchHistoryDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(createInitialUiState())
@@ -125,6 +130,7 @@ class HomeViewModel(
         loadSavedSubtitles()
         loadFavoriteLanguages()
         loadCollections()
+        loadSearchHistory()
     }
 
     private fun loadCollections() {
@@ -151,6 +157,14 @@ class HomeViewModel(
         viewModelScope.launch {
             subtitleDao.getAll().collect { subtitles ->
                 _uiState.update { it.copy(savedSubtitles = subtitles) }
+            }
+        }
+    }
+
+    private fun loadSearchHistory() {
+        viewModelScope.launch {
+            searchHistoryDao.getAll().collect { history ->
+                _uiState.update { it.copy(searchHistory = history) }
             }
         }
     }
@@ -206,7 +220,15 @@ class HomeViewModel(
     }
 
     fun onUrlChange(newUrl: String?) {
-        _uiState.update { it.copy(url = newUrl ?: "", error = null) }
+        val trimmed = newUrl ?: ""
+        _uiState.update {
+            it.copy(
+                url = trimmed,
+                error = null,
+                streamInfo = if (trimmed.isEmpty()) null else it.streamInfo,
+                showHistory = if (trimmed.isEmpty()) false else it.showHistory
+            )
+        }
     }
 
     fun selectSubtitle(id: Long) {
@@ -229,10 +251,11 @@ class HomeViewModel(
         if (url.isBlank()) return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null, streamInfo = null) }
+            _uiState.update { it.copy(isLoading = true, error = null, streamInfo = null, showHistory = false) }
             try {
                 val info = youtubeRepository.getStreamInfo(url)
                 _uiState.update { it.copy(isLoading = false, streamInfo = info) }
+                saveToSearchHistory(url, info.name, info.uploaderName ?: appContext.getString(R.string.channel_unknown))
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
@@ -241,6 +264,36 @@ class HomeViewModel(
                     )
                 }
             }
+        }
+    }
+
+    fun toggleHistory() {
+        _uiState.update { it.copy(showHistory = !it.showHistory) }
+    }
+
+    fun deleteHistoryEntry(id: Long) {
+        viewModelScope.launch {
+            searchHistoryDao.delete(id)
+        }
+    }
+
+    fun searchFromHistory(url: String) {
+        _uiState.update { it.copy(url = url) }
+        searchVideo()
+    }
+
+    private suspend fun saveToSearchHistory(url: String, videoTitle: String, channelName: String) {
+        searchHistoryDao.upsert(
+            SearchHistoryEntity(
+                url = url,
+                videoTitle = videoTitle,
+                channelName = channelName,
+                searchedAt = System.currentTimeMillis()
+            )
+        )
+        val count = searchHistoryDao.getCount()
+        if (count > 100) {
+            searchHistoryDao.deleteOldest(count - 100)
         }
     }
 
@@ -757,7 +810,8 @@ class HomeViewModel(
             highlightNoteDao: HighlightNoteDao,
             bookmarkDao: BookmarkDao,
             userPreferencesRepository: UserPreferencesRepository,
-            collectionRepository: CollectionRepository
+            collectionRepository: CollectionRepository,
+            searchHistoryDao: SearchHistoryDao
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -769,7 +823,8 @@ class HomeViewModel(
                     highlightNoteDao,
                     bookmarkDao,
                     userPreferencesRepository,
-                    collectionRepository
+                    collectionRepository,
+                    searchHistoryDao
                 ) as T
             }
         }
