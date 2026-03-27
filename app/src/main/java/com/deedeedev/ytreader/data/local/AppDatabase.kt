@@ -8,16 +8,18 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities = [
         SubtitleEntity::class,
+        VideoEntity::class,
         HighlightNoteEntity::class,
         BookmarkEntity::class,
         CollectionEntity::class,
         CollectionVideoEntity::class
     ],
-    version = 20,
+    version = 21,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun subtitleDao(): SubtitleDao
+    abstract fun videoDao(): VideoDao
     abstract fun highlightNoteDao(): HighlightNoteDao
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun collectionDao(): CollectionDao
@@ -149,6 +151,78 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `videos` (
+                        `videoId` TEXT NOT NULL,
+                        `videoUrl` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `channelName` TEXT NOT NULL,
+                        `uploadDate` INTEGER NOT NULL,
+                        `thumbnailLocalPath` TEXT,
+                        `thumbnailSourceUrl` TEXT,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`videoId`)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO `videos` (
+                        `videoId`,
+                        `videoUrl`,
+                        `title`,
+                        `channelName`,
+                        `uploadDate`,
+                        `thumbnailLocalPath`,
+                        `thumbnailSourceUrl`,
+                        `updatedAt`
+                    )
+                    SELECT
+                        agg.videoId,
+                        COALESCE((
+                            SELECT s.videoUrl
+                            FROM subtitles s
+                            WHERE s.videoId = agg.videoId
+                            ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                            LIMIT 1
+                        ), ''),
+                        COALESCE((
+                            SELECT s.title
+                            FROM subtitles s
+                            WHERE s.videoId = agg.videoId
+                            ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                            LIMIT 1
+                        ), ''),
+                        COALESCE((
+                            SELECT s.channelName
+                            FROM subtitles s
+                            WHERE s.videoId = agg.videoId
+                            ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                            LIMIT 1
+                        ), ''),
+                        COALESCE((
+                            SELECT s.uploadDate
+                            FROM subtitles s
+                            WHERE s.videoId = agg.videoId
+                            ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                            LIMIT 1
+                        ), 0),
+                        NULL,
+                        NULL,
+                        agg.updatedAt
+                    FROM (
+                        SELECT videoId, MAX(createdAt) AS updatedAt
+                        FROM subtitles
+                        GROUP BY videoId
+                    ) agg
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_20_21 = object : Migration(20, 21) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "ALTER TABLE `collections` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0"

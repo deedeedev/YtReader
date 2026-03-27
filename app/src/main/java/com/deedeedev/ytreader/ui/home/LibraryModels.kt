@@ -12,6 +12,7 @@ data class LibraryItem(
     val videoUrl: String,
     val title: String,
     val channelName: String,
+    val thumbnailLocalPath: String?,
     val subtitles: List<SubtitleEntity>,
     val uploadDate: Long,
     val lastDownloaded: Long,

@@ -10,7 +10,10 @@ import com.deedeedev.ytreader.data.PersistedCollectionFilters
 import com.deedeedev.ytreader.data.PersistedLibraryFilters
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.VideoCollection
+import com.deedeedev.ytreader.data.VideoThumbnailStore
 import com.deedeedev.ytreader.data.YoutubeRepository
+import com.deedeedev.ytreader.data.local.VideoDao
+import com.deedeedev.ytreader.data.local.VideoEntity
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.LibraryVideoRow
@@ -21,9 +24,11 @@ import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -32,6 +37,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.deedeedev.ytreader.data.preferredThumbnailUrl
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 
@@ -52,6 +58,7 @@ data class HomeUiState(
     val sortOption: SortOption = SortOption.DOWNLOADED,
     val isAscending: Boolean = false,
     val downloadingSubtitleIds: Set<Long> = emptySet(),
+    val downloadingThumbnailVideoIds: Set<String> = emptySet(),
     val collections: List<VideoCollection> = emptyList(),
     val collectionFilterStates: Map<String, CollectionFilterState> = emptyMap()
 )
@@ -62,11 +69,16 @@ data class CollectionFilterState(
     val isAscending: Boolean = false
 )
 
+sealed interface HomeEvent {
+    data class ShowMessage(val message: String) : HomeEvent
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModel(
     private val appContext: Context,
     private val youtubeRepository: YoutubeRepository,
     private val subtitleDao: SubtitleDao,
+    private val videoDao: VideoDao,
     private val highlightNoteDao: HighlightNoteDao,
     private val bookmarkDao: BookmarkDao,
     private val userPreferencesRepository: UserPreferencesRepository,
@@ -75,6 +87,8 @@ class HomeViewModel(
 
     private val _uiState = MutableStateFlow(createInitialUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private val _events = MutableSharedFlow<HomeEvent>(extraBufferCapacity = 1)
+    val events = _events.asSharedFlow()
 
     val libraryChannels: StateFlow<List<String>> = subtitleDao.observeLibraryChannels()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -247,7 +261,15 @@ class HomeViewModel(
                     uploadDate = info.uploadDate?.instant?.toEpochMilli() ?: 0L
                 )
                 subtitleDao.upsertByIdentity(entity)
-                
+                upsertVideoMetadata(
+                    videoId = canonicalVideoRef.videoId,
+                    fallbackVideoUrl = canonicalVideoRef.videoUrl,
+                    fallbackTitle = info.name,
+                    fallbackChannelName = info.uploaderName ?: appContext.getString(R.string.channel_unknown),
+                    fallbackUploadDate = info.uploadDate?.instant?.toEpochMilli() ?: 0L,
+                    info = info
+                )
+
                 _uiState.update { it.copy(isLoading = false, error = null) } // Success
             } catch (e: Exception) {
                 _uiState.update {
@@ -288,6 +310,14 @@ class HomeViewModel(
                     content = rawContent,
                     createdAt = System.currentTimeMillis()
                 )
+                upsertVideoMetadata(
+                    videoId = subtitle.videoId,
+                    fallbackVideoUrl = displayUrlFor(subtitle.videoId, subtitle.videoUrl),
+                    fallbackTitle = info.name,
+                    fallbackChannelName = info.uploaderName ?: appContext.getString(R.string.channel_unknown),
+                    fallbackUploadDate = info.uploadDate?.instant?.toEpochMilli() ?: 0L,
+                    info = info
+                )
                 highlightNoteDao.deleteBySubtitleId(subtitle.id)
                 bookmarkDao.deleteBySubtitleId(subtitle.id)
                 _uiState.update { it.copy(isLoading = false, error = null) }
@@ -301,6 +331,43 @@ class HomeViewModel(
             } finally {
                 _uiState.update { state ->
                     state.copy(downloadingSubtitleIds = state.downloadingSubtitleIds - subtitle.id)
+                }
+            }
+        }
+    }
+
+    fun downloadThumbnailForVideo(
+        videoId: String,
+        videoUrl: String,
+        title: String,
+        channelName: String,
+        uploadDate: Long
+    ) {
+        viewModelScope.launch {
+            _uiState.update { state ->
+                state.copy(downloadingThumbnailVideoIds = state.downloadingThumbnailVideoIds + videoId)
+            }
+            try {
+                val info = youtubeRepository.getStreamInfo(displayUrlFor(videoId, videoUrl))
+                upsertVideoMetadata(
+                    videoId = videoId,
+                    fallbackVideoUrl = displayUrlFor(videoId, videoUrl),
+                    fallbackTitle = info.name.ifBlank { title },
+                    fallbackChannelName = (info.uploaderName ?: channelName).ifBlank { channelName },
+                    fallbackUploadDate = info.uploadDate?.instant?.toEpochMilli() ?: uploadDate,
+                    info = info
+                )
+                _uiState.update { it.copy(error = null) }
+                _events.tryEmit(HomeEvent.ShowMessage(appContext.getString(R.string.library_thumbnail_downloaded)))
+            } catch (e: Exception) {
+                val errorMessage = e.message ?: appContext.getString(R.string.library_thumbnail_download_failed)
+                _uiState.update {
+                    it.copy(error = errorMessage)
+                }
+                _events.tryEmit(HomeEvent.ShowMessage(errorMessage))
+            } finally {
+                _uiState.update { state ->
+                    state.copy(downloadingThumbnailVideoIds = state.downloadingThumbnailVideoIds - videoId)
                 }
             }
         }
@@ -493,6 +560,7 @@ class HomeViewModel(
                         videoUrl = displayUrlFor(row.videoId, row.videoUrl),
                         title = row.title,
                         channelName = row.channelName,
+                        thumbnailLocalPath = row.thumbnailLocalPath,
                         subtitles = tracksByVideoId[row.videoId].orEmpty(),
                         uploadDate = row.uploadDate,
                         lastDownloaded = row.lastDownloaded,
@@ -510,8 +578,57 @@ class HomeViewModel(
     private suspend fun deleteVideoIfUnreferenced(videoId: String) {
         val hasLibraryEntry = subtitleDao.countLibraryEntriesByVideoId(videoId) > 0
         if (!hasLibraryEntry && !collectionRepository.isVideoInAnyCollection(videoId)) {
+            videoDao.getByVideoId(videoId)?.thumbnailLocalPath?.let { path ->
+                VideoThumbnailStore.delete(appContext, path)
+            }
+            videoDao.deleteByVideoId(videoId)
             subtitleDao.deleteByVideoId(videoId)
         }
+    }
+
+    private suspend fun upsertVideoMetadata(
+        videoId: String,
+        fallbackVideoUrl: String,
+        fallbackTitle: String,
+        fallbackChannelName: String,
+        fallbackUploadDate: Long,
+        info: StreamInfo
+    ) {
+        val existingVideo = videoDao.getByVideoId(videoId)
+        val thumbnailSourceUrl = preferredThumbnailUrl(info.thumbnails)
+        val localThumbnailPath = downloadThumbnail(videoId, thumbnailSourceUrl)
+            ?: existingVideo?.thumbnailLocalPath
+
+        if (thumbnailSourceUrl != null && localThumbnailPath == null) {
+            existingVideo?.thumbnailLocalPath?.let { VideoThumbnailStore.delete(appContext, it) }
+        }
+
+        videoDao.upsert(
+            VideoEntity(
+                videoId = videoId,
+                videoUrl = fallbackVideoUrl,
+                title = fallbackTitle,
+                channelName = fallbackChannelName,
+                uploadDate = fallbackUploadDate,
+                thumbnailLocalPath = localThumbnailPath,
+                thumbnailSourceUrl = thumbnailSourceUrl,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    private suspend fun downloadThumbnail(videoId: String, sourceUrl: String?): String? {
+        if (sourceUrl.isNullOrBlank()) {
+            return null
+        }
+        return runCatching {
+            val bytes = youtubeRepository.downloadBytes(sourceUrl)
+            if (bytes.isEmpty()) {
+                null
+            } else {
+                VideoThumbnailStore.save(appContext, videoId, sourceUrl, bytes)
+            }
+        }.getOrNull()
     }
 
     private fun normalizeVideoIds(videoIds: List<String>): List<String> {
@@ -609,6 +726,7 @@ class HomeViewModel(
             appContext: Context,
             repository: YoutubeRepository,
             dao: SubtitleDao,
+            videoDao: VideoDao,
             highlightNoteDao: HighlightNoteDao,
             bookmarkDao: BookmarkDao,
             userPreferencesRepository: UserPreferencesRepository,
@@ -620,6 +738,7 @@ class HomeViewModel(
                     appContext,
                     repository,
                     dao,
+                    videoDao,
                     highlightNoteDao,
                     bookmarkDao,
                     userPreferencesRepository,

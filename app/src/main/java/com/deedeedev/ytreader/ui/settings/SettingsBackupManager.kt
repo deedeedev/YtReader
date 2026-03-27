@@ -11,6 +11,7 @@ import com.deedeedev.ytreader.DefaultAppContainer
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.YtReaderApplication
 import com.deedeedev.ytreader.data.AiCleaningWorkScheduler
+import com.deedeedev.ytreader.data.VideoThumbnailStore
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
@@ -28,9 +29,10 @@ import java.util.zip.ZipOutputStream
 
 private const val DATABASE_NAME = "ytreader.db"
 private const val DATA_BACKUP_MANIFEST_NAME = "manifest.json"
-private const val DATA_BACKUP_FORMAT_VERSION = 1
-private const val APP_DATABASE_VERSION = 18
+private const val DATA_BACKUP_FORMAT_VERSION = 2
+private const val APP_DATABASE_VERSION = 20
 private const val SQLITE_INTEGRITY_OK = "ok"
+private const val THUMBNAIL_BACKUP_DIRECTORY = "video_thumbnails"
 
 private val gson = Gson()
 
@@ -66,7 +68,9 @@ internal data class DataBackupManifest(
     @SerializedName("bookmarkCount")
     val bookmarkCount: Int,
     @SerializedName("highlightNoteCount")
-    val highlightNoteCount: Int
+    val highlightNoteCount: Int,
+    @SerializedName("thumbnailFileCount")
+    val thumbnailFileCount: Int = 0
 )
 
 enum class BackupCompatibilityIssue {
@@ -77,6 +81,7 @@ enum class BackupCompatibilityIssue {
 private data class ExtractedDataBackup(
     val directory: File,
     val files: Map<String, File>,
+    val thumbnailFiles: Map<String, File>,
     val manifest: DataBackupManifest?
 )
 
@@ -176,7 +181,8 @@ suspend fun exportDataBackup(
             subtitleCount = currentMetadata.subtitleCount,
             collectionCount = currentMetadata.collectionCount,
             bookmarkCount = currentMetadata.bookmarkCount,
-            highlightNoteCount = currentMetadata.highlightNoteCount
+            highlightNoteCount = currentMetadata.highlightNoteCount,
+            thumbnailFileCount = thumbnailFiles(context).size
         )
 
         context.contentResolver.openOutputStream(uri)?.use { outputStream ->
@@ -190,6 +196,19 @@ suspend fun exportDataBackup(
                         return@forEach
                     }
                     zipOutputStream.putNextEntry(ZipEntry(file.name))
+                    file.inputStream().use { input ->
+                        input.copyTo(zipOutputStream)
+                    }
+                    zipOutputStream.closeEntry()
+                }
+
+                thumbnailFiles(context).forEach { file ->
+                    if (!file.exists()) {
+                        return@forEach
+                    }
+                    zipOutputStream.putNextEntry(
+                        ZipEntry("$THUMBNAIL_BACKUP_DIRECTORY/${file.name}")
+                    )
                     file.inputStream().use { input ->
                         input.copyTo(zipOutputStream)
                     }
@@ -235,11 +254,14 @@ suspend fun importDataBackup(
 
             try {
                 backupExistingDatabaseFiles(databaseDir, rollbackDir)
+                backupExistingThumbnailFiles(context, rollbackDir)
                 replaceDatabaseFiles(databaseDir, extracted.files)
+                replaceThumbnailFiles(context, extracted.thumbnailFiles)
                 sanitizeImportedDatabase(databaseDir)
                 validateInstalledDatabaseFiles(databaseDir)
             } catch (error: Exception) {
                 restoreDatabaseFiles(databaseDir, rollbackDir)
+                restoreThumbnailFiles(context, rollbackDir)
                 throw error
             } finally {
                 rollbackDir.deleteRecursively()
@@ -300,6 +322,7 @@ private fun extractDataBackup(
         mkdirs()
     }
     val extractedFiles = mutableMapOf<String, File>()
+    val extractedThumbnailFiles = mutableMapOf<String, File>()
     var manifest: DataBackupManifest? = null
 
     context.contentResolver.openInputStream(uri)?.use { inputStream ->
@@ -321,6 +344,14 @@ private fun extractDataBackup(
                         }
                         extractedFiles[name] = outputFile
                     }
+
+                    entry.name.startsWith("$THUMBNAIL_BACKUP_DIRECTORY/") && !entry.isDirectory -> {
+                        val outputFile = File(tempDir, "thumbnail-$name")
+                        outputFile.outputStream().use { output ->
+                            zipInputStream.copyTo(output)
+                        }
+                        extractedThumbnailFiles[name] = outputFile
+                    }
                 }
                 zipInputStream.closeEntry()
                 entry = zipInputStream.nextEntry
@@ -335,6 +366,7 @@ private fun extractDataBackup(
     return ExtractedDataBackup(
         directory = tempDir,
         files = extractedFiles,
+        thumbnailFiles = extractedThumbnailFiles,
         manifest = manifest
     )
 }
@@ -343,7 +375,7 @@ private fun inspectBackupDatabase(extracted: ExtractedDataBackup): DatabaseInspe
     val inspection = inspectDatabaseFiles(extracted.files)
     val manifest = extracted.manifest
     if (manifest != null) {
-        check(manifest.formatVersion == DATA_BACKUP_FORMAT_VERSION) {
+        check(manifest.formatVersion in 1..DATA_BACKUP_FORMAT_VERSION) {
             "Unsupported backup format version: ${manifest.formatVersion}"
         }
     }
@@ -418,6 +450,18 @@ private fun backupExistingDatabaseFiles(databaseDir: File, rollbackDir: File) {
     }
 }
 
+private fun backupExistingThumbnailFiles(context: Context, rollbackDir: File) {
+    val thumbnailRollbackDir = File(rollbackDir, THUMBNAIL_BACKUP_DIRECTORY).apply {
+        deleteRecursively()
+        mkdirs()
+    }
+    thumbnailFiles(context).forEach { file ->
+        if (file.exists()) {
+            file.copyTo(File(thumbnailRollbackDir, file.name), overwrite = true)
+        }
+    }
+}
+
 private fun replaceDatabaseFiles(databaseDir: File, extractedFiles: Map<String, File>) {
     DATA_BACKUP_FILES.forEach { name ->
         val target = File(databaseDir, name)
@@ -431,6 +475,16 @@ private fun replaceDatabaseFiles(databaseDir: File, extractedFiles: Map<String, 
     }
 }
 
+private fun replaceThumbnailFiles(context: Context, extractedThumbnailFiles: Map<String, File>) {
+    val targetDir = VideoThumbnailStore.directory(context).apply {
+        deleteRecursively()
+        mkdirs()
+    }
+    extractedThumbnailFiles.forEach { (name, sourceFile) ->
+        sourceFile.copyTo(File(targetDir, name), overwrite = true)
+    }
+}
+
 private fun restoreDatabaseFiles(databaseDir: File, rollbackDir: File) {
     DATA_BACKUP_FILES.forEach { name ->
         val target = File(databaseDir, name)
@@ -441,6 +495,17 @@ private fun restoreDatabaseFiles(databaseDir: File, rollbackDir: File) {
         if (rollbackSource.exists()) {
             rollbackSource.copyTo(target, overwrite = true)
         }
+    }
+}
+
+private fun restoreThumbnailFiles(context: Context, rollbackDir: File) {
+    val targetDir = VideoThumbnailStore.directory(context).apply {
+        deleteRecursively()
+        mkdirs()
+    }
+    val thumbnailRollbackDir = File(rollbackDir, THUMBNAIL_BACKUP_DIRECTORY)
+    thumbnailRollbackDir.listFiles()?.forEach { file ->
+        file.copyTo(File(targetDir, file.name), overwrite = true)
     }
 }
 
@@ -571,3 +636,7 @@ private val DATA_BACKUP_FILES = setOf(
     "$DATABASE_NAME-wal",
     "$DATABASE_NAME-shm"
 )
+
+private fun thumbnailFiles(context: Context): List<File> {
+    return VideoThumbnailStore.listFiles(context)
+}

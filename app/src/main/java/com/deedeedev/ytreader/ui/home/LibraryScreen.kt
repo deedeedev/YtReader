@@ -1,6 +1,7 @@
 package com.deedeedev.ytreader.ui.home
 
 import android.content.Intent
+import java.io.File
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -14,6 +15,8 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -24,18 +27,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.data.VideoThumbnailStore
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.local.SubtitleEntity
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -55,6 +64,17 @@ fun LibraryScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var addToCollectionTargetVideoId by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(viewModel) {
+        viewModel.events.collectLatest { event ->
+            when (event) {
+                is HomeEvent.ShowMessage -> snackbarHostState.showSnackbar(
+                    message = event.message,
+                    duration = SnackbarDuration.Short
+                )
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -165,6 +185,15 @@ fun LibraryScreen(
                                     }
                                 },
                                 onAddToCollection = { addToCollectionTargetVideoId = item.videoId },
+                                onDownloadThumbnail = {
+                                    viewModel.downloadThumbnailForVideo(
+                                        videoId = item.videoId,
+                                        videoUrl = item.videoUrl,
+                                        title = item.title,
+                                        channelName = item.channelName,
+                                        uploadDate = item.uploadDate
+                                    )
+                                },
                                 onResetProgress = { viewModel.resetVideoProgress(item.videoId) },
                                 onRemoveFromLibrary = {
                                     viewModel.removeLibraryItem(item.subtitles)
@@ -175,7 +204,8 @@ fun LibraryScreen(
                                 onSubtitleDownloadAgain = { subtitle ->
                                     viewModel.downloadSubtitleAgain(subtitle)
                                 },
-                                downloadingSubtitleIds = uiState.downloadingSubtitleIds
+                                downloadingSubtitleIds = uiState.downloadingSubtitleIds,
+                                isDownloadingThumbnail = uiState.downloadingThumbnailVideoIds.contains(item.videoId)
                             )
                         }
             }
@@ -231,6 +261,7 @@ fun LibraryItemCard(
     onVideoSearchAgain: (String) -> Unit,
     onMarkAsRead: (() -> Unit)? = null,
     onAddToCollection: () -> Unit,
+    onDownloadThumbnail: (() -> Unit)? = null,
     onResetProgress: () -> Unit,
     showLibraryStatusBadge: Boolean = true,
     showCollectionBadge: Boolean = true,
@@ -239,13 +270,17 @@ fun LibraryItemCard(
     onRemoveFromCollection: (() -> Unit)? = null,
     onSubtitleDelete: (SubtitleEntity) -> Unit,
     onSubtitleDownloadAgain: (SubtitleEntity) -> Unit,
-    downloadingSubtitleIds: Set<Long>
+    downloadingSubtitleIds: Set<Long>,
+    isDownloadingThumbnail: Boolean = false
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     val removedFromLibraryLabel = stringResource(R.string.library_removed)
     val readLabel = stringResource(R.string.library_read)
+    val thumbnailFile = remember(item.thumbnailLocalPath) {
+        VideoThumbnailStore.resolve(context, item.thumbnailLocalPath)
+    }
 
     Box {
         Card(
@@ -258,84 +293,97 @@ fun LibraryItemCard(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = item.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                ThumbnailPreview(
+                    thumbnailFile = thumbnailFile,
+                    title = item.title,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(2f)
                 )
-                
-                if (item.channelName.isNotBlank()) {
-                    Text(
-                        text = item.channelName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
-                }
 
-                if ((showLibraryStatusBadge && !item.isInLibrary) || (showCollectionBadge && item.isInCollections)) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(top = 4.dp)
-                    ) {
-                        if (showLibraryStatusBadge && !item.isInLibrary) {
-                            Text(
-                                text = removedFromLibraryLabel,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.padding(vertical = 6.dp)
-                            )
-                        }
-                        if (showCollectionBadge && item.isInCollections) {
-                            Text(
-                                text = if (item.collectionCount == 1) {
-                                    stringResource(R.string.library_in_collection_one)
-                                } else {
-                                    stringResource(R.string.library_in_collection_many, item.collectionCount)
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.padding(vertical = 6.dp)
-                            )
-                        }
-                    }
-                }
-
-                if (item.isRead) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        ReadingStatusBadge(text = readLabel)
-                    }
-                } else {
-                    LibraryReadingProgress(
-                        percent = item.readingProgressPercent,
-                        currentPage = item.currentPage,
-                        totalPages = item.totalPages,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
-                    item.subtitles.forEach { subtitle ->
-                        SubtitleChip(
-                            subtitle = subtitle,
-                            onClick = { onSubtitleClick(subtitle.id) },
-                            onDelete = { onSubtitleDelete(subtitle) },
-                            onDownloadAgain = { onSubtitleDownloadAgain(subtitle) },
-                            isDownloading = downloadingSubtitleIds.contains(subtitle.id)
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    if (item.channelName.isNotBlank()) {
+                        Text(
+                            text = item.channelName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
+                    }
+
+                    if ((showLibraryStatusBadge && !item.isInLibrary) || (showCollectionBadge && item.isInCollections)) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                        ) {
+                            if (showLibraryStatusBadge && !item.isInLibrary) {
+                                MetadataBadge(text = removedFromLibraryLabel)
+                            }
+                            if (showCollectionBadge && item.isInCollections) {
+                                MetadataBadge(
+                                    text = if (item.collectionCount == 1) {
+                                        stringResource(R.string.library_in_collection_one)
+                                    } else {
+                                        stringResource(R.string.library_in_collection_many, item.collectionCount)
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    if (item.isRead) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ReadingStatusBadge(text = readLabel)
+                        }
+                    } else {
+                        LibraryReadingProgress(
+                            percent = item.readingProgressPercent,
+                            currentPage = item.currentPage,
+                            totalPages = item.totalPages,
+                            modifier = Modifier.padding(top = 10.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item.subtitles.forEach { subtitle ->
+                            SubtitleChip(
+                                subtitle = subtitle,
+                                onClick = { onSubtitleClick(subtitle.id) },
+                                onDelete = { onSubtitleDelete(subtitle) },
+                                onDownloadAgain = { onSubtitleDownloadAgain(subtitle) },
+                                isDownloading = downloadingSubtitleIds.contains(subtitle.id)
+                            )
+                        }
                     }
                 }
             }
@@ -403,6 +451,33 @@ fun LibraryItemCard(
                     )
                 }
             )
+            if (item.thumbnailLocalPath == null) {
+                onDownloadThumbnail?.let { downloadThumbnail ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (isDownloadingThumbnail) {
+                                    stringResource(R.string.library_downloading_thumbnail)
+                                } else {
+                                    stringResource(R.string.library_download_thumbnail)
+                                }
+                            )
+                        },
+                        onClick = {
+                            if (!isDownloadingThumbnail) {
+                                downloadThumbnail()
+                                showMenu = false
+                            }
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Download,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                }
+            }
             if (!item.isRead) {
                 onMarkAsRead?.let { markAsRead ->
                     DropdownMenuItem(
@@ -479,6 +554,55 @@ fun LibraryItemCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ThumbnailPreview(
+    thumbnailFile: File?,
+    title: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        if (thumbnailFile != null) {
+            AsyncImage(
+                model = thumbnailFile,
+                contentDescription = title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetadataBadge(text: String) {
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

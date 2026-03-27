@@ -11,6 +11,7 @@ import com.deedeedev.ytreader.data.local.AppDatabase
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.CollectionDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
+import com.deedeedev.ytreader.data.local.VideoDao
 import com.deedeedev.ytreader.data.remote.NewPipeDownloader
 import okhttp3.OkHttpClient
 import org.schabi.newpipe.extractor.NewPipe
@@ -20,6 +21,7 @@ import java.util.concurrent.TimeUnit
 interface AppContainer {
     val appContext: Context
     val subtitleDao: SubtitleDao
+    val videoDao: VideoDao
     val highlightNoteDao: HighlightNoteDao
     val bookmarkDao: BookmarkDao
     val collectionDao: CollectionDao
@@ -48,6 +50,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             .addMigrations(AppDatabase.MIGRATION_17_18)
             .addMigrations(AppDatabase.MIGRATION_18_19)
             .addMigrations(AppDatabase.MIGRATION_19_20)
+            .addMigrations(AppDatabase.MIGRATION_20_21)
             .fallbackToDestructiveMigration(false)
             .build()
     }
@@ -74,6 +77,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val highlightNoteDao: HighlightNoteDao by lazy {
         database.highlightNoteDao()
+    }
+
+    override val videoDao: VideoDao by lazy {
+        database.videoDao()
     }
 
     override val bookmarkDao: BookmarkDao by lazy {

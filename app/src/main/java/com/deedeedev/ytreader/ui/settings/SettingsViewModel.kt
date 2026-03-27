@@ -1,9 +1,16 @@
 package com.deedeedev.ytreader.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.data.VideoThumbnailStore
+import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.data.local.VideoDao
+import com.deedeedev.ytreader.data.preferredThumbnailUrl
+import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import com.deedeedev.ytreader.ui.FontOption
 import com.deedeedev.ytreader.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,11 +29,15 @@ data class SettingsUiState(
     val aiEndpoint: String = "",
     val aiApiKey: String = "",
     val aiModel: String = "",
-    val aiPrompt: String = ""
+    val aiPrompt: String = "",
+    val isRunningThumbnailBulkAction: Boolean = false
 )
 
 class SettingsViewModel(
-    private val userPreferencesRepository: UserPreferencesRepository
+    private val appContext: Context,
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val youtubeRepository: YoutubeRepository,
+    private val videoDao: VideoDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -107,13 +118,138 @@ class SettingsViewModel(
         userPreferencesRepository.setAiPrompt(prompt)
     }
 
+    suspend fun downloadMissingThumbnails(): String {
+        if (_uiState.value.isRunningThumbnailBulkAction) {
+            return appContext.getString(R.string.settings_working)
+        }
+        _uiState.update { it.copy(isRunningThumbnailBulkAction = true) }
+        return try {
+            val videos = videoDao.getAllMissingThumbnailPath()
+            if (videos.isEmpty()) {
+                return appContext.getString(R.string.settings_thumbnail_download_none_missing)
+            }
+
+            var downloadedCount = 0
+            var skippedCount = 0
+            videos.forEach { video ->
+                val streamUrl = video.videoUrl.takeIf { it.isNotBlank() }
+                    ?: YouTubeVideoIdNormalizer.extractVideoId(video.videoId)?.let {
+                        YouTubeVideoIdNormalizer.canonicalWatchUrl(it)
+                    }
+                    ?: video.videoId
+
+                val result = runCatching {
+                    val info = youtubeRepository.getStreamInfo(streamUrl)
+                    val thumbnailUrl = preferredThumbnailUrl(info.thumbnails)
+                    if (thumbnailUrl.isNullOrBlank()) {
+                        false
+                    } else {
+                        val bytes = youtubeRepository.downloadBytes(thumbnailUrl)
+                        if (bytes.isEmpty()) {
+                            false
+                        } else {
+                            val localPath = VideoThumbnailStore.save(appContext, video.videoId, thumbnailUrl, bytes)
+                            videoDao.upsert(
+                                video.copy(
+                                    videoUrl = if (video.videoUrl.isBlank()) streamUrl else video.videoUrl,
+                                    title = info.name.ifBlank { video.title },
+                                    channelName = (info.uploaderName ?: video.channelName).ifBlank { video.channelName },
+                                    uploadDate = info.uploadDate?.instant?.toEpochMilli() ?: video.uploadDate,
+                                    thumbnailLocalPath = localPath,
+                                    thumbnailSourceUrl = thumbnailUrl,
+                                    updatedAt = System.currentTimeMillis()
+                                )
+                            )
+                            true
+                        }
+                    }
+                }.getOrDefault(false)
+
+                if (result) {
+                    downloadedCount += 1
+                } else {
+                    skippedCount += 1
+                }
+            }
+
+            when {
+                downloadedCount == 0 -> appContext.getString(
+                    R.string.settings_thumbnail_download_no_results,
+                    skippedCount
+                )
+                skippedCount == 0 -> appContext.getString(
+                    R.string.settings_thumbnail_download_success,
+                    downloadedCount
+                )
+                else -> appContext.getString(
+                    R.string.settings_thumbnail_download_partial,
+                    downloadedCount,
+                    skippedCount
+                )
+            }
+        } finally {
+            _uiState.update { it.copy(isRunningThumbnailBulkAction = false) }
+        }
+    }
+
+    suspend fun cleanOrphanThumbnails(): String {
+        if (_uiState.value.isRunningThumbnailBulkAction) {
+            return appContext.getString(R.string.settings_working)
+        }
+        _uiState.update { it.copy(isRunningThumbnailBulkAction = true) }
+        return try {
+            val videos = videoDao.getAll()
+            val referencedPaths = videoDao.getAllReferencedThumbnailPaths().toSet()
+            var removedFiles = 0
+            VideoThumbnailStore.listFiles(appContext).forEach { file ->
+                if (file.name !in referencedPaths && file.delete()) {
+                    removedFiles += 1
+                }
+            }
+
+            var clearedReferences = 0
+            videos.forEach { video ->
+                val path = video.thumbnailLocalPath ?: return@forEach
+                if (VideoThumbnailStore.resolve(appContext, path) == null) {
+                    videoDao.upsert(
+                        video.copy(
+                            thumbnailLocalPath = null,
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    )
+                    clearedReferences += 1
+                }
+            }
+
+            if (removedFiles == 0 && clearedReferences == 0) {
+                appContext.getString(R.string.settings_thumbnail_cleanup_nothing_to_do)
+            } else {
+                appContext.getString(
+                    R.string.settings_thumbnail_cleanup_result,
+                    removedFiles,
+                    clearedReferences
+                )
+            }
+        } finally {
+            _uiState.update { it.copy(isRunningThumbnailBulkAction = false) }
+        }
+    }
+
     companion object {
         fun provideFactory(
-            userPreferencesRepository: UserPreferencesRepository
+            appContext: Context,
+            userPreferencesRepository: UserPreferencesRepository,
+            youtubeRepository: YoutubeRepository,
+            videoDao: VideoDao
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return SettingsViewModel(userPreferencesRepository) as T
+                return SettingsViewModel(
+                    appContext,
+                    userPreferencesRepository,
+                    youtubeRepository,
+                    videoDao
+                ) as T
             }
         }
     }

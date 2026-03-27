@@ -88,6 +88,7 @@ fun MainScreen(
             appContainer.appContext,
             appContainer.youtubeRepository,
             appContainer.subtitleDao,
+            appContainer.videoDao,
             appContainer.highlightNoteDao,
             appContainer.bookmarkDao,
             appContainer.userPreferencesRepository,

@@ -28,12 +28,22 @@ private enum class SettingsImportTarget {
     DATA
 }
 
+private enum class ThumbnailBulkAction {
+    DOWNLOAD_MISSING,
+    CLEAN_ORPHANS
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     appContainer: AppContainer,
     viewModel: SettingsViewModel = viewModel(
-        factory = SettingsViewModel.provideFactory(appContainer.userPreferencesRepository)
+        factory = SettingsViewModel.provideFactory(
+            appContainer.appContext,
+            appContainer.userPreferencesRepository,
+            appContainer.youtubeRepository,
+            appContainer.videoDao
+        )
     )
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -43,6 +53,7 @@ fun SettingsScreen(
     var pendingImportTarget by remember { mutableStateOf<SettingsImportTarget?>(null) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     var pendingDataImportPreview by remember { mutableStateOf<DataBackupPreview?>(null) }
+    var pendingThumbnailAction by remember { mutableStateOf<ThumbnailBulkAction?>(null) }
     var isBusy by remember { mutableStateOf(false) }
 
     val selectedFontFamily = when (FontOption.fromStorageValue(uiState.fontFamily)) {
@@ -343,7 +354,19 @@ fun SettingsScreen(
                 )
             }
 
-            if (isBusy) {
+            item {
+                BulkThumbnailActionsSection(
+                    enabled = !isBusy && !uiState.isRunningThumbnailBulkAction,
+                    onDownloadMissing = {
+                        pendingThumbnailAction = ThumbnailBulkAction.DOWNLOAD_MISSING
+                    },
+                    onCleanOrphans = {
+                        pendingThumbnailAction = ThumbnailBulkAction.CLEAN_ORPHANS
+                    }
+                )
+            }
+
+            if (isBusy || uiState.isRunningThumbnailBulkAction) {
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -355,6 +378,55 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    pendingThumbnailAction?.let { action ->
+        val titleRes = when (action) {
+            ThumbnailBulkAction.DOWNLOAD_MISSING -> R.string.settings_thumbnail_download_confirm_title
+            ThumbnailBulkAction.CLEAN_ORPHANS -> R.string.settings_thumbnail_cleanup_confirm_title
+        }
+        val messageRes = when (action) {
+            ThumbnailBulkAction.DOWNLOAD_MISSING -> R.string.settings_thumbnail_download_confirm_message
+            ThumbnailBulkAction.CLEAN_ORPHANS -> R.string.settings_thumbnail_cleanup_confirm_message
+        }
+        AlertDialog(
+            onDismissRequest = {
+                if (!isBusy && !uiState.isRunningThumbnailBulkAction) {
+                    pendingThumbnailAction = null
+                }
+            },
+            properties = DialogProperties(
+                dismissOnBackPress = !isBusy && !uiState.isRunningThumbnailBulkAction,
+                dismissOnClickOutside = !isBusy && !uiState.isRunningThumbnailBulkAction
+            ),
+            title = { Text(stringResource(titleRes)) },
+            text = { Text(stringResource(messageRes)) },
+            confirmButton = {
+                TextButton(
+                    enabled = !isBusy && !uiState.isRunningThumbnailBulkAction,
+                    onClick = {
+                        val selectedAction = action
+                        pendingThumbnailAction = null
+                        launchTask {
+                            when (selectedAction) {
+                                ThumbnailBulkAction.DOWNLOAD_MISSING -> viewModel.downloadMissingThumbnails()
+                                ThumbnailBulkAction.CLEAN_ORPHANS -> viewModel.cleanOrphanThumbnails()
+                            }
+                        }
+                    }
+                ) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !isBusy && !uiState.isRunningThumbnailBulkAction,
+                    onClick = { pendingThumbnailAction = null }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 
     if (pendingImportTarget != null && pendingImportUri != null) {
@@ -512,6 +584,46 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun BulkThumbnailActionsSection(
+    enabled: Boolean,
+    onDownloadMissing: () -> Unit,
+    onCleanOrphans: () -> Unit
+) {
+    ElevatedCard {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.settings_thumbnail_tools),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(R.string.settings_thumbnail_tools_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(
+                onClick = onDownloadMissing,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.settings_thumbnail_download_missing))
+            }
+            OutlinedButton(
+                onClick = onCleanOrphans,
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.settings_thumbnail_clean_orphans))
+            }
+        }
     }
 }
 

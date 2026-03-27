@@ -6,6 +6,7 @@ data class LibraryVideoRow(
     val title: String,
     val channelName: String,
     val uploadDate: Long,
+    val thumbnailLocalPath: String?,
     val lastDownloaded: Long,
     val lastOpenedAt: Long,
     val readingProgressPercent: Int,

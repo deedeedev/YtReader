@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.R
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -61,6 +62,17 @@ fun CollectionDetailScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(viewModel) {
+        viewModel.events.collectLatest { event ->
+            when (event) {
+                is HomeEvent.ShowMessage -> snackbarHostState.showSnackbar(
+                    message = event.message,
+                    duration = SnackbarDuration.Short
+                )
+            }
+        }
+    }
 
     var addToCollectionTargetVideoId by remember { mutableStateOf<String?>(null) }
     val filterState = uiState.collectionFilterStates[collectionId] ?: viewModel.getCollectionFilterState(collectionId)
@@ -255,6 +267,15 @@ fun CollectionDetailScreen(
                                     }
                                 },
                                 onAddToCollection = { addToCollectionTargetVideoId = item.videoId },
+                                onDownloadThumbnail = {
+                                    viewModel.downloadThumbnailForVideo(
+                                        videoId = item.videoId,
+                                        videoUrl = item.videoUrl,
+                                        title = item.title,
+                                        channelName = item.channelName,
+                                        uploadDate = item.uploadDate
+                                    )
+                                },
                                 onResetProgress = { viewModel.resetVideoProgress(item.videoId) },
                                 showLibraryStatusBadge = false,
                                 showCollectionBadge = false,
@@ -272,7 +293,8 @@ fun CollectionDetailScreen(
                                 onSubtitleDownloadAgain = { subtitle ->
                                     viewModel.downloadSubtitleAgain(subtitle)
                                 },
-                                downloadingSubtitleIds = uiState.downloadingSubtitleIds
+                                downloadingSubtitleIds = uiState.downloadingSubtitleIds,
+                                isDownloadingThumbnail = uiState.downloadingThumbnailVideoIds.contains(item.videoId)
                             )
                         }
             }

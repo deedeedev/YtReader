@@ -28,7 +28,7 @@ interface SubtitleDao {
         """
         SELECT
             agg.videoId AS videoId,
-            COALESCE((
+            COALESCE(v.videoUrl, (
                 SELECT s.videoUrl
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
@@ -36,7 +36,7 @@ interface SubtitleDao {
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS videoUrl,
-            COALESCE((
+            COALESCE(v.title, (
                 SELECT s.title
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
@@ -44,7 +44,7 @@ interface SubtitleDao {
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS title,
-            COALESCE((
+            COALESCE(v.channelName, (
                 SELECT s.channelName
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
@@ -52,7 +52,7 @@ interface SubtitleDao {
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS channelName,
-            COALESCE((
+            COALESCE(v.uploadDate, (
                 SELECT s.uploadDate
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
@@ -60,6 +60,7 @@ interface SubtitleDao {
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), 0) AS uploadDate,
+            v.thumbnailLocalPath AS thumbnailLocalPath,
             agg.lastDownloaded AS lastDownloaded,
             agg.lastOpenedAt AS lastOpenedAt,
             COALESCE((
@@ -98,6 +99,7 @@ interface SubtitleDao {
               AND (:channelName IS NULL OR channelName = :channelName)
             GROUP BY videoId
         ) agg
+        LEFT JOIN videos v ON v.videoId = agg.videoId
         ORDER BY
             CASE WHEN :sortOption = 'TITLE' AND :isAscending = 1 THEN title END COLLATE NOCASE ASC,
             CASE WHEN :sortOption = 'TITLE' AND :isAscending = 0 THEN title END COLLATE NOCASE DESC,
@@ -133,7 +135,7 @@ interface SubtitleDao {
         """
         SELECT
             agg.videoId AS videoId,
-            COALESCE((
+            COALESCE(v.videoUrl, (
                 SELECT s.videoUrl
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
@@ -142,7 +144,7 @@ interface SubtitleDao {
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS videoUrl,
-            COALESCE((
+            COALESCE(v.title, (
                 SELECT s.title
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
@@ -151,7 +153,7 @@ interface SubtitleDao {
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS title,
-            COALESCE((
+            COALESCE(v.channelName, (
                 SELECT s.channelName
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
@@ -160,7 +162,7 @@ interface SubtitleDao {
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS channelName,
-            COALESCE((
+            COALESCE(v.uploadDate, (
                 SELECT s.uploadDate
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
@@ -169,6 +171,7 @@ interface SubtitleDao {
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), 0) AS uploadDate,
+            v.thumbnailLocalPath AS thumbnailLocalPath,
             agg.lastDownloaded AS lastDownloaded,
             agg.lastOpenedAt AS lastOpenedAt,
             COALESCE((
@@ -210,6 +213,7 @@ interface SubtitleDao {
               AND (:channelName IS NULL OR channelName = :channelName)
             GROUP BY videoId
         ) agg
+        LEFT JOIN videos v ON v.videoId = agg.videoId
         ORDER BY
             CASE WHEN :sortOption = 'TITLE' AND :isAscending = 1 THEN title END COLLATE NOCASE ASC,
             CASE WHEN :sortOption = 'TITLE' AND :isAscending = 0 THEN title END COLLATE NOCASE DESC,

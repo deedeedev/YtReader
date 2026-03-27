@@ -78,6 +78,7 @@ class LibraryListSectionTest {
             videoUrl = "https://www.youtube.com/watch?v=$videoId",
             title = "Video $videoId",
             channelName = "Channel",
+            thumbnailLocalPath = null,
             subtitles = listOf(
                 SubtitleEntity(
                     id = 1,

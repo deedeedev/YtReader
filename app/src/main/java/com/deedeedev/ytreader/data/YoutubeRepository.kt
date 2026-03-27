@@ -31,4 +31,16 @@ class YoutubeRepository(
             response.body?.string() ?: ""
         }
     }
+
+    suspend fun downloadBytes(url: String): ByteArray = withContext(Dispatchers.IO) {
+        val request = Request.Builder().url(url).build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw IOException(
+                    context.getString(R.string.youtube_unexpected_code, response.toString())
+                )
+            }
+            response.body?.bytes() ?: ByteArray(0)
+        }
+    }
 }
