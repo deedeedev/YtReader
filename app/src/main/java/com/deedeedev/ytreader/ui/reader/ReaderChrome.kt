@@ -5,12 +5,15 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -389,6 +392,47 @@ internal fun ReaderBrightnessGestureArea(
                             onDragEnd = onEnd,
                             onDragCancel = onCancel
                         )
+                    }
+                }
+            )
+    )
+}
+
+@Composable
+internal fun ReaderAnnotationsSwipeArea(
+    modifier: Modifier = Modifier,
+    isEditing: Boolean,
+    gestureTag: String,
+    onSwipeUp: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(READER_ANNOTATIONS_SWIPE_AREA_HEIGHT)
+            .testTag(gestureTag)
+            .then(
+                if (isEditing) {
+                    Modifier
+                } else {
+                    Modifier.pointerInput(onSwipeUp) {
+                        awaitEachGesture {
+                            val first = awaitFirstDown(requireUnconsumed = false)
+                            var triggered = false
+                            val startYs = mutableMapOf(first.id to first.position.y)
+                            do {
+                                val event = awaitPointerEvent()
+                                for (change in event.changes) {
+                                    startYs.putIfAbsent(change.id, change.position.y)
+                                }
+                            if (!triggered && event.changes.any { ch ->
+                                    val sy = startYs[ch.id] ?: return@any false
+                                    (sy - ch.position.y) > viewConfiguration.touchSlop
+                                }) {
+                                triggered = true
+                                onSwipeUp()
+                            }
+                        } while (event.changes.any { it.pressed })
+                        }
                     }
                 }
             )

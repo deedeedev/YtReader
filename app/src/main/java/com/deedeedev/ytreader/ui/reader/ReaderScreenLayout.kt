@@ -244,6 +244,15 @@ internal fun ReaderScreenMainLayer(
             onShowJumpToTime = onShowJumpToTime
         )
 
+        ReaderAnnotationsSwipeArea(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding(),
+            isEditing = isEditing,
+            gestureTag = READER_ANNOTATIONS_SWIPE_TAG,
+            onSwipeUp = onShowVideoNotes
+        )
+
         ReaderModeFab(
             modifier = Modifier
                 .align(Alignment.BottomEnd)

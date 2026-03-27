@@ -25,3 +25,5 @@ internal const val BRIGHTNESS_SWIPE_FULL_RANGE_PX = 600f
 internal const val MIN_READER_BRIGHTNESS = 0.05f
 internal const val DEFAULT_GESTURE_BRIGHTNESS = 0.5f
 internal const val BRIGHTNESS_INDICATOR_HIDE_DELAY_MS = 1200L
+internal const val READER_ANNOTATIONS_SWIPE_TAG = "reader_annotations_swipe"
+internal val READER_ANNOTATIONS_SWIPE_AREA_HEIGHT = 32.dp
