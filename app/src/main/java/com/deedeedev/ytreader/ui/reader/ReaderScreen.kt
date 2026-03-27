@@ -875,6 +875,7 @@ internal fun ReaderScreen(
 
         when (classifyReaderTapZone(tapPosition)) {
             ReaderTapZone.PREVIOUS_PAGE -> {
+                clearJumpBackState()
                 coroutineScope.launch { scrollOnePage(isForward = false) }
             }
 
@@ -883,6 +884,7 @@ internal fun ReaderScreen(
             }
 
             ReaderTapZone.NEXT_PAGE -> {
+                clearJumpBackState()
                 coroutineScope.launch { scrollOnePage(isForward = true) }
             }
         }
@@ -1358,6 +1360,7 @@ internal fun ReaderScreen(
                 coroutineScope.launch { jumpBackTo(state) }
             }
         },
+        onUserDrag = { clearJumpBackState() },
         fullscreenProgressPercent = fullscreenProgressPercent,
         fullscreenPageProgress = fullscreenPageProgress,
         showBrightnessIndicator = showBrightnessIndicator,

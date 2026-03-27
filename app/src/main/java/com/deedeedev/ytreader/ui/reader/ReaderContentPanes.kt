@@ -49,7 +49,8 @@ internal fun ReaderOriginalPane(
     originalSelectionCoordinator: OriginalSelectionCoordinator,
     onReaderTap: (ReaderTapPosition) -> Unit,
     onOriginalFallbackViewportChanged: (Int) -> Unit,
-    onOriginalTimestampTap: (Long) -> Unit
+    onOriginalTimestampTap: (Long) -> Unit,
+    onUserDrag: () -> Unit
 ) {
     if (originalSegments.isEmpty()) {
         Column(
@@ -62,9 +63,10 @@ internal fun ReaderOriginalPane(
                     top = topContentPadding,
                     bottom = bottomContentPadding
                 )
-                .onUnconsumedTap { onReaderTap(it) }
-                .onSizeChanged { onOriginalFallbackViewportChanged(it.height) }
-                .verticalScroll(originalFallbackScrollState)
+            .onUnconsumedTap { onReaderTap(it) }
+            .onSizeChanged { onOriginalFallbackViewportChanged(it.height) }
+            .onUserDrag { onUserDrag() }
+            .verticalScroll(originalFallbackScrollState)
         ) {
             AndroidView<SelectableHighlightTextView>(
                 modifier = Modifier.fillMaxWidth(),
@@ -129,6 +131,7 @@ internal fun ReaderOriginalPane(
             .fillMaxSize()
             .systemBarsPadding()
             .onUnconsumedTap { onReaderTap(it) }
+            .onUserDrag { onUserDrag() }
             .padding(horizontal = 16.dp),
         contentPadding = PaddingValues(
             top = topContentPadding,
@@ -245,7 +248,8 @@ internal fun ReaderStudyPane(
     onBookmarkTapped: (BookmarkEntity) -> Unit,
     hasActiveHighlight: () -> Boolean,
     onClearActiveHighlight: () -> Unit,
-    clearSelectionNow: () -> Unit
+    clearSelectionNow: () -> Unit,
+    onUserDrag: () -> Unit
 ) {
     if (isEditing) {
         androidx.compose.foundation.layout.Box(
@@ -287,6 +291,7 @@ internal fun ReaderStudyPane(
                 bottom = bottomContentPadding
             )
             .onSizeChanged { onStudyViewportChanged(it.height) }
+            .onUserDrag { onUserDrag() }
             .verticalScroll(studyScrollState)
     ) {
         AndroidView<JustifiedStudyTextView>(

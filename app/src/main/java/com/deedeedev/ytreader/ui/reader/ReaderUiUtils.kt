@@ -24,6 +24,23 @@ internal fun Modifier.onUnconsumedTap(onTap: (ReaderTapPosition) -> Unit): Modif
         }
     }
 
+internal fun Modifier.onUserDrag(onDrag: () -> Unit): Modifier =
+    pointerInput(onDrag) {
+        awaitEachGesture {
+            val down = awaitFirstDown(pass = PointerEventPass.Initial)
+            val startY = down.position.y
+            var fired = false
+            do {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                val change = event.changes.firstOrNull() ?: break
+                if (!fired && kotlin.math.abs(change.position.y - startY) > viewConfiguration.touchSlop) {
+                    fired = true
+                    onDrag()
+                }
+            } while (change.pressed)
+        }
+    }
+
 internal fun formatTime(millis: Long): String {
     val seconds = millis / 1000
     val m = seconds / 60

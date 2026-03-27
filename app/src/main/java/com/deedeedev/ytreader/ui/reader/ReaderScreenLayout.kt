@@ -106,6 +106,7 @@ internal fun ReaderScreenMainLayer(
     onCloseSearchResults: () -> Unit,
     onReplaceCurrent: (() -> Unit)?,
     onJumpBack: () -> Unit,
+    onUserDrag: () -> Unit,
     fullscreenProgressPercent: Int,
     fullscreenPageProgress: PageProgress,
     showBrightnessIndicator: Boolean,
@@ -133,7 +134,8 @@ internal fun ReaderScreenMainLayer(
                 originalSelectionCoordinator = originalSelectionCoordinator,
                 onReaderTap = onReaderTap,
                 onOriginalFallbackViewportChanged = onOriginalFallbackViewportChanged,
-                onOriginalTimestampTap = onOriginalTimestampTap
+                onOriginalTimestampTap = onOriginalTimestampTap,
+                onUserDrag = onUserDrag
             )
         } else {
             ReaderStudyPane(
@@ -163,7 +165,8 @@ internal fun ReaderScreenMainLayer(
                 onBookmarkTapped = onBookmarkTapped,
                 hasActiveHighlight = hasActiveHighlight,
                 onClearActiveHighlight = onClearActiveHighlight,
-                clearSelectionNow = clearSelectionNow
+                clearSelectionNow = clearSelectionNow,
+                onUserDrag = onUserDrag
             )
         }
 
