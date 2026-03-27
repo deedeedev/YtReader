@@ -79,9 +79,22 @@ class UserPreferencesRepository(context: Context) {
     private val _aiPrompt = MutableStateFlow(DEFAULT_AI_CLEANING_PROMPT)
     val aiPrompt: StateFlow<String> = _aiPrompt.asStateFlow()
 
+    private val _autoBackupEnabled = MutableStateFlow(false)
+    val autoBackupEnabled: StateFlow<Boolean> = _autoBackupEnabled.asStateFlow()
+
+    private val _autoBackupDirectoryUri = MutableStateFlow<String?>(null)
+    val autoBackupDirectoryUri: StateFlow<String?> = _autoBackupDirectoryUri.asStateFlow()
+
+    private val _autoBackupTime = MutableStateFlow("02:00")
+    val autoBackupTime: StateFlow<String> = _autoBackupTime.asStateFlow()
+
+    private val _autoBackupIncludeSettings = MutableStateFlow(false)
+    val autoBackupIncludeSettings: StateFlow<Boolean> = _autoBackupIncludeSettings.asStateFlow()
+
     init {
         loadFavorites()
         loadDisplaySettings()
+        loadAutoBackupSettings()
     }
 
     private fun loadFavorites() {
@@ -162,6 +175,38 @@ class UserPreferencesRepository(context: Context) {
     fun setAiPrompt(prompt: String) {
         prefs.edit().putString(KEY_AI_PROMPT, prompt).apply()
         _aiPrompt.value = prompt
+    }
+
+    fun setAutoBackupEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_BACKUP_ENABLED, enabled).apply()
+        _autoBackupEnabled.value = enabled
+    }
+
+    fun setAutoBackupDirectoryUri(uri: String?) {
+        prefs.edit().putString(KEY_AUTO_BACKUP_DIRECTORY_URI, uri).apply()
+        _autoBackupDirectoryUri.value = uri
+    }
+
+    fun setAutoBackupTime(time: String) {
+        prefs.edit().putString(KEY_AUTO_BACKUP_TIME, time).apply()
+        _autoBackupTime.value = time
+    }
+
+    fun setAutoBackupIncludeSettings(include: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_BACKUP_INCLUDE_SETTINGS, include).apply()
+        _autoBackupIncludeSettings.value = include
+    }
+
+    fun getAutoBackupEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_BACKUP_ENABLED, false)
+    fun getAutoBackupDirectoryUri(): String? = prefs.getString(KEY_AUTO_BACKUP_DIRECTORY_URI, null)
+    fun getAutoBackupTime(): String = prefs.getString(KEY_AUTO_BACKUP_TIME, "02:00") ?: "02:00"
+    fun getAutoBackupIncludeSettings(): Boolean = prefs.getBoolean(KEY_AUTO_BACKUP_INCLUDE_SETTINGS, false)
+
+    private fun loadAutoBackupSettings() {
+        _autoBackupEnabled.value = prefs.getBoolean(KEY_AUTO_BACKUP_ENABLED, false)
+        _autoBackupDirectoryUri.value = prefs.getString(KEY_AUTO_BACKUP_DIRECTORY_URI, null)
+        _autoBackupTime.value = prefs.getString(KEY_AUTO_BACKUP_TIME, "02:00") ?: "02:00"
+        _autoBackupIncludeSettings.value = prefs.getBoolean(KEY_AUTO_BACKUP_INCLUDE_SETTINGS, false)
     }
 
     fun getAiEndpoint(): String = prefs.getString(KEY_AI_ENDPOINT, "") ?: ""
@@ -285,6 +330,10 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_COLLECTIONS_MIGRATED_TO_DATABASE = "collections_migrated_to_database"
         private const val KEY_LIBRARY_FILTER_STATE = "library_filter_state"
         private const val KEY_COLLECTION_FILTER_STATES = "collection_filter_states"
+        private const val KEY_AUTO_BACKUP_ENABLED = "auto_backup_enabled"
+        private const val KEY_AUTO_BACKUP_DIRECTORY_URI = "auto_backup_directory_uri"
+        private const val KEY_AUTO_BACKUP_TIME = "auto_backup_time"
+        private const val KEY_AUTO_BACKUP_INCLUDE_SETTINGS = "auto_backup_include_settings"
 
         const val BRIGHTNESS_FOLLOW_SYSTEM = -1f
 

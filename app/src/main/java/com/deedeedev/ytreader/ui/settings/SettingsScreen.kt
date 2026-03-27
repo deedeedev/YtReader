@@ -1,12 +1,15 @@
 package com.deedeedev.ytreader.ui.settings
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -17,6 +20,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.AppContainer
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.ui.FontOption
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -55,6 +60,8 @@ fun SettingsScreen(
     var pendingDataImportPreview by remember { mutableStateOf<DataBackupPreview?>(null) }
     var pendingThumbnailAction by remember { mutableStateOf<ThumbnailBulkAction?>(null) }
     var isBusy by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var pendingDirectoryChange by remember { mutableStateOf(false) }
 
     val selectedFontFamily = when (FontOption.fromStorageValue(uiState.fontFamily)) {
         FontOption.SERIF -> FontFamily.Serif
@@ -140,6 +147,18 @@ fun SettingsScreen(
                 pendingDataImportPreview = preview
             }
         }
+    }
+
+    val autoBackupDirectoryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(uri, flags)
+            viewModel.setAutoBackupDirectoryUri(uri.toString())
+        }
+        pendingDirectoryChange = false
     }
 
     Scaffold(
@@ -355,6 +374,25 @@ fun SettingsScreen(
             }
 
             item {
+                AutomaticBackupSection(
+                    enabled = uiState.autoBackupEnabled,
+                    directoryUri = uiState.autoBackupDirectoryUri,
+                    backupTime = uiState.autoBackupTime,
+                    includeSettings = uiState.autoBackupIncludeSettings,
+                    onEnabledChange = { viewModel.setAutoBackupEnabled(it) },
+                    onSelectDirectory = {
+                        if (!uiState.autoBackupDirectoryUri.isNullOrBlank()) {
+                            pendingDirectoryChange = true
+                        } else {
+                            autoBackupDirectoryLauncher.launch(null)
+                        }
+                    },
+                    onTimeClick = { showTimePicker = true },
+                    onIncludeSettingsChange = { viewModel.setAutoBackupIncludeSettings(it) }
+                )
+            }
+
+            item {
                 BulkThumbnailActionsSection(
                     enabled = !isBusy && !uiState.isRunningThumbnailBulkAction,
                     onDownloadMissing = {
@@ -378,6 +416,61 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    if (showTimePicker) {
+        val timeParts = uiState.autoBackupTime.split(":")
+        val initialHour = timeParts.getOrNull(0)?.toIntOrNull() ?: 2
+        val initialMinute = timeParts.getOrNull(1)?.toIntOrNull() ?: 0
+        val timePickerState = rememberTimePickerState(
+            initialHour = initialHour,
+            initialMinute = initialMinute,
+            is24Hour = true
+        )
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text(stringResource(R.string.auto_backup_time_picker_title)) },
+            text = {
+                TimePicker(state = timePickerState)
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val hour = timePickerState.hour
+                    val minute = timePickerState.minute
+                    val timeString = String.format("%02d:%02d", hour, minute)
+                    viewModel.setAutoBackupTime(timeString)
+                    showTimePicker = false
+                }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (pendingDirectoryChange) {
+        AlertDialog(
+            onDismissRequest = { pendingDirectoryChange = false },
+            title = { Text(stringResource(R.string.auto_backup_confirm_title)) },
+            text = { Text(stringResource(R.string.auto_backup_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingDirectoryChange = false
+                    autoBackupDirectoryLauncher.launch(null)
+                }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDirectoryChange = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 
     pendingThumbnailAction?.let { action ->
@@ -661,6 +754,138 @@ private fun BackupActionSection(
                 ) {
                     Text(importLabel)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AutomaticBackupSection(
+    enabled: Boolean,
+    directoryUri: String?,
+    backupTime: String,
+    includeSettings: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    onSelectDirectory: () -> Unit,
+    onTimeClick: () -> Unit,
+    onIncludeSettingsChange: (Boolean) -> Unit
+) {
+    val context = LocalContext.current
+
+    val folderName = remember(directoryUri) {
+        if (directoryUri.isNullOrBlank()) return@remember null
+        runCatching {
+            val uri = Uri.parse(directoryUri)
+            val docId = android.provider.DocumentsContract.getTreeDocumentId(uri)
+            val segments = docId.split(":")
+            segments.lastOrNull() ?: docId
+        }.getOrNull()
+    }
+
+    ElevatedCard {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.auto_backup_title),
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                text = stringResource(R.string.auto_backup_description),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = stringResource(R.string.auto_backup_enabled),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = onEnabledChange
+                )
+            }
+            HorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelectDirectory() }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.auto_backup_location),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = folderName ?: stringResource(R.string.auto_backup_location_not_set),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (folderName != null) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+                OutlinedButton(onClick = onSelectDirectory) {
+                    Text(stringResource(R.string.auto_backup_location_select))
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onTimeClick() }
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = stringResource(R.string.auto_backup_time),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = backupTime,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.auto_backup_include_settings),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = stringResource(R.string.auto_backup_include_settings_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Checkbox(
+                    checked = includeSettings,
+                    onCheckedChange = onIncludeSettingsChange
+                )
+            }
+            if (!enabled && !directoryUri.isNullOrBlank()) {
+                Text(
+                    text = stringResource(R.string.auto_backup_disabled_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

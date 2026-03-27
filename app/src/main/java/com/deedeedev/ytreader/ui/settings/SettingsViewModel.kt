@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.data.AutoBackupScheduler
 import com.deedeedev.ytreader.data.VideoThumbnailStore
 import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
@@ -30,7 +31,11 @@ data class SettingsUiState(
     val aiApiKey: String = "",
     val aiModel: String = "",
     val aiPrompt: String = "",
-    val isRunningThumbnailBulkAction: Boolean = false
+    val isRunningThumbnailBulkAction: Boolean = false,
+    val autoBackupEnabled: Boolean = false,
+    val autoBackupDirectoryUri: String? = null,
+    val autoBackupTime: String = "02:00",
+    val autoBackupIncludeSettings: Boolean = false
 )
 
 class SettingsViewModel(
@@ -84,6 +89,26 @@ class SettingsViewModel(
                 _uiState.update { it.copy(aiPrompt = prompt) }
             }
         }
+        viewModelScope.launch {
+            userPreferencesRepository.autoBackupEnabled.collect { enabled ->
+                _uiState.update { it.copy(autoBackupEnabled = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.autoBackupDirectoryUri.collect { uri ->
+                _uiState.update { it.copy(autoBackupDirectoryUri = uri) }
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.autoBackupTime.collect { time ->
+                _uiState.update { it.copy(autoBackupTime = time) }
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.autoBackupIncludeSettings.collect { include ->
+                _uiState.update { it.copy(autoBackupIncludeSettings = include) }
+            }
+        }
     }
 
     fun setDefaultFontSize(size: Float) {
@@ -116,6 +141,41 @@ class SettingsViewModel(
 
     fun setAiPrompt(prompt: String) {
         userPreferencesRepository.setAiPrompt(prompt)
+    }
+
+    fun setAutoBackupEnabled(enabled: Boolean) {
+        userPreferencesRepository.setAutoBackupEnabled(enabled)
+        if (enabled) {
+            val uri = userPreferencesRepository.getAutoBackupDirectoryUri()
+            if (!uri.isNullOrBlank()) {
+                AutoBackupScheduler.schedule(appContext, userPreferencesRepository.getAutoBackupTime())
+            }
+        } else {
+            AutoBackupScheduler.cancel(appContext)
+        }
+    }
+
+    fun setAutoBackupDirectoryUri(uri: String?) {
+        userPreferencesRepository.setAutoBackupDirectoryUri(uri)
+        if (userPreferencesRepository.getAutoBackupEnabled() && !uri.isNullOrBlank()) {
+            AutoBackupScheduler.schedule(appContext, userPreferencesRepository.getAutoBackupTime())
+        } else if (uri.isNullOrBlank()) {
+            AutoBackupScheduler.cancel(appContext)
+        }
+    }
+
+    fun setAutoBackupTime(time: String) {
+        userPreferencesRepository.setAutoBackupTime(time)
+        if (userPreferencesRepository.getAutoBackupEnabled()) {
+            val uri = userPreferencesRepository.getAutoBackupDirectoryUri()
+            if (!uri.isNullOrBlank()) {
+                AutoBackupScheduler.schedule(appContext, time)
+            }
+        }
+    }
+
+    fun setAutoBackupIncludeSettings(include: Boolean) {
+        userPreferencesRepository.setAutoBackupIncludeSettings(include)
     }
 
     suspend fun downloadMissingThumbnails(): String {
