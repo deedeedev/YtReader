@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -199,6 +200,7 @@ internal fun SearchResultsToolbar(
     onReturnToOrigin: (() -> Unit)?,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    onReplaceCurrent: (() -> Unit)? = null,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -206,6 +208,7 @@ internal fun SearchResultsToolbar(
     val previousSearchResultLabel = stringResource(R.string.reader_previous_search_result)
     val nextSearchResultLabel = stringResource(R.string.reader_next_search_result)
     val closeSearchResultsLabel = stringResource(R.string.reader_search_results_close)
+    val replaceThisLabel = stringResource(R.string.reader_replace_this)
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.extraLarge,
@@ -242,6 +245,15 @@ internal fun SearchResultsToolbar(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = nextSearchResultLabel
                 )
+            }
+            if (onReplaceCurrent != null) {
+                TextButton(
+                    onClick = onReplaceCurrent,
+                    modifier = Modifier.testTag(READER_REPLACE_CURRENT_TAG),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Text(replaceThisLabel, style = MaterialTheme.typography.labelMedium)
+                }
             }
             IconButton(onClick = onClose) {
                 Icon(

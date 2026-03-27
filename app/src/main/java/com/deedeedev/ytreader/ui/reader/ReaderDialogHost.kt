@@ -39,6 +39,8 @@ internal fun ReaderDialogHost(
     isCaseSensitive: Boolean,
     onCaseSensitiveChange: (Boolean) -> Unit,
     onReplace: () -> Unit,
+    showInteractiveReplace: Boolean,
+    onInteractiveReplace: () -> Unit,
     onCancelFindReplace: () -> Unit,
     showAiPreviewDialog: Boolean,
     previewText: String?,
@@ -109,7 +111,9 @@ internal fun ReaderDialogHost(
             findReplaceErrorMessage = findReplaceErrorMessage,
             isCaseSensitive = isCaseSensitive,
             onCaseSensitiveChange = onCaseSensitiveChange,
-            onReplace = onReplace,
+            showInteractiveReplace = showInteractiveReplace,
+            onInteractiveReplace = onInteractiveReplace,
+            onReplaceAll = onReplace,
             onCancel = onCancelFindReplace
         )
     }

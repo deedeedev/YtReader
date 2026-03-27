@@ -75,3 +75,10 @@ internal sealed interface SearchResultsMode {
         override val totalResults: Int = results.size
     }
 }
+
+internal data class InteractiveReplaceState(
+    val findText: String,
+    val replaceText: String,
+    val isCaseSensitive: Boolean,
+    val totalReplacements: Int = 0
+)

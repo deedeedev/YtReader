@@ -145,6 +145,8 @@
     <string name="reader_remove_note">Remove note</string>
     <string name="reader_replace">Replace</string>
     <string name="reader_replace_all">Replace All</string>
+    <string name="reader_replace_this">Replace this</string>
+    <string name="reader_replace_done">Replaced %1$d occurrence(s)</string>
     <string name="reader_replace_with_clipboard">Replace with Clipboard</string>
     <string name="reader_replace_with">Replace with</string>
     <string name="reader_search">Search</string>

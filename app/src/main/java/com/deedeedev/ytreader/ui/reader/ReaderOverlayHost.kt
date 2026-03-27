@@ -36,6 +36,7 @@ internal fun BoxScope.ReaderOverlayHost(
     onNavigateToPreviousSearchResult: () -> Unit,
     onNavigateToNextSearchResult: () -> Unit,
     onCloseSearchResults: () -> Unit,
+    onReplaceCurrent: (() -> Unit)?,
     onJumpBack: () -> Unit,
     fullscreenProgressPercent: Int,
     fullscreenPageProgress: PageProgress,
@@ -87,6 +88,7 @@ internal fun BoxScope.ReaderOverlayHost(
             onReturnToOrigin = onReturnToSearchOrigin,
             onPrevious = onNavigateToPreviousSearchResult,
             onNext = onNavigateToNextSearchResult,
+            onReplaceCurrent = onReplaceCurrent,
             onClose = onCloseSearchResults,
             modifier = Modifier.testTag(READER_SEARCH_RESULTS_BAR_TAG)
         )

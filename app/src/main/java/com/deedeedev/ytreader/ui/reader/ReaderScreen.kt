@@ -179,6 +179,7 @@ internal fun ReaderScreen(
     var findText by rememberSaveable { mutableStateOf("") }
     var replaceText by rememberSaveable { mutableStateOf("") }
     var isCaseSensitive by rememberSaveable { mutableStateOf(false) }
+    var interactiveReplaceState by remember { mutableStateOf<InteractiveReplaceState?>(null) }
     var showAiPreviewDialog by remember { mutableStateOf(false) }
     var showAiErrorDialog by remember { mutableStateOf(false) }
     var pendingAiCleaningSourceText by remember { mutableStateOf<String?>(null) }
@@ -303,6 +304,7 @@ internal fun ReaderScreen(
     fun clearSearchResultsMode() {
         searchResultsMode = null
         pendingFindSelection = null
+        interactiveReplaceState = null
     }
 
     fun clearJumpBackState() {
@@ -505,6 +507,89 @@ internal fun ReaderScreen(
             setFindResults = { findResults = it },
             setOriginalSegmentResults = { originalSegmentFindResults = it }
         )
+    }
+
+    fun startInteractiveReplace() {
+        if (findText.isBlank()) {
+            findReplaceErrorMessage = context.getString(R.string.reader_enter_regex)
+            return
+        }
+        val regex = compileFindRegex(
+            query = findText,
+            isCaseSensitive = isCaseSensitive,
+            emptyQueryMessage = context.getString(R.string.reader_enter_regex),
+            invalidRegexMessage = context.getString(R.string.invalid_regex)
+        ).getOrElse {
+            findReplaceErrorMessage = it.message ?: context.getString(R.string.invalid_regex)
+            return
+        }
+        val sourceText = currentText()
+        val matches = findRegexMatches(
+            text = sourceText,
+            regex = regex,
+            excerptEllipsis = context.getString(R.string.reader_excerpt_ellipsis)
+        )
+        if (matches.isEmpty()) {
+            findReplaceErrorMessage = context.getString(R.string.reader_no_results)
+            return
+        }
+        interactiveReplaceState = InteractiveReplaceState(
+            findText = findText,
+            replaceText = replaceText,
+            isCaseSensitive = isCaseSensitive
+        )
+        resetFindReplaceDialogState()
+        showFindReplaceDialog = false
+        selectionRange = null
+        activeHighlight = null
+        dismissHighlightNoteDialog()
+        studyTextView?.clearSelection()
+        originalSelectionCoordinator.clearAllSelections()
+        activateSearchResultsMode(
+            SearchResultsMode.Study(results = matches, activeIndex = 0)
+        )
+    }
+
+    fun replaceCurrentOccurrence() {
+        val currentMode = searchResultsMode as? SearchResultsMode.Study ?: return
+        val state = interactiveReplaceState ?: return
+        val result = currentMode.results.getOrNull(currentMode.activeIndex) ?: return
+        val sourceText = currentText()
+        val updatedText = replaceSingleMatch(
+            text = sourceText,
+            start = result.start,
+            end = result.end,
+            replacement = state.replaceText
+        )
+        applyTextUpdate(updatedText)
+        val newTotal = state.totalReplacements + 1
+        val updatedRegex = compileFindRegex(
+            query = state.findText,
+            isCaseSensitive = state.isCaseSensitive,
+            emptyQueryMessage = context.getString(R.string.reader_enter_regex),
+            invalidRegexMessage = context.getString(R.string.invalid_regex)
+        ).getOrNull() ?: run {
+            clearSearchResultsMode()
+            return
+        }
+        val newMatches = findRegexMatches(
+            text = updatedText,
+            regex = updatedRegex,
+            excerptEllipsis = context.getString(R.string.reader_excerpt_ellipsis)
+        )
+        if (newMatches.isEmpty()) {
+            clearSearchResultsMode()
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(
+                    context.getString(R.string.reader_replace_done, newTotal)
+                )
+            }
+            return
+        }
+        val nextIndex = currentMode.activeIndex.coerceAtMost(newMatches.size - 1)
+        interactiveReplaceState = state.copy(totalReplacements = newTotal)
+        searchResultsMode = SearchResultsMode.Study(results = newMatches, activeIndex = nextIndex)
+        pendingFindSelection = activePendingFindSelection(searchResultsMode)
     }
 
     fun runPendingAction(action: PendingAction) {
@@ -844,7 +929,9 @@ internal fun ReaderScreen(
             dismissBookmarkDialog()
             studyTextView?.clearSelection()
             originalSelectionCoordinator.clearAllSelections()
-            clearSearchResultsMode()
+            if (interactiveReplaceState == null) {
+                clearSearchResultsMode()
+            }
         },
         onResetAiDialogs = {
             showAiPreviewDialog = false
@@ -1265,6 +1352,7 @@ internal fun ReaderScreen(
         onNavigateToPreviousSearchResult = { moveSearchResultsBackward() },
         onNavigateToNextSearchResult = { moveSearchResultsForward() },
         onCloseSearchResults = { closeSearchResults() },
+        onReplaceCurrent = interactiveReplaceState?.let { { replaceCurrentOccurrence() } },
         onJumpBack = {
             jumpBackState?.let { state ->
                 coroutineScope.launch { jumpBackTo(state) }
@@ -1388,6 +1476,8 @@ internal fun ReaderScreen(
                 }
             }
         },
+        showInteractiveReplace = readerMode == ReaderMode.STUDY,
+        onInteractiveReplace = { startInteractiveReplace() },
         onCancelFindReplace = {
             resetFindReplaceDialogState()
             showFindReplaceDialog = false

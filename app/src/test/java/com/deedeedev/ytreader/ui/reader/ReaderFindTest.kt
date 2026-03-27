@@ -165,4 +165,45 @@ class ReaderFindTest {
         assertEquals("Line match LINE", updated.updatedText)
         assertEquals(1, updated.replacementCount)
     }
+
+    @Test
+    fun `replaceSingleMatch replaces text at specified range`() {
+        val result = replaceSingleMatch(
+            text = "hello world",
+            start = 6,
+            end = 11,
+            replacement = "there"
+        )
+        assertEquals("hello there", result)
+    }
+
+    @Test
+    fun `replaceSingleMatch handles replacement shorter than match`() {
+        val result = replaceSingleMatch(
+            text = "foo bar baz",
+            start = 4,
+            end = 7,
+            replacement = "X"
+        )
+        assertEquals("foo X baz", result)
+    }
+
+    @Test
+    fun `replaceSingleMatch handles replacement longer than match`() {
+        val result = replaceSingleMatch(
+            text = "a b c",
+            start = 2,
+            end = 3,
+            replacement = "XYZ"
+        )
+        assertEquals("a XYZ c", result)
+    }
+
+    @Test
+    fun `replaceSingleMatch returns original text for invalid range`() {
+        val original = "hello"
+        assertEquals(original, replaceSingleMatch(original, -1, 3, "x"))
+        assertEquals(original, replaceSingleMatch(original, 3, 2, "x"))
+        assertEquals(original, replaceSingleMatch(original, 0, 99, "x"))
+    }
 }

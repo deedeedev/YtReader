@@ -87,6 +87,16 @@ internal fun replaceRegexMatches(
     )
 }
 
+internal fun replaceSingleMatch(
+    text: String,
+    start: Int,
+    end: Int,
+    replacement: String
+): String {
+    if (start < 0 || end > text.length || start > end) return text
+    return text.substring(0, start) + replacement + text.substring(end)
+}
+
 internal fun findRegexMatches(
     text: String,
     regex: Regex,

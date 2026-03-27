@@ -211,14 +211,17 @@ internal fun FindReplaceDialog(
     findReplaceErrorMessage: String?,
     isCaseSensitive: Boolean,
     onCaseSensitiveChange: (Boolean) -> Unit,
-    onReplace: () -> Unit,
+    showInteractiveReplace: Boolean,
+    onInteractiveReplace: () -> Unit,
+    onReplaceAll: () -> Unit,
     onCancel: () -> Unit
 ) {
     val title = stringResource(R.string.find_and_replace)
     val regexLabel = stringResource(R.string.reader_regex)
     val replaceWithLabel = stringResource(R.string.reader_replace_with)
     val caseSensitiveLabel = stringResource(R.string.reader_case_sensitive)
-    val replaceLabel = stringResource(R.string.reader_replace_all)
+    val replaceAllLabel = stringResource(R.string.reader_replace_all)
+    val replaceLabel = stringResource(R.string.reader_replace)
     val cancelLabel = stringResource(R.string.cancel)
     AlertDialog(
         onDismissRequest = onCancel,
@@ -270,8 +273,15 @@ internal fun FindReplaceDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onReplace) {
-                Text(replaceLabel)
+            Row {
+                if (showInteractiveReplace) {
+                    TextButton(onClick = onInteractiveReplace) {
+                        Text(replaceLabel)
+                    }
+                }
+                TextButton(onClick = onReplaceAll) {
+                    Text(replaceAllLabel)
+                }
             }
         },
         dismissButton = {
