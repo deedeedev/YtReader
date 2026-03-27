@@ -91,6 +91,9 @@
     <string name="library_reset_progress">Reset progress</string>
     <string name="library_restore">Restore to Library</string>
     <string name="library_search_again">Search again</string>
+    <string name="library_search_title">Search</string>
+    <string name="library_search_placeholder">Search by title…</string>
+    <string name="library_search_close">Close search</string>
     <string name="library_share_video_url">Share video URL</string>
     <string name="library_thumbnail_downloaded">Thumbnail downloaded</string>
     <string name="library_sort">Sort</string>
@@ -184,6 +187,8 @@
     <string name="search_auto_generated">Auto-generated</string>
     <string name="search_available_subtitles">Available Subtitles</string>
     <string name="search_youtube_url">YouTube URL</string>
+    <string name="search_show_history">Show History</string>
+    <string name="search_history_empty">No search history</string>
     <string name="selected">Selected</string>
     <string name="share_text">Share text</string>
     <string name="share_text_title">Share text</string>

@@ -64,6 +64,7 @@ fun LibraryScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var addToCollectionTargetVideoId by remember { mutableStateOf<String?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(viewModel) {
         viewModel.events.collectLatest { event ->
@@ -99,11 +100,17 @@ fun LibraryScreen(
                 onReadStatusFilterChange = viewModel::setLibraryReadStatusFilter,
                 onSortOptionChange = viewModel::setSortOption,
                 onSortDirectionToggle = viewModel::toggleSortOrder,
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
+            val filteredLibraryItems = remember(libraryItems, searchQuery) {
+                libraryItems.filterByTitle(searchQuery)
+            }
+
             LibraryListSection(
-                items = libraryItems,
+                items = filteredLibraryItems,
                 emptyText = stringResource(R.string.library_empty),
                 modifier = Modifier.fillMaxSize(),
                 key = { it.videoId }

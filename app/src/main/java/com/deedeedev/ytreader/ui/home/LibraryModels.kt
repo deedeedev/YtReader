@@ -59,3 +59,9 @@ internal fun List<LibraryItem>.filterByReadStatus(
     ReadStatusFilter.READ -> filter { it.isRead }
     ReadStatusFilter.NOT_READ -> filterNot { it.isRead }
 }
+
+internal fun List<LibraryItem>.filterByTitle(query: String): List<LibraryItem> {
+    if (query.isBlank()) return this
+    val lower = query.lowercase()
+    return filter { it.title.lowercase().contains(lower) }
+}

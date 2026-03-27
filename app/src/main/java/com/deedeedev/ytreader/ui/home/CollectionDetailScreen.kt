@@ -62,6 +62,7 @@ fun CollectionDetailScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(viewModel) {
         viewModel.events.collectLatest { event ->
@@ -183,11 +184,17 @@ fun CollectionDetailScreen(
                 onReadStatusFilterChange = { viewModel.setCollectionReadStatusFilter(collectionId, it) },
                 onSortOptionChange = { viewModel.setCollectionSortOption(collectionId, it) },
                 onSortDirectionToggle = { viewModel.toggleCollectionSortOrder(collectionId) },
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
                 modifier = Modifier.padding(vertical = 16.dp)
             )
 
+            val filteredSortedItems = remember(sortedItems, searchQuery) {
+                sortedItems.filterByTitle(searchQuery)
+            }
+
             LibraryListSection(
-                items = sortedItems,
+                items = filteredSortedItems,
                 emptyText = collectionEmptyText(
                     resources = context.resources,
                     totalCollectionVideoCount = collection.videoIds.size,
