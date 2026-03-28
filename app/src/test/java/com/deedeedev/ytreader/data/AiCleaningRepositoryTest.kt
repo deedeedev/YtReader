@@ -69,6 +69,67 @@ class AiCleaningRepositoryTest {
         assertEquals("https://api.example.com/v1/chat/completions", endpoint)
     }
 
+    @Test
+    fun computeReadTimeout_returnsBaseForShortText() {
+        assertEquals(
+            AiCleaningRepository.BASE_READ_TIMEOUT_SECONDS,
+            AiCleaningRepository.computeReadTimeout(100)
+        )
+    }
+
+    @Test
+    fun computeReadTimeout_returnsBaseAtExactThreshold() {
+        assertEquals(
+            AiCleaningRepository.BASE_READ_TIMEOUT_SECONDS,
+            AiCleaningRepository.computeReadTimeout(AiCleaningRepository.BASE_THRESHOLD_CHARS)
+        )
+    }
+
+    @Test
+    fun computeReadTimeout_addsOneChunkAboveThreshold() {
+        val chars = AiCleaningRepository.BASE_THRESHOLD_CHARS + 1
+        val expected = AiCleaningRepository.BASE_READ_TIMEOUT_SECONDS +
+                AiCleaningRepository.EXTRA_TIMEOUT_SECONDS
+        assertEquals(expected, AiCleaningRepository.computeReadTimeout(chars))
+    }
+
+    @Test
+    fun computeReadTimeout_addsMultipleChunks() {
+        val chars = AiCleaningRepository.BASE_THRESHOLD_CHARS +
+                AiCleaningRepository.EXTRA_TIMEOUT_CHUNK_CHARS * 3
+        val expected = AiCleaningRepository.BASE_READ_TIMEOUT_SECONDS +
+                AiCleaningRepository.EXTRA_TIMEOUT_SECONDS * 3
+        assertEquals(expected, AiCleaningRepository.computeReadTimeout(chars))
+    }
+
+    @Test
+    fun computeReadTimeout_capsAtMaximum() {
+        val veryLong = 1_000_000
+        assertEquals(
+            AiCleaningRepository.MAX_READ_TIMEOUT_SECONDS,
+            AiCleaningRepository.computeReadTimeout(veryLong)
+        )
+    }
+
+    @Test
+    fun computeCallTimeout_includesReadPlusConnectPlusBuffer() {
+        val textLength = 500
+        val expected = AiCleaningRepository.computeReadTimeout(textLength) +
+                AiCleaningRepository.CONNECT_TIMEOUT_SECONDS +
+                AiCleaningRepository.CALL_BUFFER_SECONDS
+        assertEquals(expected, AiCleaningRepository.computeCallTimeout(textLength))
+    }
+
+    @Test
+    fun computeCallTimeout_scalesWithLongText() {
+        val shortLength = 100
+        val longLength = AiCleaningRepository.BASE_THRESHOLD_CHARS +
+                AiCleaningRepository.EXTRA_TIMEOUT_CHUNK_CHARS * 2
+        val shortCall = AiCleaningRepository.computeCallTimeout(shortLength)
+        val longCall = AiCleaningRepository.computeCallTimeout(longLength)
+        assertTrue(longCall > shortCall)
+    }
+
     private fun mockContext(): Context {
         val context = mock<Context>()
         val resources = mock<Resources>()

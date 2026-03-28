@@ -16,6 +16,7 @@ import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.net.SocketTimeoutException
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -59,7 +60,12 @@ class AiCleaningRepository(
             .post(gson.toJson(payload).toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
-        executeCancellable(httpRequest).use { response ->
+        val requestClient = client.newBuilder()
+            .readTimeout(computeReadTimeout(request.subtitleText.length), TimeUnit.SECONDS)
+            .callTimeout(computeCallTimeout(request.subtitleText.length), TimeUnit.SECONDS)
+            .build()
+
+        executeCancellable(requestClient, httpRequest).use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 throw AiCleaningException(
@@ -154,9 +160,12 @@ class AiCleaningRepository(
         }
     }
 
-    private suspend fun executeCancellable(request: Request): Response =
+    private suspend fun executeCancellable(
+        requestClient: OkHttpClient,
+        request: Request
+    ): Response =
         suspendCancellableCoroutine { continuation ->
-            val call = client.newCall(request)
+            val call = requestClient.newCall(request)
             continuation.invokeOnCancellation {
                 call.cancel()
             }
@@ -199,6 +208,27 @@ class AiCleaningRepository(
     companion object {
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private const val CHAT_COMPLETIONS_PATH = "/chat/completions"
+        internal const val BASE_READ_TIMEOUT_SECONDS = 120L
+        internal const val BASE_THRESHOLD_CHARS = 5_000
+        internal const val EXTRA_TIMEOUT_CHUNK_CHARS = 10_000
+        internal const val EXTRA_TIMEOUT_SECONDS = 60L
+        internal const val MAX_READ_TIMEOUT_SECONDS = 600L
+        internal const val CONNECT_TIMEOUT_SECONDS = 30L
+        internal const val CALL_BUFFER_SECONDS = 10L
+
+        internal fun computeReadTimeout(textLength: Int): Long {
+            if (textLength <= BASE_THRESHOLD_CHARS) {
+                return BASE_READ_TIMEOUT_SECONDS
+            }
+            val extraChars = textLength - BASE_THRESHOLD_CHARS
+            val extraChunks = (extraChars + EXTRA_TIMEOUT_CHUNK_CHARS - 1) / EXTRA_TIMEOUT_CHUNK_CHARS
+            val timeout = BASE_READ_TIMEOUT_SECONDS + extraChunks * EXTRA_TIMEOUT_SECONDS
+            return timeout.coerceAtMost(MAX_READ_TIMEOUT_SECONDS)
+        }
+
+        internal fun computeCallTimeout(textLength: Int): Long {
+            return computeReadTimeout(textLength) + CONNECT_TIMEOUT_SECONDS + CALL_BUFFER_SECONDS
+        }
 
         private const val SYSTEM_PROMPT = """
             You are a subtitle cleaning assistant.
