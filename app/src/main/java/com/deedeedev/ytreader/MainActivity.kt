@@ -1,5 +1,6 @@
 package com.deedeedev.ytreader
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
@@ -9,16 +10,29 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.deedeedev.ytreader.data.LocaleHelper
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.ui.AppLanguage
 import com.deedeedev.ytreader.ui.MainScreen
 import com.deedeedev.ytreader.ui.home.HomeViewModel
 import com.deedeedev.ytreader.ui.theme.YtReaderTheme
 
 class MainActivity : ComponentActivity() {
     private var latestIntent by mutableStateOf<Intent?>(null)
+    private var currentLanguage by mutableStateOf<AppLanguage>(AppLanguage.SYSTEM)
+
+    override fun attachBaseContext(base: Context) {
+        val prefs = base.getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
+        val languageValue = prefs.getString("app_language", AppLanguage.SYSTEM.storageValue) ?: AppLanguage.SYSTEM.storageValue
+        val appLanguage = AppLanguage.fromStorageValue(languageValue)
+        currentLanguage = appLanguage
+        val wrappedContext = LocaleHelper.wrap(base, appLanguage)
+        super.attachBaseContext(wrappedContext)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,7 +44,18 @@ class MainActivity : ComponentActivity() {
         setContent {
             val appTheme by appContainer.userPreferencesRepository.appTheme.collectAsStateWithLifecycle()
             val appBrightness by appContainer.userPreferencesRepository.appBrightness.collectAsStateWithLifecycle()
+            val appLanguage by appContainer.userPreferencesRepository.appLanguage.collectAsStateWithLifecycle()
             val currentIntent = latestIntent
+            val activity = this
+
+            val rememberedLanguage = remember { appLanguage }
+
+            LaunchedEffect(appLanguage) {
+                if (rememberedLanguage != appLanguage && appLanguage != currentLanguage) {
+                    currentLanguage = appLanguage
+                    activity.recreate()
+                }
+            }
 
             LaunchedEffect(appBrightness) {
                 applyAppBrightness(appBrightness)

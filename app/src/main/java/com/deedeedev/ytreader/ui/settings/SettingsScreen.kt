@@ -213,6 +213,40 @@ fun SettingsScreen(
             }
 
             item {
+                var expanded by remember { mutableStateOf(false) }
+
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    TextField(
+                        value = stringResource(uiState.appLanguage.labelRes),
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                            .fillMaxWidth(),
+                        label = { Text(stringResource(R.string.settings_app_language)) }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        uiState.availableLanguages.forEach { appLanguage ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(appLanguage.labelRes)) },
+                                onClick = {
+                                    viewModel.setAppLanguage(appLanguage)
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
                 Text(
                     text = stringResource(R.string.settings_reader_defaults),
                     style = MaterialTheme.typography.titleMedium,

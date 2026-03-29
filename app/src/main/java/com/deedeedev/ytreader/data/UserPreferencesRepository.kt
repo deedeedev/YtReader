@@ -3,6 +3,7 @@ package com.deedeedev.ytreader.data
 import android.content.Context
 import android.content.SharedPreferences
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
+import com.deedeedev.ytreader.ui.AppLanguage
 import com.deedeedev.ytreader.ui.theme.AppTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -40,6 +41,7 @@ data class PreferencesBackup(
     val lineHeightMultiplier: Float = 1.5f,
     val appTheme: String = AppTheme.SYSTEM.storageValue,
     val appBrightness: Float = UserPreferencesRepository.BRIGHTNESS_FOLLOW_SYSTEM,
+    val appLanguage: String = AppLanguage.SYSTEM.storageValue,
     val aiEndpoint: String = "",
     val aiApiKey: String = "",
     val aiModel: String = DEFAULT_AI_MODEL,
@@ -66,6 +68,9 @@ class UserPreferencesRepository(context: Context) {
 
     private val _appBrightness = MutableStateFlow(BRIGHTNESS_FOLLOW_SYSTEM)
     val appBrightness: StateFlow<Float> = _appBrightness.asStateFlow()
+
+    private val _appLanguage = MutableStateFlow(AppLanguage.SYSTEM)
+    val appLanguage: StateFlow<AppLanguage> = _appLanguage.asStateFlow()
 
     private val _aiEndpoint = MutableStateFlow("")
     val aiEndpoint: StateFlow<String> = _aiEndpoint.asStateFlow()
@@ -108,6 +113,7 @@ class UserPreferencesRepository(context: Context) {
         _lineHeightMultiplier.value = prefs.getFloat(KEY_LINE_HEIGHT_MULTIPLIER, 1.5f)
         _appTheme.value = AppTheme.fromStorageValue(prefs.getString(KEY_APP_THEME, AppTheme.SYSTEM.storageValue))
         _appBrightness.value = prefs.getFloat(KEY_APP_BRIGHTNESS, BRIGHTNESS_FOLLOW_SYSTEM)
+        _appLanguage.value = AppLanguage.fromStorageValue(prefs.getString(KEY_APP_LANGUAGE, AppLanguage.SYSTEM.storageValue))
         _aiEndpoint.value = prefs.getString(KEY_AI_ENDPOINT, "") ?: ""
         _aiApiKey.value = prefs.getString(KEY_AI_API_KEY, "") ?: ""
         _aiModel.value = prefs.getString(KEY_AI_MODEL, DEFAULT_AI_MODEL) ?: DEFAULT_AI_MODEL
@@ -155,6 +161,11 @@ class UserPreferencesRepository(context: Context) {
         }
         prefs.edit().putFloat(KEY_APP_BRIGHTNESS, normalized).apply()
         _appBrightness.value = normalized
+    }
+
+    fun setAppLanguage(appLanguage: AppLanguage) {
+        prefs.edit().putString(KEY_APP_LANGUAGE, appLanguage.storageValue).apply()
+        _appLanguage.value = appLanguage
     }
 
     fun setAiEndpoint(endpoint: String) {
@@ -226,6 +237,7 @@ class UserPreferencesRepository(context: Context) {
             lineHeightMultiplier = _lineHeightMultiplier.value,
             appTheme = _appTheme.value.storageValue,
             appBrightness = _appBrightness.value,
+            appLanguage = _appLanguage.value.storageValue,
             aiEndpoint = _aiEndpoint.value,
             aiApiKey = _aiApiKey.value,
             aiModel = _aiModel.value,
@@ -248,6 +260,7 @@ class UserPreferencesRepository(context: Context) {
             .putFloat(KEY_LINE_HEIGHT_MULTIPLIER, backup.lineHeightMultiplier)
             .putString(KEY_APP_THEME, backup.appTheme)
             .putFloat(KEY_APP_BRIGHTNESS, backup.appBrightness)
+            .putString(KEY_APP_LANGUAGE, backup.appLanguage)
             .putString(KEY_AI_ENDPOINT, backup.aiEndpoint)
             .putString(KEY_AI_API_KEY, backup.aiApiKey)
             .putString(KEY_AI_MODEL, backup.aiModel)
@@ -321,6 +334,7 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_LINE_HEIGHT_MULTIPLIER = "line_height_multiplier"
         private const val KEY_APP_THEME = "app_theme"
         private const val KEY_APP_BRIGHTNESS = "app_brightness"
+        private const val KEY_APP_LANGUAGE = "app_language"
         private const val KEY_AI_ENDPOINT = "ai_endpoint"
         private const val KEY_AI_API_KEY = "ai_api_key"
         private const val KEY_AI_MODEL = "ai_model"

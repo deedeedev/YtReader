@@ -203,6 +203,10 @@
     <string name="settings_ai_model_placeholder">gpt-4o-mini</string>
     <string name="settings_ai_prompt_placeholder">Describe how subtitle text should be cleaned</string>
     <string name="settings_app_theme">App Theme</string>
+    <string name="settings_app_language">App Language</string>
+    <string name="language_system">System</string>
+    <string name="language_english">English</string>
+    <string name="language_italian">Italiano</string>
     <string name="settings_backup_restore">Backup &amp; Restore</string>
     <string name="settings_data">Data</string>
     <string name="settings_data_description">Library, collections, annotations, bookmarks and highlights.</string>

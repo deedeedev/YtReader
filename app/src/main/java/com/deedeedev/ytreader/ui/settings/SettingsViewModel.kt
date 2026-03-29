@@ -12,6 +12,7 @@ import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.VideoDao
 import com.deedeedev.ytreader.data.preferredThumbnailUrl
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
+import com.deedeedev.ytreader.ui.AppLanguage
 import com.deedeedev.ytreader.ui.FontOption
 import com.deedeedev.ytreader.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,8 @@ data class SettingsUiState(
     val lineHeightMultiplier: Float = 1.5f,
     val appTheme: AppTheme = AppTheme.SYSTEM,
     val availableThemes: List<AppTheme> = AppTheme.entries,
+    val appLanguage: AppLanguage = AppLanguage.SYSTEM,
+    val availableLanguages: List<AppLanguage> = AppLanguage.entries,
     val aiEndpoint: String = "",
     val aiApiKey: String = "",
     val aiModel: String = "",
@@ -67,6 +70,11 @@ class SettingsViewModel(
         viewModelScope.launch {
             userPreferencesRepository.appTheme.collect { appTheme ->
                 _uiState.update { it.copy(appTheme = appTheme) }
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.appLanguage.collect { appLanguage ->
+                _uiState.update { it.copy(appLanguage = appLanguage) }
             }
         }
         viewModelScope.launch {
@@ -125,6 +133,10 @@ class SettingsViewModel(
 
     fun setAppTheme(appTheme: AppTheme) {
         userPreferencesRepository.setAppTheme(appTheme)
+    }
+
+    fun setAppLanguage(appLanguage: AppLanguage) {
+        userPreferencesRepository.setAppLanguage(appLanguage)
     }
 
     fun setAiEndpoint(endpoint: String) {
