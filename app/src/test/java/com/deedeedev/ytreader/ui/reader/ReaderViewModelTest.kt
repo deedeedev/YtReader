@@ -26,14 +26,20 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
+import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.robolectric.Robolectric
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 class ReaderViewModelTest {
 
     @get:Rule
@@ -220,7 +226,8 @@ class ReaderViewModelTest {
             highlightNoteDao = highlightNoteDao,
             bookmarkDao = bookmarkDao,
             userPreferencesRepository = createUserPreferencesRepository(),
-            subtitleId = SUBTITLE_ID
+            subtitleId = SUBTITLE_ID,
+            widgetUpdater = { _ -> }
         )
     }
 

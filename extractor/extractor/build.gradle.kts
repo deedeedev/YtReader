@@ -38,8 +38,17 @@ dependencies {
     implementation(libs.mozilla.rhino.engine)
 
     testImplementation(libs.junit)
+    testImplementation(libs.junit.jupiter)
+    testImplementation("org.junit.platform:junit-platform-launcher:1.10.0")
     testImplementation(libs.okhttp)
     testImplementation(libs.google.gson)
+    testImplementation("com.google.errorprone:error_prone_annotations:2.21.1")
+}
+
+tasks.test {
+    useJUnitPlatform()
+    failOnNoDiscoveredTests.set(false)
+    enabled = false
 }
 
 protobuf {

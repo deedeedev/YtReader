@@ -45,7 +45,8 @@ class ReaderViewModel(
     private val highlightNoteDao: HighlightNoteDao,
     private val bookmarkDao: BookmarkDao,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val subtitleId: Long
+    private val subtitleId: Long,
+    private val widgetUpdater: (Context) -> Unit = { context -> ReaderWidgetProvider.notifyWidgetChanged(context) }
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReaderUiState(isLoading = true))
@@ -60,7 +61,7 @@ class ReaderViewModel(
     private fun markSubtitleOpened() {
         viewModelScope.launch {
             subtitleDao.updateLastOpenedAt(subtitleId, System.currentTimeMillis())
-            ReaderWidgetProvider.notifyWidgetChanged(appContext)
+            widgetUpdater(appContext)
         }
     }
 
