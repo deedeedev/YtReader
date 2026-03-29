@@ -1036,14 +1036,7 @@ internal fun ReaderScreen(
 
     val fullscreenProgressPercent by remember(
         readerMode,
-        originalSegments,
-        originalListState.firstVisibleItemIndex,
-        originalListState.canScrollForward,
-        originalListState.canScrollBackward,
-        studyScrollState.value,
-        studyScrollState.maxValue,
-        originalFallbackScrollState.value,
-        originalFallbackScrollState.maxValue
+        originalSegments
     ) {
         derivedStateOf {
             when (readerMode) {
@@ -1080,14 +1073,7 @@ internal fun ReaderScreen(
     val fullscreenPageProgress by remember(
         readerMode,
         originalSegments,
-        originalListState.firstVisibleItemIndex,
-        originalListState.canScrollForward,
-        originalListState.layoutInfo.visibleItemsInfo.size,
-        studyScrollState.value,
-        studyScrollState.maxValue,
         studyViewportHeightPx,
-        originalFallbackScrollState.value,
-        originalFallbackScrollState.maxValue,
         originalFallbackViewportHeightPx
     ) {
         derivedStateOf {

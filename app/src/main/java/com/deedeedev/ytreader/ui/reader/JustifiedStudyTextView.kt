@@ -8,12 +8,8 @@ import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.text.Layout
-import android.text.Selection
-import android.text.Spannable
-import android.text.SpannableString
 import android.text.StaticLayout
 import android.text.TextPaint
-import android.text.style.BackgroundColorSpan
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.GestureDetector
@@ -61,7 +57,11 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     private var backgroundColorInt: Int = Color.TRANSPARENT
     private var lineSpacingMultiplier: Float = 1f
     private var layout: StaticLayout? = null
-    private var displayText: CharSequence = ""
+    private val rangePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+    }
+    private var cachedLayoutWidth = -1
+    private var layoutDirty = true
     private var selectionRange: TextRange? = null
     private var searchResultRange: TextRange? = null
     private var selectionAnchor: TextRange? = null
@@ -98,7 +98,12 @@ class JustifiedStudyTextView @JvmOverloads constructor(
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val resolvedWidth = resolveSize(suggestedMinimumWidth, widthMeasureSpec)
-        rebuildLayout((resolvedWidth - paddingLeft - paddingRight).coerceAtLeast(0))
+        val availableWidth = (resolvedWidth - paddingLeft - paddingRight).coerceAtLeast(0)
+        if (availableWidth != cachedLayoutWidth || layoutDirty) {
+            rebuildLayout(availableWidth)
+            cachedLayoutWidth = availableWidth
+            layoutDirty = false
+        }
         val contentHeight = (layout?.height ?: 0) + paddingTop + paddingBottom + extraHandleBottomInset()
         val resolvedHeight = resolveSize(contentHeight.toInt(), heightMeasureSpec)
         setMeasuredDimension(resolvedWidth, resolvedHeight)
@@ -112,7 +117,13 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         val textLayout = layout ?: return
         canvas.save()
         canvas.translate(paddingLeft.toFloat(), paddingTop.toFloat())
+
+        drawHighlightBackgrounds(canvas, textLayout)
+        drawSearchResultBackground(canvas, textLayout)
+        drawSelectionBackground(canvas, textLayout)
+
         textLayout.draw(canvas)
+
         drawBookmarkIndicators(canvas, textLayout)
         drawHighlightNoteIndicators(canvas, textLayout)
         selectionHandleVisuals(textLayout).forEach { handle ->
@@ -186,6 +197,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         yellowColor: Int,
         searchResultColor: Int
     ) {
+        val contentChanged = this.content != content
         this.content = content
         this.highlights = highlights
             .mapNotNull { highlight ->
@@ -216,14 +228,18 @@ class JustifiedStudyTextView @JvmOverloads constructor(
             val end = range.end.coerceIn(0, content.length)
             if (end > start) TextRange(start, end) else null
         }
-        rebuildDisplayText()
+        if (contentChanged) {
+            layoutDirty = true
+            requestLayout()
+        }
+        invalidate()
     }
 
     fun clearSelection() {
         selectionRange = null
         selectionAnchor = null
         activeHandle = null
-        rebuildDisplayText()
+        invalidate()
         onSelectionChangedListener?.invoke(0, 0)
     }
 
@@ -283,24 +299,34 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     }
 
     fun applyTypeface(fontFamilyName: String) {
-        textPaint.typeface = when (fontFamilyName) {
+        val newTypeface = when (fontFamilyName) {
             "Serif" -> Typeface.SERIF
             "SansSerif" -> Typeface.SANS_SERIF
             "Monospace" -> Typeface.MONOSPACE
             else -> Typeface.DEFAULT
         }
-        rebuildDisplayText()
+        if (textPaint.typeface == newTypeface) return
+        textPaint.typeface = newTypeface
+        layoutDirty = true
+        requestLayout()
+        invalidate()
     }
 
     fun setLineHeightMultiplier(multiplier: Float) {
+        if (lineSpacingMultiplier == multiplier) return
         lineSpacingMultiplier = multiplier
+        layoutDirty = true
         requestLayout()
         invalidate()
     }
 
     fun setTextSizeSp(size: Float) {
-        textPaint.textSize = spToPx(size)
-        rebuildDisplayText()
+        val newSize = spToPx(size)
+        if (textPaint.textSize == newSize) return
+        textPaint.textSize = newSize
+        layoutDirty = true
+        requestLayout()
+        invalidate()
     }
 
     fun setReadableColors(textColor: Int, backgroundColor: Int) {
@@ -406,53 +432,14 @@ class JustifiedStudyTextView @JvmOverloads constructor(
             return
         }
         selectionRange = range
-        rebuildDisplayText()
-        onSelectionChangedListener?.invoke(range.start, range.end)
-    }
-
-    private fun rebuildDisplayText() {
-        val spannable = SpannableString(content)
-        highlights.forEach { highlight ->
-            spannable.setSpan(
-                BackgroundColorSpan(
-                    when (highlight.color) {
-                        HighlightColor.RED -> redColor
-                        HighlightColor.BLUE -> blueColor
-                        HighlightColor.GREEN -> greenColor
-                        HighlightColor.YELLOW -> yellowColor
-                    }
-                ),
-                highlight.start,
-                highlight.end,
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-        }
-        searchResultRange?.let { range ->
-            spannable.setSpan(
-                BackgroundColorSpan(searchResultColor),
-                range.start,
-                range.end,
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-        }
-        selectionRange?.let { range ->
-            spannable.setSpan(
-                BackgroundColorSpan(selectionColor),
-                range.start,
-                range.end,
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-            Selection.setSelection(spannable, range.start, range.end)
-        }
-        displayText = spannable
-        requestLayout()
         invalidate()
+        onSelectionChangedListener?.invoke(range.start, range.end)
     }
 
     private fun rebuildLayout(layoutWidth: Int = (measuredWidth - paddingLeft - paddingRight).coerceAtLeast(0)) {
         val width = layoutWidth.coerceAtLeast(1)
         layout = StaticLayout.Builder
-            .obtain(displayText, 0, displayText.length, textPaint, width)
+            .obtain(content, 0, content.length, textPaint, width)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setIncludePad(false)
             .setLineSpacing(0f, lineSpacingMultiplier)
@@ -460,6 +447,62 @@ class JustifiedStudyTextView @JvmOverloads constructor(
             .setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NORMAL)
             .setJustificationMode(Layout.JUSTIFICATION_MODE_INTER_WORD)
             .build()
+    }
+
+    private fun drawRangeBackground(
+        canvas: Canvas,
+        textLayout: StaticLayout,
+        startOffset: Int,
+        endOffset: Int,
+        color: Int
+    ) {
+        if (startOffset >= endOffset || content.isEmpty()) return
+        rangePaint.color = color
+        val startLine = textLayout.getLineForOffset(startOffset)
+        val endCharOffset = (endOffset - 1).coerceIn(0, content.length - 1)
+        val endLine = textLayout.getLineForOffset(endCharOffset)
+        for (line in startLine..endLine) {
+            val left = if (line == startLine) {
+                textLayout.getPrimaryHorizontal(startOffset)
+            } else {
+                textLayout.getLineLeft(line)
+            }
+            val right = if (line == endLine) {
+                if (endOffset >= content.length) textLayout.getLineRight(line)
+                else textLayout.getPrimaryHorizontal(endOffset)
+            } else {
+                textLayout.getLineRight(line)
+            }
+            val top = textLayout.getLineTop(line).toFloat()
+            val bottom = textLayout.getLineBottom(line).toFloat()
+            if (right > left) {
+                canvas.drawRect(left, top, right, bottom, rangePaint)
+            }
+        }
+    }
+
+    private fun drawHighlightBackgrounds(canvas: Canvas, textLayout: StaticLayout) {
+        highlights.forEach { highlight ->
+            val color = when (highlight.color) {
+                HighlightColor.RED -> redColor
+                HighlightColor.BLUE -> blueColor
+                HighlightColor.GREEN -> greenColor
+                HighlightColor.YELLOW -> yellowColor
+            }
+            drawRangeBackground(canvas, textLayout, highlight.start, highlight.end, color)
+        }
+    }
+
+    private fun drawSearchResultBackground(canvas: Canvas, textLayout: StaticLayout) {
+        searchResultRange?.let { range ->
+            drawRangeBackground(canvas, textLayout, range.start, range.end, searchResultColor)
+        }
+    }
+
+    private fun drawSelectionBackground(canvas: Canvas, textLayout: StaticLayout) {
+        selectionRange?.let { range ->
+            drawRangeBackground(canvas, textLayout, range.start, range.end, selectionColor)
+        }
     }
 
     private fun drawHandle(canvas: Canvas, handle: SelectionHandleVisual) {
