@@ -16,6 +16,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
@@ -52,6 +54,9 @@ internal fun ReaderOriginalPane(
     onOriginalTimestampTap: (Long) -> Unit,
     onUserDrag: () -> Unit
 ) {
+    val memoizedOnReaderTap by rememberUpdatedState(onReaderTap)
+    val memoizedOnUserDrag by rememberUpdatedState(onUserDrag)
+
     if (originalSegments.isEmpty()) {
         Column(
             modifier = Modifier
@@ -107,7 +112,7 @@ internal fun ReaderOriginalPane(
                         content = originalFallbackText,
                         searchResultRange = activeOriginalFallbackSearchRange,
                         activeOwner = originalSelectionCoordinator.activeOwner,
-                        onPlainTextTap = onReaderTap,
+                        onPlainTextTap = memoizedOnReaderTap,
                         onSelectionOwnerChanged = { owner ->
                             val currentOwner = originalSelectionCoordinator.activeOwner
                             originalSelectionCoordinator.activeOwner = if (owner != null) {
@@ -201,7 +206,7 @@ internal fun ReaderOriginalPane(
                             clearSelectionForOwner = { ownerIndex ->
                                 originalSelectionCoordinator.textViews[ownerIndex]?.clearSelection()
                             },
-                            onPlainTextTap = onReaderTap,
+                            onPlainTextTap = memoizedOnReaderTap,
                             onSelectionOwnerChanged = { owner ->
                                 val currentOwner = originalSelectionCoordinator.activeOwner
                                 originalSelectionCoordinator.activeOwner = if (owner != null) {
@@ -251,6 +256,16 @@ internal fun ReaderStudyPane(
     clearSelectionNow: () -> Unit,
     onUserDrag: () -> Unit
 ) {
+    val memoizedOnReaderTap by rememberUpdatedState(onReaderTap)
+    val memoizedOnStudyTextViewReady by rememberUpdatedState(onStudyTextViewReady)
+    val memoizedOnSelectionRangeChanged by rememberUpdatedState(onSelectionRangeChanged)
+    val memoizedOnHighlightTapped by rememberUpdatedState(onHighlightTapped)
+    val memoizedOnBookmarkTapped by rememberUpdatedState(onBookmarkTapped)
+    val memoizedHasActiveHighlight by rememberUpdatedState(hasActiveHighlight)
+    val memoizedOnClearActiveHighlight by rememberUpdatedState(onClearActiveHighlight)
+    val memoizedClearSelectionNow by rememberUpdatedState(clearSelectionNow)
+    val memoizedOnUserDrag by rememberUpdatedState(onUserDrag)
+
     if (isEditing) {
         androidx.compose.foundation.layout.Box(
             modifier = Modifier
@@ -320,7 +335,7 @@ internal fun ReaderStudyPane(
                 }
             },
             update = { textView ->
-                onStudyTextViewReady(textView)
+                memoizedOnStudyTextViewReady(textView)
                 textView.bindStudyContent(
                     fontSize = fontSize,
                     lineHeightMultiplier = lineHeightMultiplier,
@@ -331,13 +346,13 @@ internal fun ReaderStudyPane(
                     highlights = highlights,
                     bookmarks = bookmarks,
                     searchResultRange = activeStudySearchRange,
-                    onSelectionChanged = onSelectionRangeChanged,
-                    onHighlightTapped = onHighlightTapped,
-                    onBookmarkTapped = onBookmarkTapped,
-                    onPlainTextTap = onReaderTap,
-                    hasActiveHighlight = hasActiveHighlight,
-                    clearActiveHighlight = onClearActiveHighlight,
-                    clearSelectionNow = { clearSelectionNow() }
+                    onSelectionChanged = memoizedOnSelectionRangeChanged,
+                    onHighlightTapped = memoizedOnHighlightTapped,
+                    onBookmarkTapped = memoizedOnBookmarkTapped,
+                    onPlainTextTap = memoizedOnReaderTap,
+                    hasActiveHighlight = memoizedHasActiveHighlight,
+                    clearActiveHighlight = memoizedOnClearActiveHighlight,
+                    clearSelectionNow = memoizedClearSelectionNow
                 )
             }
         )
