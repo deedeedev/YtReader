@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.res.Resources
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
@@ -28,6 +29,8 @@ internal fun shareVideoNotesMarkdown(context: Context, markdown: String) {
 internal fun shareVideoNotesPdf(
     context: Context,
     title: String,
+    channelName: String,
+    uploadDate: Long,
     videoId: String,
     selectedTypes: Set<VideoAnnotationType>,
     items: List<VideoAnnotationItem>
@@ -35,6 +38,8 @@ internal fun shareVideoNotesPdf(
     val pdfFile = createVideoNotesPdfFile(
         context = context,
         title = title,
+        channelName = channelName,
+        uploadDate = uploadDate,
         videoId = videoId,
         selectedTypes = selectedTypes,
         items = items
@@ -253,6 +258,8 @@ internal fun annotationFilterLabel(resources: Resources, selectedTypes: Set<Vide
 private fun createVideoNotesPdfFile(
     context: Context,
     title: String,
+    channelName: String,
+    uploadDate: Long,
     videoId: String,
     selectedTypes: Set<VideoAnnotationType>,
     items: List<VideoAnnotationItem>
@@ -263,6 +270,8 @@ private fun createVideoNotesPdfFile(
         resources = context.resources,
         outputFile = outputFile,
         title = title,
+        channelName = channelName,
+        uploadDate = uploadDate,
         videoId = videoId,
         selectedTypes = selectedTypes,
         items = items
@@ -274,46 +283,33 @@ private fun createVideoNotesPdf(
     resources: Resources,
     outputFile: File,
     title: String,
+    channelName: String,
+    uploadDate: Long,
     videoId: String,
     selectedTypes: Set<VideoAnnotationType>,
     items: List<VideoAnnotationItem>
 ) {
+    val filteredItems = items.filter { it.type != VideoAnnotationType.BOOKMARK }
     val document = PdfDocument()
     try {
         val renderer = VideoNotesPdfRenderer(document)
-        renderer.drawTitle(title.ifBlank { videoId })
-        renderer.drawBodyLine(resources.getString(R.string.video_notes_export_video_id_label, videoId))
-        renderer.drawBodyLine(
-            resources.getString(
-                R.string.video_notes_export_filter_label,
-                annotationFilterLabel(resources, selectedTypes)
-            )
-        )
-        renderer.drawBodyLine(resources.getString(R.string.video_notes_export_items_label, items.size))
-        renderer.drawSpacer()
+        val exportTitle = title.ifBlank { videoId }
+        val uploadDateStr = formatUploadDate(uploadDate)
+        val itemCount = filteredItems.size
 
-        items.forEachIndexed { index, item ->
-            renderer.drawSectionHeading(
-                resources.getString(
-                    R.string.video_notes_export_item_type_format,
-                    index + 1,
-                    annotationTypeLabel(resources, item.type)
-                )
+        renderer.drawHeader(exportTitle, channelName, uploadDateStr, itemCount)
+        renderer.drawDivider()
+
+        filteredItems.forEachIndexed { index, item ->
+            renderer.drawAnnotationBlock(
+                index = index + 1,
+                total = itemCount,
+                quote = item.title,
+                note = item.note,
+                highlightColor = item.color,
+                progressPercent = item.progressPercent,
+                updatedAt = item.updatedAt
             )
-            renderer.drawBodyLine(resources.getString(R.string.video_notes_export_title_label, item.title))
-            val updatedLabel = formatVideoAnnotationUpdatedAt(item.updatedAt)
-                .ifBlank { resources.getString(R.string.video_notes_export_unknown) }
-            renderer.drawBodyLine(resources.getString(R.string.video_notes_export_updated_label, updatedLabel))
-            renderer.drawBodyLine(resources.getString(R.string.video_notes_export_position_label, item.progressPercent))
-            item.note?.let { note ->
-                renderer.drawBodyLine(
-                    resources.getString(
-                        R.string.video_notes_export_note_label,
-                        note.replace(Regex("\\s+"), " ").trim()
-                    )
-                )
-            }
-            renderer.drawSpacer()
         }
 
         renderer.finish()
@@ -321,6 +317,12 @@ private fun createVideoNotesPdf(
     } finally {
         document.close()
     }
+}
+
+private fun formatUploadDate(uploadDate: Long): String {
+    if (uploadDate <= 0L) return ""
+    val formatter = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+    return formatter.format(Date(uploadDate))
 }
 
 private fun sanitizeVideoNotesFileName(value: String, fallbackName: String): String {
@@ -335,40 +337,130 @@ private class VideoNotesPdfRenderer(private val document: PdfDocument) {
     private val pageWidth = 595
     private val pageHeight = 842
     private val margin = 40f
-    private val contentWidth = pageWidth - (margin * 2f)
+    private val quoteIndent = 16f
+    private val quoteContentStart = margin + quoteIndent + 8f
+    private val contentWidth = pageWidth - margin - quoteContentStart
     private val bottomLimit = pageHeight - margin
+    private val accentBarWidth = 4f
+
+    private val colorRed = Color.parseColor("#E53935")
+    private val colorBlue = Color.parseColor("#1E88E5")
+    private val colorGreen = Color.parseColor("#43A047")
+    private val colorYellow = Color.parseColor("#FDD835")
 
     private val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize = 20f
+        textSize = 24f
         isFakeBoldText = true
+        color = Color.parseColor("#212121")
     }
-    private val headingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val subtitlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = 14f
-        isFakeBoldText = true
+        color = Color.parseColor("#757575")
     }
-    private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textSize = 11f
+    private val quotePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = 13f
+        textSkewX = -0.25f
+        color = Color.parseColor("#424242")
+    }
+    private val notePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = 12f
+        color = Color.parseColor("#616161")
+    }
+    private val metadataPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textSize = 10f
+        color = Color.parseColor("#9E9E9E")
+    }
+    private val dividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        strokeWidth = 1f
+        color = Color.parseColor("#E0E0E0")
     }
 
     private var pageNumber = 0
     private var currentPage: PdfDocument.Page? = null
     private var currentY = margin
 
-    fun drawTitle(text: String) {
-        drawParagraph(text, titlePaint, 10f)
+    fun drawHeader(title: String, channelName: String, uploadDate: String, itemCount: Int) {
+        drawParagraph(title, titlePaint, 4f)
+        
+        val channelAndDate = buildString {
+            if (channelName.isNotBlank()) {
+                append(channelName)
+                if (uploadDate.isNotBlank()) {
+                    append(" · ")
+                    append(uploadDate)
+                }
+            } else if (uploadDate.isNotBlank()) {
+                append(uploadDate)
+            }
+        }
+        if (channelAndDate.isNotBlank()) {
+            drawParagraph(channelAndDate, subtitlePaint, 16f)
+        }
+
+        drawParagraph("$itemCount items", subtitlePaint, 8f)
     }
 
-    fun drawSectionHeading(text: String) {
-        drawParagraph(text, headingPaint, 8f)
+    fun drawDivider() {
+        ensureSpace(4f)
+        currentPage!!.canvas.drawLine(margin, currentY, pageWidth - margin, currentY, dividerPaint)
+        currentY += 16f
     }
 
-    fun drawBodyLine(text: String) {
-        drawParagraph(text, bodyPaint, 4f)
-    }
+    fun drawAnnotationBlock(
+        index: Int,
+        total: Int,
+        quote: String,
+        note: String?,
+        highlightColor: HighlightColor?,
+        progressPercent: Int,
+        updatedAt: Long
+    ) {
+        val accentColor = when (highlightColor) {
+            HighlightColor.RED -> colorRed
+            HighlightColor.BLUE -> colorBlue
+            HighlightColor.GREEN -> colorGreen
+            HighlightColor.YELLOW -> colorYellow
+            null -> Color.parseColor("#9E9E9E")
+        }
 
-    fun drawSpacer(height: Float = 8f) {
-        ensureSpace(height)
-        currentY += height
+        ensureSpace(24f)
+        
+        val accentBarLeft = quoteContentStart - quoteIndent - 4f
+        currentPage!!.canvas.drawRect(
+            accentBarLeft,
+            currentY - quotePaint.textSize,
+            accentBarLeft + accentBarWidth,
+            currentY + (quotePaint.textSize * 2),
+            Paint().apply { this.color = accentColor }
+        )
+
+        val wrappedQuote = wrapText(quote, quotePaint)
+        val lineHeight = quotePaint.textSize + 4f
+        wrappedQuote.forEach { line ->
+            ensureSpace(lineHeight)
+            currentPage!!.canvas.drawText(line, quoteContentStart, currentY, quotePaint)
+            currentY += lineHeight
+        }
+
+        if (!note.isNullOrBlank()) {
+            currentY += 8f
+            ensureSpace(notePaint.textSize + 4f)
+            currentPage!!.canvas.drawText("Note: ", quoteContentStart, currentY, Paint(notePaint).apply { isFakeBoldText = true })
+            val noteWidth = Paint(notePaint).measureText("Note: ")
+            val wrappedNote = wrapText(note, notePaint, contentWidth - noteWidth)
+            wrappedNote.forEach { line ->
+                ensureSpace(notePaint.textSize + 4f)
+                currentPage!!.canvas.drawText(line, quoteContentStart + noteWidth, currentY, notePaint)
+                currentY += (notePaint.textSize + 4f)
+            }
+        }
+
+        currentY += 8f
+        ensureSpace(metadataPaint.textSize + 4f)
+        val dateStr = formatVideoAnnotationUpdatedAt(updatedAt)
+        val metadata = "$index/$total · $progressPercent%${if (dateStr.isNotBlank()) " · $dateStr" else ""}"
+        currentPage!!.canvas.drawText(metadata, quoteContentStart, currentY, metadataPaint)
+        currentY += 40f
     }
 
     fun finish() {
@@ -388,41 +480,45 @@ private class VideoNotesPdfRenderer(private val document: PdfDocument) {
         currentY += paragraphSpacing
     }
 
-    private fun wrapText(text: String, paint: Paint): List<String> {
-        val paragraphs = text.split('\n')
-        val lines = mutableListOf<String>()
-        for (paragraph in paragraphs) {
-            val normalized = paragraph.trim()
-            if (normalized.isEmpty()) {
-                lines += ""
-                continue
-            }
+    private fun wrapText(text: String, paint: Paint, maxWidth: Float = contentWidth): List<String> {
+        val normalized = text.replace(Regex("\\s+"), " ").trim()
+        if (normalized.isEmpty()) return listOf("")
 
-            var remaining = normalized
-            while (remaining.isNotEmpty()) {
-                val count = paint.breakText(remaining, true, contentWidth, null)
-                if (count >= remaining.length) {
-                    lines += remaining
-                    remaining = ""
-                } else {
-                    val breakIndex = remaining.lastIndexOf(' ', startIndex = count - 1)
-                        .takeIf { it > 0 } ?: count
-                    lines += remaining.substring(0, breakIndex).trimEnd()
-                    remaining = remaining.substring(breakIndex).trimStart()
-                }
+        val lines = mutableListOf<String>()
+        var remaining = normalized
+        while (remaining.isNotEmpty()) {
+            val count = paint.breakText(remaining, true, maxWidth, null)
+            if (count >= remaining.length) {
+                lines += remaining
+                remaining = ""
+            } else {
+                val breakIndex = remaining.lastIndexOf(' ', startIndex = count - 1)
+                    .takeIf { it > 0 } ?: count
+                lines += remaining.substring(0, breakIndex).trimEnd()
+                remaining = remaining.substring(breakIndex).trimStart()
             }
         }
-        return if (lines.isEmpty()) listOf("") else lines
+        return lines
     }
 
     private fun ensureSpace(requiredHeight: Float) {
         if (currentPage == null || currentY + requiredHeight > bottomLimit) {
-            currentPage?.let(document::finishPage)
+            currentPage?.let {
+                drawPageNumber()
+                document.finishPage(it)
+            }
             pageNumber += 1
             currentPage = document.startPage(
                 PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
             )
             currentY = margin
+        }
+    }
+
+    private fun drawPageNumber() {
+        currentPage?.let { page ->
+            val pageNumPaint = Paint(metadataPaint).apply { textAlign = Paint.Align.RIGHT }
+            page.canvas.drawText("Page $pageNumber", pageWidth - margin, bottomLimit + 16f, pageNumPaint)
         }
     }
 }

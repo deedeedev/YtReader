@@ -30,6 +30,8 @@ enum class VideoAnnotationType {
 data class VideoNotesUiState(
     val videoId: String = "",
     val title: String = "",
+    val channelName: String = "",
+    val uploadDate: Long = 0L,
     val items: List<VideoAnnotationItem> = emptyList(),
     val totalBookmarks: Int = 0,
     val totalHighlights: Int = 0,
@@ -99,6 +101,7 @@ class VideoNotesViewModel(
                 }
                 .collectLatest { payload ->
                     subtitlesById = payload.subtitles.associateBy { subtitle -> subtitle.id }
+                    val firstSubtitle = payload.subtitles.firstOrNull()
                     val items = buildVideoAnnotationItems(
                         subtitles = payload.subtitles,
                         notes = payload.notes,
@@ -106,7 +109,9 @@ class VideoNotesViewModel(
                     )
                     _uiState.update {
                         it.copy(
-                            title = payload.subtitles.firstOrNull()?.title.orEmpty(),
+                            title = firstSubtitle?.title.orEmpty(),
+                            channelName = firstSubtitle?.channelName.orEmpty(),
+                            uploadDate = firstSubtitle?.uploadDate ?: 0L,
                             items = items,
                             totalBookmarks = items.count { item -> item.type == VideoAnnotationType.BOOKMARK },
                             totalHighlights = items.count { item -> item.type == VideoAnnotationType.HIGHLIGHT },

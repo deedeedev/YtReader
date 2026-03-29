@@ -208,6 +208,8 @@ private fun VideoNotesScreen(
                                     shareVideoNotesPdf(
                                         context = context,
                                         title = uiState.title,
+                                        channelName = uiState.channelName,
+                                        uploadDate = uiState.uploadDate,
                                         videoId = videoId,
                                         selectedTypes = selectedTypes,
                                         items = filteredItems
