@@ -21,6 +21,28 @@
             android:name=".data.AiCleaningCancelReceiver"
             android:exported="false" />
 
+        <receiver
+            android:name=".widget.ReaderWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_reader_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.ReaderWidgetProviderIcon"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_reader_icon_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

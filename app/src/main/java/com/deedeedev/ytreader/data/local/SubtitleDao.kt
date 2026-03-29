@@ -357,6 +357,9 @@ interface SubtitleDao {
     @Query("UPDATE subtitles SET lastOpenedAt = :openedAt WHERE id = :id")
     suspend fun updateLastOpenedAt(id: Long, openedAt: Long)
 
+    @Query("SELECT * FROM subtitles WHERE lastOpenedAt > 0 ORDER BY lastOpenedAt DESC LIMIT 1")
+    suspend fun getMostRecentlyOpened(): SubtitleEntity?
+
     @Query("UPDATE subtitles SET isInLibrary = :isInLibrary WHERE videoId = :videoId")
     suspend fun updateLibraryVisibility(videoId: String, isInLibrary: Boolean)
 

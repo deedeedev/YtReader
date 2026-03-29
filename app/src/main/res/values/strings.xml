@@ -371,4 +371,7 @@
         <item quantity="one">%1$d occurrence replaced</item>
         <item quantity="other">%1$d occurrences replaced</item>
     </plurals>
+    <string name="widget_reader_description">Opens the last opened subtitle in the reader</string>
+    <string name="widget_reader_icon_description">Quick open last reader</string>
+    <string name="widget_no_recent">No recent reader</string>
 </resources>

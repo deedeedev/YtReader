@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.AiCleaningWorkScheduler
+import com.deedeedev.ytreader.widget.ReaderWidgetProvider
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.BookmarkEntity
@@ -59,6 +60,7 @@ class ReaderViewModel(
     private fun markSubtitleOpened() {
         viewModelScope.launch {
             subtitleDao.updateLastOpenedAt(subtitleId, System.currentTimeMillis())
+            ReaderWidgetProvider.notifyWidgetChanged(appContext)
         }
     }
 
