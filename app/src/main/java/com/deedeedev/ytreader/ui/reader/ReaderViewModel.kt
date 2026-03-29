@@ -154,21 +154,67 @@ class ReaderViewModel(
     }
 
     fun updateContent(content: String) {
+        val oldContent = _uiState.value.content
+        val oldHighlights = _uiState.value.highlights
+        val oldBookmarks = _uiState.value.bookmarks
+
+        val hasAnnotations = oldHighlights.isNotEmpty() || oldBookmarks.isNotEmpty()
+        val textChanged = oldContent != content
+
+        val remapResult = if (textChanged && hasAnnotations) {
+            remapAnnotations(oldContent, content, oldHighlights, oldBookmarks)
+        } else null
+
+        val newHighlights = remapResult?.highlights ?: if (textChanged) emptyList() else oldHighlights
+        val newBookmarks = remapResult?.bookmarks ?: if (textChanged) emptyList() else oldBookmarks
+
         _uiState.update { state ->
             state.copy(
                 content = content,
-                highlights = emptyList(),
+                highlights = newHighlights,
                 subtitle = state.subtitle?.copy(
                     studyContent = content,
-                    highlights = ""
+                    highlights = serializeHighlights(newHighlights)
                 )
             )
         }
+
         viewModelScope.launch {
             subtitleDao.updateStudyContent(subtitleId, content)
-            subtitleDao.updateHighlights(subtitleId, "")
+            subtitleDao.updateHighlights(subtitleId, serializeHighlights(newHighlights))
+
             highlightNoteDao.deleteBySubtitleId(subtitleId)
             bookmarkDao.deleteBySubtitleId(subtitleId)
+
+            remapResult?.let { result ->
+                val timestamp = System.currentTimeMillis()
+
+                result.highlights.filter { it.note != null }.forEach { highlight ->
+                    highlightNoteDao.upsert(
+                        HighlightNoteEntity(
+                            subtitleId = subtitleId,
+                            highlightStart = highlight.start,
+                            highlightEnd = highlight.end,
+                            noteText = highlight.note!!,
+                            createdAt = timestamp,
+                            updatedAt = timestamp
+                        )
+                    )
+                }
+
+                result.bookmarks.forEach { bookmark ->
+                    bookmarkDao.upsert(
+                        BookmarkEntity(
+                            id = bookmark.id,
+                            subtitleId = subtitleId,
+                            anchorStart = bookmark.anchorStart,
+                            title = bookmark.title,
+                            createdAt = bookmark.createdAt,
+                            updatedAt = timestamp
+                        )
+                    )
+                }
+            }
         }
     }
 
