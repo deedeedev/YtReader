@@ -378,4 +378,29 @@
     <string name="widget_reader_description">Opens the last opened subtitle in the reader</string>
     <string name="widget_reader_icon_description">Quick open last reader</string>
     <string name="widget_no_recent">No recent reader</string>
+    <string name="screen_annotations">Annotations</string>
+    <string name="annotations_empty">No annotations yet</string>
+    <string name="annotations_empty_description">Add bookmarks and highlights while reading to see them here</string>
+    <string name="annotations_no_results">No annotations match your filters</string>
+    <string name="annotations_no_results_description">Try adjusting your search or filters</string>
+    <string name="annotations_search_hint">Search annotations…</string>
+    <string name="annotations_sort_newest">Newest first</string>
+    <string name="annotations_sort_oldest">Oldest first</string>
+    <string name="annotations_sort_video">By video title</string>
+    <string name="annotations_group_by_video">Group by video</string>
+    <string name="annotations_flat_view">Flat view</string>
+    <string name="annotations_deleted">Annotation deleted</string>
+    <string name="annotations_undo">Undo</string>
+    <plurals name="annotations_bookmarks_count">
+        <item quantity="one">%1$d bookmark</item>
+        <item quantity="other">%1$d bookmarks</item>
+    </plurals>
+    <plurals name="annotations_highlights_count">
+        <item quantity="one">%1$d highlight</item>
+        <item quantity="other">%1$d highlights</item>
+    </plurals>
+    <plurals name="annotations_notes_count">
+        <item quantity="one">%1$d note</item>
+        <item quantity="other">%1$d notes</item>
+    </plurals>
 </resources>

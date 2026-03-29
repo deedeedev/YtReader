@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -31,6 +32,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.deedeedev.ytreader.AppContainer
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.ui.annotations.AnnotationsScreen
+import com.deedeedev.ytreader.ui.annotations.AnnotationsViewModel
 import com.deedeedev.ytreader.ui.home.HomeViewModel
 import com.deedeedev.ytreader.ui.home.CollectionDetailScreen
 import com.deedeedev.ytreader.ui.home.CollectionsScreen
@@ -50,6 +53,7 @@ sealed class Screen(
 ) {
     object Search : Screen("search", R.string.screen_search, Icons.Default.Search)
     object Library : Screen("library", R.string.library, Icons.Default.Home)
+    object Annotations : Screen("annotations", R.string.screen_annotations, Icons.Default.EditNote)
     object Collections : Screen("collections", R.string.collections, Icons.Default.CollectionsBookmark)
     object CollectionDetail : Screen("collection/{collectionId}", R.string.collection, Icons.Default.CollectionsBookmark)
     object Settings : Screen("settings", R.string.screen_settings, Icons.Default.Settings)
@@ -105,6 +109,13 @@ fun MainScreen(
         )
     )
 ) {
+    val annotationsViewModel: AnnotationsViewModel = viewModel(
+        factory = AnnotationsViewModel.provideFactory(
+            appContainer.subtitleDao,
+            appContainer.highlightNoteDao,
+            appContainer.bookmarkDao
+        )
+    )
     val navController = rememberNavController()
     val coroutineScope = rememberCoroutineScope()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -169,7 +180,7 @@ fun MainScreen(
             // Hide bottom bar on Reader screen
             if (currentRoute?.startsWith("reader") != true) {
                 NavigationBar {
-                    val items = listOf(Screen.Library, Screen.Search, Screen.Collections, Screen.Settings)
+                    val items = listOf(Screen.Library, Screen.Search, Screen.Annotations, Screen.Collections, Screen.Settings)
                     items.forEach { screen ->
                         NavigationBarItem(
                             icon = { Icon(screen.icon, contentDescription = null) },
@@ -247,6 +258,27 @@ fun MainScreen(
                         navController.navigate("collection/$collectionId") {
                             launchSingleTop = true
                         }
+                    }
+                )
+            }
+            composable(
+                route = Screen.Annotations.route,
+                enterTransition = { null },
+                exitTransition = { null },
+                popEnterTransition = { null },
+                popExitTransition = { null }
+            ) {
+                AnnotationsScreen(
+                    viewModel = annotationsViewModel,
+                    onAnnotationClick = { target ->
+                        navController.navigate(
+                            Screen.Reader.createRoute(
+                                subtitleId = target.subtitleId,
+                                highlightStart = target.highlightStart,
+                                highlightEnd = target.highlightEnd,
+                                bookmarkStart = target.bookmarkStart
+                            )
+                        )
                     }
                 )
             }

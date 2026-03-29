@@ -228,7 +228,7 @@ internal fun buildVideoNotesExportFileName(title: String, videoId: String, exten
     return "$baseName.$normalizedExtension"
 }
 
-internal fun formatVideoAnnotationUpdatedAt(updatedAt: Long): String {
+fun formatVideoAnnotationUpdatedAt(updatedAt: Long): String {
     if (updatedAt <= 0L) return ""
     val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
     return formatter.format(Date(updatedAt))

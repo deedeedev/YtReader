@@ -522,4 +522,12 @@ interface SubtitleDao {
 
     @Query("DELETE FROM subtitles WHERE videoId = :videoId")
     suspend fun deleteByVideoId(videoId: String)
+
+    @Query("""
+        SELECT DISTINCT s.* FROM subtitles s
+        LEFT JOIN collection_videos cv ON s.videoId = cv.videoId
+        WHERE s.isInLibrary = 1 OR cv.videoId IS NOT NULL
+        ORDER BY s.lastOpenedAt DESC
+    """)
+    fun observeAllAccessibleSubtitles(): Flow<List<SubtitleEntity>>
 }
