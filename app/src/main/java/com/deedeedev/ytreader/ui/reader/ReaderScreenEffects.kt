@@ -30,11 +30,11 @@ internal fun ReaderCoreEffects(
     aiCleaningErrorLog: String?,
     isEditing: Boolean,
     readerMode: ReaderMode,
-    studyScrollState: ScrollState,
+    studyLazyListState: LazyListState,
+    studyChunks: List<TextChunk>,
     originalFallbackScrollState: ScrollState,
     originalListState: LazyListState,
     originalSegments: List<SubtitleSegment>,
-    studyTextView: JustifiedStudyTextView?,
     pendingFindSelection: PendingFindSelection?,
     onEditTextSync: (String) -> Unit,
     clearSelectionState: () -> Unit,
@@ -74,25 +74,42 @@ internal fun ReaderCoreEffects(
         setHasRestoredStudyScroll(false)
     }
 
-    LaunchedEffect(subtitleId, studyScrollState.maxValue, hasRestoredStudyScroll) {
+    LaunchedEffect(subtitleId, studyLazyListState, studyChunks, hasRestoredStudyScroll) {
         if (hasRestoredStudyScroll) return@LaunchedEffect
         if (hasInitialNavigationTarget) {
             setHasRestoredStudyScroll(true)
             return@LaunchedEffect
         }
-        val targetScroll = subtitleLastStudyScroll.coerceAtLeast(0)
-        val maxValue = studyScrollState.maxValue
-        if (targetScroll == 0 || maxValue > 0) {
-            studyScrollState.scrollTo(targetScroll.coerceIn(0, maxValue))
+        if (studyChunks.isEmpty()) {
             setHasRestoredStudyScroll(true)
+            return@LaunchedEffect
         }
+        val targetOffset = subtitleLastStudyScroll.coerceAtLeast(0)
+        val chunkInfo = findChunkContainingOffset(studyChunks, targetOffset)
+        if (chunkInfo != null) {
+            val (chunkIndex, offsetWithinChunk) = chunkInfo
+            studyLazyListState.scrollToItem(chunkIndex, offsetWithinChunk)
+        }
+        setHasRestoredStudyScroll(true)
     }
 
-    LaunchedEffect(studyScrollState, subtitleId) {
-        snapshotFlow { studyScrollState.value }
+    LaunchedEffect(studyLazyListState, studyChunks, subtitleId) {
+        snapshotFlow {
+            val firstVisible = studyLazyListState.layoutInfo.visibleItemsInfo.firstOrNull()
+            if (firstVisible != null && firstVisible.index in studyChunks.indices) {
+                val chunk: TextChunk = studyChunks[firstVisible.index]
+                Pair(firstVisible.index, chunk.globalStartOffset)
+            } else {
+                Pair(-1, 0)
+            }
+        }
             .distinctUntilChanged()
-            .collectLatest { scroll ->
-                setLastKnownStudyScroll(scroll)
+            .collectLatest { pair: Pair<Int, Int> ->
+                val chunkIndex = pair.first
+                val globalStartOffset = pair.second
+                if (chunkIndex >= 0 && studyChunks.isNotEmpty()) {
+                    setLastKnownStudyScroll(globalStartOffset)
+                }
             }
     }
 
@@ -162,7 +179,7 @@ internal fun ReaderCoreEffects(
             }
     }
 
-    LaunchedEffect(pendingFindSelection, studyTextView, studyScrollState.maxValue) {
+    LaunchedEffect(pendingFindSelection, studyLazyListState, studyChunks) {
         val selection = pendingFindSelection as? PendingFindSelection.Study ?: return@LaunchedEffect
         onSelectStudyFindMatch(selection)
     }

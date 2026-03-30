@@ -98,6 +98,7 @@ internal fun JustifiedStudyTextView.bindStudyContent(
     highlights: List<TextHighlight>,
     bookmarks: List<BookmarkEntity>,
     searchResultRange: SelectionRange?,
+    globalTextOffset: Int,
     onSelectionChanged: (start: Int, end: Int) -> Unit,
     onHighlightTapped: (TextHighlight?) -> Unit,
     onBookmarkTapped: (BookmarkEntity) -> Unit,
@@ -127,6 +128,7 @@ internal fun JustifiedStudyTextView.bindStudyContent(
         }
     }
     onBookmarkTappedListener = onBookmarkTapped
+    this.globalTextOffset = globalTextOffset
     setContentWithHighlights(
         content = content,
         highlights = highlights,
@@ -136,6 +138,7 @@ internal fun JustifiedStudyTextView.bindStudyContent(
         blueColor = highlightSpanColor(HighlightColor.BLUE),
         greenColor = highlightSpanColor(HighlightColor.GREEN),
         yellowColor = highlightSpanColor(HighlightColor.YELLOW),
-        searchResultColor = searchResultSpanColor()
+        searchResultColor = searchResultSpanColor(),
+        filterToChunkRange = globalTextOffset > 0
     )
 }

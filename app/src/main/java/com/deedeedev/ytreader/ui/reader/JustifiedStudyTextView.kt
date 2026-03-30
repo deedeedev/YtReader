@@ -46,6 +46,9 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         strokeWidth = dpToPx(1.5f)
     }
 
+    var globalTextOffset: Int = 0
+    val contentLength: Int get() = content.length
+
     private var content: String = ""
     private var highlights: List<TextHighlight> = emptyList()
     private var bookmarks: List<BookmarkEntity> = emptyList()
@@ -195,38 +198,91 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         blueColor: Int,
         greenColor: Int,
         yellowColor: Int,
-        searchResultColor: Int
+        searchResultColor: Int,
+        filterToChunkRange: Boolean = false
     ) {
         val contentChanged = this.content != content
         this.content = content
+        val chunkStart = globalTextOffset
+        val chunkEnd = globalTextOffset + content.length
         this.highlights = highlights
+            .filter { highlight ->
+                if (!filterToChunkRange) return@filter true
+                val globalStart = highlight.start
+                val globalEnd = highlight.end
+                globalEnd > globalStart && globalEnd > chunkStart && globalStart < chunkEnd
+            }
             .mapNotNull { highlight ->
-                val start = highlight.start.coerceIn(0, content.length)
-                val end = highlight.end.coerceIn(0, content.length)
-                if (end <= start) null else highlight.copy(start = start, end = end)
+                val localStart: Int
+                val localEnd: Int
+                if (filterToChunkRange) {
+                    localStart = (highlight.start - globalTextOffset).coerceIn(0, content.length)
+                    localEnd = (highlight.end - globalTextOffset).coerceIn(0, content.length)
+                } else {
+                    localStart = highlight.start.coerceIn(0, content.length)
+                    localEnd = highlight.end.coerceIn(0, content.length)
+                }
+                if (localEnd <= localStart) null
+                else TextHighlight(
+                    start = localStart,
+                    end = localEnd,
+                    color = highlight.color,
+                    note = highlight.note
+                )
             }
-        this.bookmarks = bookmarks.mapNotNull { bookmark ->
-            val boundedAnchor = bookmark.anchorStart.coerceIn(0, content.length)
-            if (content.isEmpty() || boundedAnchor >= content.length) {
-                null
-            } else {
-                bookmark.copy(anchorStart = boundedAnchor)
+        this.bookmarks = bookmarks
+            .filter { bookmark ->
+                if (!filterToChunkRange) return@filter true
+                val globalAnchor = bookmark.anchorStart
+                globalAnchor in chunkStart until chunkEnd
             }
-        }
+            .mapNotNull { bookmark ->
+                val localAnchor: Int
+                if (filterToChunkRange) {
+                    localAnchor = (bookmark.anchorStart - globalTextOffset).coerceIn(0, content.length)
+                } else {
+                    localAnchor = bookmark.anchorStart.coerceIn(0, content.length)
+                }
+                if (content.isEmpty() || localAnchor >= content.length) {
+                    null
+                } else {
+                    BookmarkEntity(
+                        id = bookmark.id,
+                        subtitleId = bookmark.subtitleId,
+                        anchorStart = localAnchor,
+                        title = bookmark.title,
+                        createdAt = bookmark.createdAt,
+                        updatedAt = bookmark.updatedAt
+                    )
+                }
+            }
         this.redColor = redColor
         this.blueColor = blueColor
         this.greenColor = greenColor
         this.yellowColor = yellowColor
         this.searchResultColor = searchResultColor
-        this.searchResultRange = searchResultRange?.let { range ->
-            val start = range.start.coerceIn(0, content.length)
-            val end = range.end.coerceIn(0, content.length)
-            if (end <= start) null else TextRange(start, end)
+        val globalSearchStart = searchResultRange?.start ?: 0
+        val globalSearchEnd = searchResultRange?.end ?: 0
+        this.searchResultRange = if (filterToChunkRange) {
+            val localStart = (globalSearchStart - globalTextOffset).coerceIn(0, content.length)
+            val localEnd = (globalSearchEnd - globalTextOffset).coerceIn(0, content.length)
+            if (localEnd > localStart) TextRange(localStart, localEnd) else null
+        } else {
+            val start = globalSearchStart.coerceIn(0, content.length)
+            val end = globalSearchEnd.coerceIn(0, content.length)
+            if (end > start) TextRange(start, end) else null
         }
         selectionRange = selectionRange?.let { range ->
-            val start = range.start.coerceIn(0, content.length)
-            val end = range.end.coerceIn(0, content.length)
-            if (end > start) TextRange(start, end) else null
+            val localStart: Int
+            val localEnd: Int
+            if (filterToChunkRange) {
+                localStart = (range.start - globalTextOffset).coerceIn(0, content.length)
+                localEnd = (range.end - globalTextOffset).coerceIn(0, content.length)
+            } else {
+                localStart = range.start.coerceIn(0, content.length)
+                localEnd = range.end.coerceIn(0, content.length)
+            }
+            if (localEnd > localStart) TextRange(localStart, localEnd) else null
         }
         if (contentChanged) {
             layoutDirty = true
@@ -264,8 +320,8 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     fun verticalOffsetForSelection(start: Int): Int {
         val textLayout = layout ?: return 0
         if (content.isEmpty()) return 0
-        val safeStart = start.coerceIn(0, content.length - 1)
-        val line = textLayout.getLineForOffset(safeStart)
+        val localStart = (start - globalTextOffset).coerceIn(0, content.length - 1)
+        val line = textLayout.getLineForOffset(localStart)
         return paddingTop + textLayout.getLineTop(line)
     }
 
@@ -277,14 +333,15 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         val textLayout = layout ?: return null
         if (content.isEmpty()) return null
         val line = textLayout.getLineForVertical(scrollOffset.coerceAtLeast(0))
-        return textLayout.getLineStart(line).coerceIn(0, content.lastIndex)
+        val localOffset = textLayout.getLineStart(line).coerceIn(0, content.lastIndex)
+        return localOffset + globalTextOffset
     }
 
     fun lineTextForOffset(offset: Int): String {
         val textLayout = layout ?: return ""
         if (content.isEmpty()) return ""
-        val safeOffset = offset.coerceIn(0, content.lastIndex)
-        val line = textLayout.getLineForOffset(safeOffset)
+        val localOffset = (offset - globalTextOffset).coerceIn(0, content.lastIndex)
+        val line = textLayout.getLineForOffset(localOffset)
         val start = textLayout.getLineStart(line).coerceIn(0, content.length)
         val end = textLayout.getLineEnd(line).coerceIn(start, content.length)
         return content.substring(start, end)
@@ -381,14 +438,19 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     private fun dispatchTap(event: MotionEvent) {
         val tappedBookmark = findBookmarkAt(event)
         if (tappedBookmark != null) {
-            onBookmarkTappedListener?.invoke(tappedBookmark)
+            val globalBookmark = tappedBookmark.copy(anchorStart = tappedBookmark.anchorStart + globalTextOffset)
+            onBookmarkTappedListener?.invoke(globalBookmark)
             return
         }
 
-        val offset = offsetAt(event)
-        val tappedHighlight = offset?.let { findHighlightAtOffset(highlights, it) }
+        val localOffset = offsetAt(event)
+        val tappedHighlight = localOffset?.let { findHighlightAtOffset(highlights, it) }
         if (tappedHighlight != null) {
-            onHighlightTappedListener?.invoke(tappedHighlight)
+            val globalHighlight = tappedHighlight.copy(
+                start = tappedHighlight.start + globalTextOffset,
+                end = tappedHighlight.end + globalTextOffset
+            )
+            onHighlightTappedListener?.invoke(globalHighlight)
             return
         }
 
@@ -433,17 +495,20 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         }
         selectionRange = range
         invalidate()
-        onSelectionChangedListener?.invoke(range.start, range.end)
+        val globalStart = range.start + globalTextOffset
+        val globalEnd = range.end + globalTextOffset
+        onSelectionChangedListener?.invoke(globalStart, globalEnd)
     }
 
     private fun rebuildLayout(layoutWidth: Int = (measuredWidth - paddingLeft - paddingRight).coerceAtLeast(0)) {
         val width = layoutWidth.coerceAtLeast(1)
+        @Suppress("WrongConstant")
         layout = StaticLayout.Builder
             .obtain(content, 0, content.length, textPaint, width)
             .setAlignment(Layout.Alignment.ALIGN_NORMAL)
             .setIncludePad(false)
             .setLineSpacing(0f, lineSpacingMultiplier)
-            .setBreakStrategy(Layout.BREAK_STRATEGY_HIGH_QUALITY)
+            .setBreakStrategy(Layout.BREAK_STRATEGY_BALANCED)
             .setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NORMAL)
             .setJustificationMode(Layout.JUSTIFICATION_MODE_INTER_WORD)
             .build()

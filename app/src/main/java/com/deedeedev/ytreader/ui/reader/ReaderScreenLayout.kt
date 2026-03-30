@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.domain.SubtitleSegment
@@ -48,7 +49,9 @@ internal fun ReaderScreenMainLayer(
     bottomContentPadding: Dp,
     originalListState: LazyListState,
     originalFallbackScrollState: ScrollState,
-    studyScrollState: ScrollState,
+    studyLazyListState: LazyListState,
+    studyChunks: List<TextChunk>,
+    studySelectionCoordinator: StudySelectionCoordinator,
     originalSelectionCoordinator: OriginalSelectionCoordinator,
     appBrightnessPreference: Float,
     gestureBrightness: Float?,
@@ -65,10 +68,9 @@ internal fun ReaderScreenMainLayer(
     hasActiveHighlight: () -> Boolean,
     onClearActiveHighlight: () -> Unit,
     clearSelectionNow: () -> Unit,
-    onStudyTextViewReady: (JustifiedStudyTextView) -> Unit,
     onEditTextChange: (String) -> Unit,
     onOriginalFallbackViewportChanged: (Int) -> Unit,
-    onStudyViewportChanged: (Int) -> Unit,
+    onStudyViewportChanged: (IntSize) -> Unit,
     onRequestAction: (PendingAction) -> Unit,
     onToggleTimestamps: () -> Unit,
     onEditSaveTap: () -> Unit,
@@ -158,10 +160,11 @@ internal fun ReaderScreenMainLayer(
                 readerTextColor = readerTextColor,
                 readerBackgroundColor = readerBackgroundColor,
                 editTextFieldTag = READER_EDIT_TEXT_FIELD_TAG,
-                studyScrollState = studyScrollState,
+                studyLazyListState = studyLazyListState,
+                chunks = studyChunks,
+                studySelectionCoordinator = studySelectionCoordinator,
                 onStudyViewportChanged = onStudyViewportChanged,
                 onReaderTap = onReaderTap,
-                onStudyTextViewReady = onStudyTextViewReady,
                 onSelectionRangeChanged = onSelectionRangeChanged,
                 onHighlightTapped = onHighlightTapped,
                 onBookmarkTapped = onBookmarkTapped,

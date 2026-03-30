@@ -54,6 +54,9 @@ import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.domain.SubtitleParser
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import androidx.core.app.ActivityCompat
@@ -151,7 +154,7 @@ internal fun ReaderScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val originalListState = rememberLazyListState()
-    val studyScrollState = rememberScrollState()
+    val studyLazyListState = rememberLazyListState()
     val originalFallbackScrollState = rememberScrollState()
     val lineHeightSp = fontSize * uiState.lineHeightMultiplier
     val readerTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
@@ -196,7 +199,31 @@ internal fun ReaderScreen(
     var pendingBookmarkAnchorStart by remember { mutableStateOf<Int?>(null) }
     var pendingBookmarkFallbackTitle by remember { mutableStateOf("") }
     var suppressSelectionToolbar by remember { mutableStateOf(false) }
-    var studyTextView by remember { mutableStateOf<JustifiedStudyTextView?>(null) }
+    var studyViewportWidthPx by remember { mutableStateOf(0) }
+    var studyViewportHeightPx by remember { mutableStateOf(0) }
+    var studyTopCharOffset by remember { mutableStateOf(0) }
+    val studySelectionCoordinator = remember { StudySelectionCoordinator() }
+    val studyChunks: List<TextChunk> = remember(
+        uiState.content,
+        fontSize,
+        uiState.fontFamily,
+        uiState.lineHeightMultiplier,
+        studyViewportWidthPx,
+        studyViewportHeightPx
+    ) {
+        if (uiState.content.isEmpty() || studyViewportWidthPx <= 0 || studyViewportHeightPx <= 0) {
+            emptyList()
+        } else {
+            val textPaint = buildMeasurementPaint(fontSize, uiState.fontFamily, uiState.lineHeightMultiplier)
+            val pagination = paginateStudyText(
+                text = uiState.content,
+                textPaint = textPaint,
+                availableWidthPx = studyViewportWidthPx,
+                targetChunkHeightPx = studyViewportHeightPx
+            )
+            pagination.chunks
+        }
+    }
     val originalSelectionCoordinator = remember { OriginalSelectionCoordinator() }
     SideEffect {
         testHooks.showChrome = { isUiVisible = true }
@@ -229,16 +256,39 @@ internal fun ReaderScreen(
         mutableStateOf(subtitle.lastStudyScroll)
     }
     var hasRestoredStudyScroll by rememberSaveable(subtitle.id) { mutableStateOf(false) }
-    var studyViewportHeightPx by remember { mutableStateOf(0) }
     var originalFallbackViewportHeightPx by remember { mutableStateOf(0) }
     var showBrightnessIndicator by remember { mutableStateOf(false) }
     var brightnessIndicatorPercent by remember { mutableStateOf(100) }
     var brightnessHideJob by remember { mutableStateOf<Job?>(null) }
     var gestureBrightness by remember { mutableStateOf<Float?>(null) }
 
+    LaunchedEffect(studyLazyListState, studyChunks) {
+        snapshotFlow { studyLazyListState.layoutInfo }
+            .collectLatest { layoutInfo ->
+                val firstVisible = layoutInfo.visibleItemsInfo.firstOrNull() ?: return@collectLatest
+                val chunkIndex = firstVisible.index
+                if (chunkIndex < 0 || chunkIndex >= studyChunks.size) return@collectLatest
+                val textView = studySelectionCoordinator.getTextViewForChunk(chunkIndex) ?: return@collectLatest
+                val pixelOffset = -firstVisible.offset
+                val charOffset = textView.topVisibleLineAnchor(pixelOffset)
+                if (charOffset != null) {
+                    studyTopCharOffset = charOffset + studyChunks[chunkIndex].globalStartOffset
+                }
+            }
+    }
+
+    fun captureStudyScrollPosition(): Int? {
+        val firstVisible = studyLazyListState.layoutInfo.visibleItemsInfo.firstOrNull() ?: return null
+        val chunkIndex = firstVisible.index
+        if (chunkIndex < 0 || chunkIndex >= studyChunks.size) return null
+        val textView = studySelectionCoordinator.getTextViewForChunk(chunkIndex) ?: return null
+        val localOffset = textView.topVisibleLineAnchor(-firstVisible.offset) ?: return null
+        return localOffset + studyChunks[chunkIndex].globalStartOffset
+    }
+
     val persistReadingProgress by rememberUpdatedState(newValue = {
         val scrollToSave = if (readerMode == ReaderMode.STUDY) {
-            studyScrollState.value
+            captureStudyScrollPosition() ?: 0
         } else {
             lastKnownStudyScroll
         }
@@ -316,8 +366,8 @@ internal fun ReaderScreen(
     fun captureCurrentLocation(): ReaderLocation? {
         val anchor = when (readerMode) {
             ReaderMode.STUDY -> {
-                val anchorStart = studyTextView?.topVisibleLineAnchor(studyScrollState.value) ?: return null
-                ReaderAnchor.Study(anchorStart)
+                val scrollPosition = captureStudyScrollPosition() ?: return null
+                ReaderAnchor.Study(scrollPosition)
             }
 
             ReaderMode.ORIGINAL -> {
@@ -365,25 +415,17 @@ internal fun ReaderScreen(
             is ReaderAnchor.Study -> {
                 if (readerMode != ReaderMode.STUDY) {
                     readerMode = ReaderMode.STUDY
-                    repeat(10) {
-                        val textView = studyTextView
-                        if (textView != null && textView.isLaidOut) {
-                            val targetScroll = textView.verticalOffsetForSelection(anchor.anchorStart)
-                                .coerceIn(0, studyScrollState.maxValue)
-                            studyScrollState.animateScrollTo(targetScroll)
-                            clearSearchResultsMode()
-                            clearJumpBackState()
-                            return
-                        }
-                        delay(16)
-                    }
-                    return
                 }
 
-                val textView = studyTextView ?: return
-                val targetScroll = textView.verticalOffsetForSelection(anchor.anchorStart)
-                    .coerceIn(0, studyScrollState.maxValue)
-                studyScrollState.animateScrollTo(targetScroll)
+                val chunkInfo = findChunkContainingOffset(studyChunks, anchor.anchorStart)
+                if (chunkInfo != null) {
+                    val (chunkIndex, offsetWithinChunk) = chunkInfo
+                    val textView = studySelectionCoordinator.getTextViewForChunk(chunkIndex)
+                    val pixelOffset = textView?.verticalOffsetForSelection(offsetWithinChunk) ?: 0
+                    studyLazyListState.animateScrollToItem(chunkIndex, pixelOffset)
+                }
+                clearSearchResultsMode()
+                clearJumpBackState()
             }
 
             is ReaderAnchor.OriginalFallback -> {
@@ -450,20 +492,31 @@ internal fun ReaderScreen(
     }
 
     fun openBookmarkDialog() {
-        val textView = studyTextView ?: return
-        val anchorStart = textView.topVisibleLineAnchor(studyScrollState.value) ?: return
+        val firstVisible = studyLazyListState.layoutInfo.visibleItemsInfo.firstOrNull() ?: return
+        val chunkIndex = firstVisible.index
+        if (chunkIndex < 0 || chunkIndex >= studyChunks.size) return
+        val textView = studySelectionCoordinator.getTextViewForChunk(chunkIndex) ?: return
+        val localOffset = textView.topVisibleLineAnchor(-firstVisible.offset) ?: return
+        val globalAnchorStart = localOffset + studyChunks[chunkIndex].globalStartOffset
         editingBookmark = null
-        pendingBookmarkAnchorStart = anchorStart
-        pendingBookmarkFallbackTitle = textView.lineTextForOffset(anchorStart)
+        pendingBookmarkAnchorStart = globalAnchorStart
+        pendingBookmarkFallbackTitle = textView.lineTextForOffset(localOffset)
         bookmarkTitleDraft = ""
         showBookmarkDialog = true
     }
 
     fun openBookmarkDialog(bookmark: BookmarkEntity) {
-        val textView = studyTextView ?: return
+        val chunkInfo = findChunkContainingOffset(studyChunks, bookmark.anchorStart)
+        if (chunkInfo == null) {
+            pendingBookmarkAnchorStart = bookmark.anchorStart
+            pendingBookmarkFallbackTitle = ""
+        } else {
+            val (chunkIndex, offsetWithinChunk) = chunkInfo
+            val textView = studySelectionCoordinator.getTextViewForChunk(chunkIndex)
+            pendingBookmarkFallbackTitle = textView?.lineTextForOffset(offsetWithinChunk) ?: ""
+        }
         editingBookmark = bookmark
         pendingBookmarkAnchorStart = bookmark.anchorStart
-        pendingBookmarkFallbackTitle = textView.lineTextForOffset(bookmark.anchorStart)
         bookmarkTitleDraft = bookmark.title
         showBookmarkDialog = true
     }
@@ -544,7 +597,7 @@ internal fun ReaderScreen(
         selectionRange = null
         activeHighlight = null
         dismissHighlightNoteDialog()
-        studyTextView?.clearSelection()
+        studySelectionCoordinator.clearAllSelections()
         originalSelectionCoordinator.clearAllSelections()
         activateSearchResultsMode(
             SearchResultsMode.Study(results = matches, activeIndex = 0)
@@ -606,7 +659,7 @@ internal fun ReaderScreen(
                 activeHighlight = null
                 dismissHighlightNoteDialog()
                 dismissBookmarkDialog()
-                studyTextView?.clearSelection()
+                studySelectionCoordinator.clearAllSelections()
                 clearSearchResultsMode()
             },
             setReaderMode = { readerMode = it }
@@ -683,13 +736,14 @@ internal fun ReaderScreen(
     suspend fun scrollOnePage(isForward: Boolean) {
         when (readerMode) {
             ReaderMode.STUDY -> {
-                val target = targetScrollForPageStep(
-                    currentValue = studyScrollState.value,
-                    maxValue = studyScrollState.maxValue,
-                    viewportHeightPx = studyViewportHeightPx,
+                val visibleItems = studyLazyListState.layoutInfo.visibleItemsInfo.size
+                val targetIndex = targetListIndexForPageStep(
+                    currentFirstVisibleItemIndex = studyLazyListState.firstVisibleItemIndex,
+                    totalItems = studyChunks.size,
+                    visibleItemsCount = visibleItems,
                     isForward = isForward
                 )
-                studyScrollState.scrollTo(target)
+                studyLazyListState.scrollToItem(targetIndex)
             }
 
             ReaderMode.ORIGINAL -> {
@@ -741,8 +795,8 @@ internal fun ReaderScreen(
 
     LaunchedEffect(
         pendingInitialReaderLocation,
-        studyTextView,
-        studyScrollState.maxValue,
+        studyLazyListState,
+        studyChunks,
         originalFallbackScrollState.maxValue,
         originalListState,
         readerMode
@@ -755,11 +809,21 @@ internal fun ReaderScreen(
                     return@LaunchedEffect
                 }
 
-                val textView = studyTextView ?: return@LaunchedEffect
-                if (!textView.isLaidOut) return@LaunchedEffect
-                val targetScroll = textView.verticalOffsetForSelection(anchor.anchorStart)
-                    .coerceIn(0, studyScrollState.maxValue)
-                studyScrollState.scrollTo(targetScroll)
+                repeat(10) {
+                    val chunkInfo = findChunkContainingOffset(studyChunks, anchor.anchorStart)
+                    if (chunkInfo != null) {
+                        val (chunkIndex, offsetWithinChunk) = chunkInfo
+                        val textView = studySelectionCoordinator.getTextViewForChunk(chunkIndex)
+                        if (textView != null && textView.isLaidOut) {
+                            val pixelOffset = textView.verticalOffsetForSelection(offsetWithinChunk)
+                            studyLazyListState.scrollToItem(chunkIndex, pixelOffset)
+                            pendingInitialReaderLocation = null
+                            return@LaunchedEffect
+                        }
+                    }
+                    delay(16)
+                }
+                pendingInitialReaderLocation = null
             }
 
             is ReaderAnchor.OriginalFallback -> {
@@ -797,7 +861,7 @@ internal fun ReaderScreen(
         suppressSelectionToolbar = false
         dismissHighlightNoteDialog()
         dismissBookmarkDialog()
-        studyTextView?.clearSelection()
+        studySelectionCoordinator.clearAllSelections()
         originalSelectionCoordinator.clearAllSelections()
         clearSearchResultsMode()
         isUiVisible = false
@@ -806,8 +870,8 @@ internal fun ReaderScreen(
 
     LaunchedEffect(
         pendingInitialHighlightRange,
-        studyTextView,
-        studyScrollState.maxValue,
+        studyLazyListState,
+        studyChunks,
         uiState.highlights,
         readerMode
     ) {
@@ -818,30 +882,39 @@ internal fun ReaderScreen(
             return@LaunchedEffect
         }
 
-        val textView = studyTextView ?: return@LaunchedEffect
-        if (!textView.isLaidOut) return@LaunchedEffect
         val targetHighlight = uiState.highlights.firstOrNull { highlight ->
             highlight.start == targetRange.start && highlight.end == targetRange.end
         } ?: return@LaunchedEffect
 
-        val targetScroll = textView.verticalOffsetForSelection(targetHighlight.start)
-            .coerceIn(0, studyScrollState.maxValue)
-        studyScrollState.scrollTo(targetScroll)
-        selectionRange = null
-        activeHighlight = targetHighlight
-        suppressSelectionToolbar = true
-        dismissHighlightNoteDialog()
-        dismissBookmarkDialog()
-        studyTextView?.clearSelection()
-        clearSearchResultsMode()
-        isUiVisible = false
+        repeat(10) {
+            val chunkInfo = findChunkContainingOffset(studyChunks, targetHighlight.start)
+            if (chunkInfo != null) {
+                val (chunkIndex, offsetWithinChunk) = chunkInfo
+                val textView = studySelectionCoordinator.getTextViewForChunk(chunkIndex)
+                if (textView != null && textView.isLaidOut) {
+                    val pixelOffset = textView.verticalOffsetForSelection(offsetWithinChunk)
+                    studyLazyListState.scrollToItem(chunkIndex, pixelOffset)
+                    selectionRange = null
+                    activeHighlight = targetHighlight
+                    suppressSelectionToolbar = true
+                    dismissHighlightNoteDialog()
+                    dismissBookmarkDialog()
+                    studySelectionCoordinator.clearAllSelections()
+                    clearSearchResultsMode()
+                    isUiVisible = false
+                    pendingInitialHighlightRange = null
+                    return@LaunchedEffect
+                }
+            }
+            delay(16)
+        }
         pendingInitialHighlightRange = null
     }
 
     LaunchedEffect(
         pendingInitialBookmarkStart,
-        studyTextView,
-        studyScrollState.maxValue,
+        studyLazyListState,
+        studyChunks,
         readerMode
     ) {
         if (pendingInitialReaderLocation != null) return@LaunchedEffect
@@ -851,19 +924,28 @@ internal fun ReaderScreen(
             return@LaunchedEffect
         }
 
-        val textView = studyTextView ?: return@LaunchedEffect
-        if (!textView.isLaidOut) return@LaunchedEffect
-        val targetScroll = textView.verticalOffsetForBookmark(bookmarkStart)
-            .coerceIn(0, studyScrollState.maxValue)
-        studyScrollState.scrollTo(targetScroll)
-        selectionRange = null
-        activeHighlight = null
-        suppressSelectionToolbar = false
-        dismissHighlightNoteDialog()
-        dismissBookmarkDialog()
-        studyTextView?.clearSelection()
-        clearSearchResultsMode()
-        isUiVisible = false
+        repeat(10) {
+            val chunkInfo = findChunkContainingOffset(studyChunks, bookmarkStart)
+            if (chunkInfo != null) {
+                val (chunkIndex, offsetWithinChunk) = chunkInfo
+                val textView = studySelectionCoordinator.getTextViewForChunk(chunkIndex)
+                if (textView != null && textView.isLaidOut) {
+                    val pixelOffset = textView.verticalOffsetForBookmark(offsetWithinChunk)
+                    studyLazyListState.scrollToItem(chunkIndex, pixelOffset)
+                    selectionRange = null
+                    activeHighlight = null
+                    suppressSelectionToolbar = false
+                    dismissHighlightNoteDialog()
+                    dismissBookmarkDialog()
+                    studySelectionCoordinator.clearAllSelections()
+                    clearSearchResultsMode()
+                    isUiVisible = false
+                    pendingInitialBookmarkStart = null
+                    return@LaunchedEffect
+                }
+            }
+            delay(16)
+        }
         pendingInitialBookmarkStart = null
     }
 
@@ -918,11 +1000,11 @@ internal fun ReaderScreen(
         aiCleaningErrorLog = uiState.aiCleaningErrorLog,
         isEditing = isEditing,
         readerMode = readerMode,
-        studyScrollState = studyScrollState,
+        studyLazyListState = studyLazyListState,
+        studyChunks = studyChunks,
         originalFallbackScrollState = originalFallbackScrollState,
         originalListState = originalListState,
         originalSegments = originalSegments,
-        studyTextView = studyTextView,
         pendingFindSelection = pendingFindSelection,
         onEditTextSync = { editText = it },
         clearSelectionState = {
@@ -930,7 +1012,7 @@ internal fun ReaderScreen(
             activeHighlight = null
             dismissHighlightNoteDialog()
             dismissBookmarkDialog()
-            studyTextView?.clearSelection()
+            studySelectionCoordinator.clearAllSelections()
             originalSelectionCoordinator.clearAllSelections()
             if (interactiveReplaceState == null) {
                 clearSearchResultsMode()
@@ -952,7 +1034,7 @@ internal fun ReaderScreen(
             activeHighlight = null
             dismissHighlightNoteDialog()
             dismissBookmarkDialog()
-            studyTextView?.clearSelection()
+            studySelectionCoordinator.clearAllSelections()
             originalSelectionCoordinator.clearAllSelections()
             clearSearchResultsMode()
             clearJumpBackState()
@@ -964,7 +1046,7 @@ internal fun ReaderScreen(
             activeHighlight = null
             dismissHighlightNoteDialog()
             dismissBookmarkDialog()
-            studyTextView?.clearSelection()
+            studySelectionCoordinator.clearAllSelections()
             clearSearchResultsMode()
         },
         onReaderModeChangedToStudy = {
@@ -974,10 +1056,13 @@ internal fun ReaderScreen(
         clearPendingFindSelection = { pendingFindSelection = null },
         onOriginalTimestampVisible = { viewModel.updateLastTimestamp(it) },
         onSelectStudyFindMatch = { selection ->
-            val textView = studyTextView ?: return@ReaderCoreEffects
-            val targetScroll = textView.verticalOffsetForSelection(selection.start)
-                .coerceIn(0, studyScrollState.maxValue)
-            studyScrollState.animateScrollTo(targetScroll)
+            val chunkInfo = findChunkContainingOffset(studyChunks, selection.start)
+            if (chunkInfo != null) {
+                val (chunkIndex, offsetWithinChunk) = chunkInfo
+                val textView = studySelectionCoordinator.getTextViewForChunk(chunkIndex)
+                val pixelOffset = textView?.verticalOffsetForSelection(offsetWithinChunk) ?: 0
+                studyLazyListState.animateScrollToItem(chunkIndex, pixelOffset)
+            }
             pendingFindSelection = null
         },
         onSelectOriginalFallbackFindMatch = { selection ->
@@ -1036,7 +1121,9 @@ internal fun ReaderScreen(
 
     val fullscreenProgressPercent by remember(
         readerMode,
-        originalSegments
+        originalSegments,
+        studyTopCharOffset,
+        studyChunks
     ) {
         derivedStateOf {
             when (readerMode) {
@@ -1059,11 +1146,12 @@ internal fun ReaderScreen(
                 }
 
                 ReaderMode.STUDY -> {
-                    scrollPercent(
-                        value = studyScrollState.value,
-                        maxValue = studyScrollState.maxValue,
-                        canScrollForward = studyScrollState.canScrollForward,
-                        canScrollBackward = studyScrollState.canScrollBackward
+                    val totalContentLength = studyChunks.sumOf { it.text.length }
+                    studyScrollPercent(
+                        topCharOffset = studyTopCharOffset,
+                        totalContentLength = totalContentLength,
+                        canScrollForward = studyLazyListState.canScrollForward,
+                        canScrollBackward = studyLazyListState.canScrollBackward
                     )
                 }
             }
@@ -1073,6 +1161,8 @@ internal fun ReaderScreen(
     val fullscreenPageProgress by remember(
         readerMode,
         originalSegments,
+        studyTopCharOffset,
+        studyChunks,
         studyViewportHeightPx,
         originalFallbackViewportHeightPx
     ) {
@@ -1096,10 +1186,13 @@ internal fun ReaderScreen(
                 }
 
                 ReaderMode.STUDY -> {
-                    pagedScrollProgress(
-                        value = studyScrollState.value,
-                        maxValue = studyScrollState.maxValue,
-                        viewportHeightPx = studyViewportHeightPx
+                    val totalContentLength = studyChunks.sumOf { it.text.length }
+                    studyPageProgress(
+                        topCharOffset = studyTopCharOffset,
+                        totalContentLength = totalContentLength,
+                        totalChunks = studyChunks.size,
+                        viewportHeightPx = studyViewportHeightPx,
+                        canScrollForward = studyLazyListState.canScrollForward
                     )
                 }
             }
@@ -1140,7 +1233,9 @@ internal fun ReaderScreen(
         bottomContentPadding = bottomContentPadding,
         originalListState = originalListState,
         originalFallbackScrollState = originalFallbackScrollState,
-        studyScrollState = studyScrollState,
+        studyLazyListState = studyLazyListState,
+        studyChunks = studyChunks,
+        studySelectionCoordinator = studySelectionCoordinator,
         originalSelectionCoordinator = originalSelectionCoordinator,
         appBrightnessPreference = appBrightnessPreference,
         gestureBrightness = gestureBrightness,
@@ -1178,11 +1273,13 @@ internal fun ReaderScreen(
         },
         hasActiveHighlight = { activeHighlight != null },
         onClearActiveHighlight = { activeHighlight = null },
-        clearSelectionNow = { studyTextView?.clearSelection() },
-        onStudyTextViewReady = { studyTextView = it },
+        clearSelectionNow = { studySelectionCoordinator.clearAllSelections() },
         onEditTextChange = { editText = it },
         onOriginalFallbackViewportChanged = { originalFallbackViewportHeightPx = it },
-        onStudyViewportChanged = { studyViewportHeightPx = it },
+        onStudyViewportChanged = { size ->
+            studyViewportHeightPx = size.height
+            studyViewportWidthPx = size.width
+        },
         onRequestAction = { requestAction(it) },
         onToggleTimestamps = { showTimestamps = !showTimestamps },
         onEditSaveTap = {
@@ -1239,7 +1336,7 @@ internal fun ReaderScreen(
         onShowVideoNotes = {
             subtitle.videoId.takeIf { it.isNotBlank() }?.let { videoId ->
                 val currentLocation = captureCurrentLocation()
-                Log.d(TAG, "onShowVideoNotes: videoId=$videoId currentLocation=$currentLocation studyTextView=${studyTextView != null}")
+                Log.d(TAG, "onShowVideoNotes: videoId=$videoId currentLocation=$currentLocation")
                 onOpenVideoNotes(
                     videoId,
                     currentLocation?.let {
@@ -1309,7 +1406,7 @@ internal fun ReaderScreen(
                 val range = selectionRange ?: return@ReaderScreenMainLayer
                 viewModel.applyHighlight(range.start, range.end, color)
                 selectionRange = null
-                studyTextView?.clearSelection()
+                studySelectionCoordinator.clearAllSelections()
             }
         },
         onSelectionNoteClick = { openHighlightNoteDialog() },
@@ -1320,7 +1417,7 @@ internal fun ReaderScreen(
             activeHighlight = null
             selectionRange = null
             dismissHighlightNoteDialog()
-            studyTextView?.clearSelection()
+            studySelectionCoordinator.clearAllSelections()
         },
         onBookmarkTapped = { bookmark ->
             suppressSelectionToolbar = false
@@ -1328,7 +1425,7 @@ internal fun ReaderScreen(
             dismissHighlightNoteDialog()
             activeHighlight = null
             selectionRange = null
-            studyTextView?.clearSelection()
+            studySelectionCoordinator.clearAllSelections()
             openBookmarkDialog(bookmark)
         },
         showSearchResultsToolbar = showSearchResultsToolbar,
@@ -1387,7 +1484,7 @@ internal fun ReaderScreen(
             selectionRange = null
             activeHighlight = null
             dismissHighlightNoteDialog()
-            studyTextView?.clearSelection()
+            studySelectionCoordinator.clearAllSelections()
             originalSelectionCoordinator.clearAllSelections()
             activateSearchResultsMode(
                 SearchResultsMode.Study(
@@ -1401,7 +1498,7 @@ internal fun ReaderScreen(
             selectionRange = null
             activeHighlight = null
             dismissHighlightNoteDialog()
-            studyTextView?.clearSelection()
+            studySelectionCoordinator.clearAllSelections()
             originalSelectionCoordinator.clearAllSelections()
             activateSearchResultsMode(
                 SearchResultsMode.OriginalFallback(
@@ -1415,7 +1512,7 @@ internal fun ReaderScreen(
             selectionRange = null
             activeHighlight = null
             dismissHighlightNoteDialog()
-            studyTextView?.clearSelection()
+            studySelectionCoordinator.clearAllSelections()
             originalSelectionCoordinator.clearAllSelections()
             activateSearchResultsMode(
                 SearchResultsMode.OriginalSegment(
@@ -1534,7 +1631,7 @@ internal fun ReaderScreen(
                         )
                         activeHighlight = createdHighlight
                         selectionRange = null
-                        studyTextView?.clearSelection()
+                        studySelectionCoordinator.clearAllSelections()
                         coroutineScope.launch {
                             snackbarHostState.showSnackbar(context.getString(R.string.note_saved))
                         }

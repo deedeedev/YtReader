@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -244,10 +245,11 @@ internal fun ReaderStudyPane(
     readerTextColor: Int,
     readerBackgroundColor: Int,
     editTextFieldTag: String,
-    studyScrollState: androidx.compose.foundation.ScrollState,
-    onStudyViewportChanged: (Int) -> Unit,
+    studyLazyListState: LazyListState,
+    chunks: List<TextChunk>,
+    studySelectionCoordinator: StudySelectionCoordinator,
+    onStudyViewportChanged: (androidx.compose.ui.unit.IntSize) -> Unit,
     onReaderTap: (ReaderTapPosition) -> Unit,
-    onStudyTextViewReady: (JustifiedStudyTextView) -> Unit,
     onSelectionRangeChanged: (Int, Int) -> Unit,
     onHighlightTapped: (TextHighlight?) -> Unit,
     onBookmarkTapped: (BookmarkEntity) -> Unit,
@@ -257,7 +259,6 @@ internal fun ReaderStudyPane(
     onUserDrag: () -> Unit
 ) {
     val memoizedOnReaderTap by rememberUpdatedState(onReaderTap)
-    val memoizedOnStudyTextViewReady by rememberUpdatedState(onStudyTextViewReady)
     val memoizedOnSelectionRangeChanged by rememberUpdatedState(onSelectionRangeChanged)
     val memoizedOnHighlightTapped by rememberUpdatedState(onHighlightTapped)
     val memoizedOnBookmarkTapped by rememberUpdatedState(onBookmarkTapped)
@@ -295,7 +296,8 @@ internal fun ReaderStudyPane(
         return
     }
 
-    Column(
+    LazyColumn(
+        state = studyLazyListState,
         modifier = Modifier
             .fillMaxSize()
             .systemBarsPadding()
@@ -305,56 +307,75 @@ internal fun ReaderStudyPane(
                 top = topContentPadding,
                 bottom = bottomContentPadding
             )
-            .onSizeChanged { onStudyViewportChanged(it.height) }
-            .onUserDrag { onUserDrag() }
-            .verticalScroll(studyScrollState)
+            .onSizeChanged { onStudyViewportChanged(it) }
+            .onUserDrag { onUserDrag() },
+        contentPadding = PaddingValues(vertical = 8.dp)
     ) {
-        AndroidView<JustifiedStudyTextView>(
-            modifier = Modifier.fillMaxWidth(),
-            factory = { context ->
-                JustifiedStudyTextView(context).apply {
-                    onStudyTextViewReady(this)
-                    bindStudyContent(
+        itemsIndexed<TextChunk>(
+            items = chunks,
+            key = { index, chunk -> "study_chunk_${chunk.globalStartOffset}" }
+        ) { index, chunk ->
+            AndroidView<JustifiedStudyTextView>(
+                modifier = Modifier.fillMaxWidth(),
+                factory = { context ->
+                    JustifiedStudyTextView(context).apply {
+                        studySelectionCoordinator.registerTextView(index, this)
+                        bindStudyContent(
+                            fontSize = fontSize,
+                            lineHeightMultiplier = lineHeightMultiplier,
+                            fontFamily = fontFamilyName,
+                            textColor = readerTextColor,
+                            backgroundColor = readerBackgroundColor,
+                            content = chunk.text,
+                            highlights = highlights,
+                            bookmarks = bookmarks,
+                            searchResultRange = activeStudySearchRange,
+                            globalTextOffset = chunk.globalStartOffset,
+                            onSelectionChanged = { start, end ->
+                                studySelectionCoordinator.handleSelectionChanged(index, start, end, chunk.globalStartOffset)
+                            },
+                            onHighlightTapped = { tappedHighlight ->
+                                memoizedOnHighlightTapped(tappedHighlight)
+                            },
+                            onBookmarkTapped = { tappedBookmark ->
+                                memoizedOnBookmarkTapped(tappedBookmark)
+                            },
+                            onPlainTextTap = memoizedOnReaderTap,
+                            hasActiveHighlight = memoizedHasActiveHighlight,
+                            clearActiveHighlight = memoizedOnClearActiveHighlight,
+                            clearSelectionNow = memoizedClearSelectionNow
+                        )
+                    }
+                },
+                update = { textView ->
+                    studySelectionCoordinator.registerTextView(index, textView)
+                    textView.bindStudyContent(
                         fontSize = fontSize,
                         lineHeightMultiplier = lineHeightMultiplier,
                         fontFamily = fontFamilyName,
                         textColor = readerTextColor,
                         backgroundColor = readerBackgroundColor,
-                        content = readOnlyContent,
+                        content = chunk.text,
                         highlights = highlights,
                         bookmarks = bookmarks,
                         searchResultRange = activeStudySearchRange,
-                        onSelectionChanged = onSelectionRangeChanged,
-                        onHighlightTapped = onHighlightTapped,
-                        onBookmarkTapped = onBookmarkTapped,
-                        onPlainTextTap = onReaderTap,
-                        hasActiveHighlight = hasActiveHighlight,
-                        clearActiveHighlight = onClearActiveHighlight,
-                        clearSelectionNow = { clearSelectionNow() }
+                        globalTextOffset = chunk.globalStartOffset,
+                        onSelectionChanged = { start, end ->
+                            studySelectionCoordinator.handleSelectionChanged(index, start, end, chunk.globalStartOffset)
+                        },
+                        onHighlightTapped = { tappedHighlight ->
+                            memoizedOnHighlightTapped(tappedHighlight)
+                        },
+                        onBookmarkTapped = { tappedBookmark ->
+                            memoizedOnBookmarkTapped(tappedBookmark)
+                        },
+                        onPlainTextTap = memoizedOnReaderTap,
+                        hasActiveHighlight = memoizedHasActiveHighlight,
+                        clearActiveHighlight = memoizedOnClearActiveHighlight,
+                        clearSelectionNow = memoizedClearSelectionNow
                     )
                 }
-            },
-            update = { textView ->
-                memoizedOnStudyTextViewReady(textView)
-                textView.bindStudyContent(
-                    fontSize = fontSize,
-                    lineHeightMultiplier = lineHeightMultiplier,
-                    fontFamily = fontFamilyName,
-                    textColor = readerTextColor,
-                    backgroundColor = readerBackgroundColor,
-                    content = readOnlyContent,
-                    highlights = highlights,
-                    bookmarks = bookmarks,
-                    searchResultRange = activeStudySearchRange,
-                    onSelectionChanged = memoizedOnSelectionRangeChanged,
-                    onHighlightTapped = memoizedOnHighlightTapped,
-                    onBookmarkTapped = memoizedOnBookmarkTapped,
-                    onPlainTextTap = memoizedOnReaderTap,
-                    hasActiveHighlight = memoizedHasActiveHighlight,
-                    clearActiveHighlight = memoizedOnClearActiveHighlight,
-                    clearSelectionNow = memoizedClearSelectionNow
-                )
-            }
-        )
+            )
+        }
     }
 }

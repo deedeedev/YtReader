@@ -34,7 +34,7 @@ internal fun lazyListScrollPercent(
     canScrollBackward: Boolean
 ): Int {
     if (totalItems <= 0 || (!canScrollForward && !canScrollBackward)) {
-        return 100
+        return 0
     }
     if (!canScrollBackward || firstVisibleItemIndex <= 0) {
         return 0
@@ -87,4 +87,53 @@ internal fun lazyListPageProgress(
         estimatedCurrentPage.coerceIn(1, totalPages)
     }
     return PageProgress(currentPage = currentPage, totalPages = totalPages)
+}
+
+internal fun studyScrollPercent(
+    topCharOffset: Int,
+    totalContentLength: Int,
+    canScrollForward: Boolean,
+    canScrollBackward: Boolean
+): Int {
+    if (totalContentLength <= 0) {
+        return 0
+    }
+    if (!canScrollForward && !canScrollBackward) {
+        return 100
+    }
+    if (!canScrollBackward || topCharOffset <= 0) {
+        return 0
+    }
+    if (!canScrollForward) {
+        return 100
+    }
+
+    return ((topCharOffset.toFloat() / totalContentLength.toFloat()) * 100f)
+        .toInt()
+        .coerceIn(0, 99)
+}
+
+internal fun studyPageProgress(
+    topCharOffset: Int,
+    totalContentLength: Int,
+    totalChunks: Int,
+    viewportHeightPx: Int,
+    canScrollForward: Boolean
+): PageProgress {
+    if (totalContentLength <= 0 || totalChunks <= 0 || viewportHeightPx <= 0) {
+        return PageProgress(currentPage = 1, totalPages = 1)
+    }
+
+    val avgChunkLength = totalContentLength / totalChunks
+    val avgChunkHeightPx = avgChunkLength * 1.5f
+    val totalPages = ceil(totalContentLength / avgChunkHeightPx).toInt().coerceAtLeast(1)
+    
+    val currentPage = if (avgChunkHeightPx > 0) {
+        ((topCharOffset.toFloat() / avgChunkHeightPx).toInt() + 1).coerceIn(1, totalPages)
+    } else {
+        1
+    }
+    
+    val finalPage = if (!canScrollForward) totalPages else currentPage
+    return PageProgress(currentPage = finalPage, totalPages = totalPages)
 }
