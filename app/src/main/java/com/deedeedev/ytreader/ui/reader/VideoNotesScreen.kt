@@ -553,9 +553,7 @@ private fun VideoAnnotationCard(
                 Text(
                     text = item.title,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
+                    fontWeight = FontWeight.SemiBold
                 )
 
                 item.note?.let { noteText ->
@@ -568,9 +566,7 @@ private fun VideoAnnotationCard(
                             text = noteText,
                             modifier = Modifier.padding(12.dp),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            maxLines = 4,
-                            overflow = TextOverflow.Ellipsis
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     }
                 }

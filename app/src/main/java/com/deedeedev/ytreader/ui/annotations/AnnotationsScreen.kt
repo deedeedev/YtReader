@@ -549,9 +549,7 @@ private fun AnnotationCard(
                     Text(
                         text = item.title,
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
+                        fontWeight = FontWeight.SemiBold
                     )
 
                     item.noteText?.let { noteText ->
@@ -564,9 +562,7 @@ private fun AnnotationCard(
                                 text = noteText,
                                 modifier = Modifier.padding(12.dp),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                maxLines = 4,
-                                overflow = TextOverflow.Ellipsis
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
                     }
