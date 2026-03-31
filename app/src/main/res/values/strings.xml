@@ -86,6 +86,7 @@
     <string name="library_overwrite_subtitles_message">This will replace the current version with a freshly downloaded one.</string>
     <string name="library_overwrite_subtitles_title">Overwrite subtitles?</string>
     <string name="library_read">Read</string>
+    <string name="library_remove">Remove from Library</string>
     <string name="library_removed">Removed from Library</string>
     <string name="library_reading_progress">%1$d%%</string>
     <string name="library_reset_progress">Reset progress</string>

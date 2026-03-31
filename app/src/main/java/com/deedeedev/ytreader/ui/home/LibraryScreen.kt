@@ -27,7 +27,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -115,108 +114,60 @@ fun LibraryScreen(
                 modifier = Modifier.fillMaxSize(),
                 key = { it.videoId }
             ) { item ->
-                        val dismissState = rememberSwipeToDismissBoxState(
-                            confirmValueChange = {
-                                when (it) {
-                                    SwipeToDismissBoxValue.EndToStart -> {
-                                        val deletedSubtitles = item.subtitles
-                                        viewModel.removeLibraryItem(deletedSubtitles)
-
-                                        coroutineScope.launch {
-                                            val autoDismissJob = launch {
-                                                delay(5_000)
-                                                snackbarHostState.currentSnackbarData?.dismiss()
-                                            }
-                                            val result = snackbarHostState.showSnackbar(
-                                                message = context.getString(R.string.library_removed),
-                                                actionLabel = context.getString(R.string.undo),
-                                                duration = SnackbarDuration.Indefinite
-                                            )
-                                            autoDismissJob.cancel()
-                                            if (result == SnackbarResult.ActionPerformed) {
-                                                viewModel.restoreLibraryItem(deletedSubtitles)
-                                            }
-                                        }
-                                        true
-                                    }
-                                    SwipeToDismissBoxValue.StartToEnd,
-                                    SwipeToDismissBoxValue.Settled -> false
+                        LibraryItemCard(
+                            item = item,
+                            onSubtitleClick = onSubtitleClick,
+                            onVideoClick = onVideoClick,
+                            onVideoSearchAgain = onVideoSearchAgain,
+                            onMarkAsRead = {
+                                viewModel.markVideoAsRead(item.videoId)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = context.getString(R.string.library_marked_read),
+                                        duration = SnackbarDuration.Short
+                                    )
                                 }
                             },
-                            positionalThreshold = { totalDistance -> totalDistance * 0.8f }
-                        )
+                            onAddToCollection = { addToCollectionTargetVideoId = item.videoId },
+                            onDownloadThumbnail = {
+                                viewModel.downloadThumbnailForVideo(
+                                    videoId = item.videoId,
+                                    videoUrl = item.videoUrl,
+                                    title = item.title,
+                                    channelName = item.channelName,
+                                    uploadDate = item.uploadDate
+                                )
+                            },
+                            onResetProgress = { viewModel.resetVideoProgress(item.videoId) },
+                            onRemoveFromLibrary = {
+                                val deletedSubtitles = item.subtitles
+                                viewModel.removeLibraryItem(deletedSubtitles)
 
-                        SwipeToDismissBox(
-                            state = dismissState,
-                            enableDismissFromStartToEnd = false,
-                            backgroundContent = {
-                                val isEndToStart = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
-                                val color = if (isEndToStart) {
-                                    MaterialTheme.colorScheme.errorContainer
-                                } else {
-                                    Color.Transparent
-                                }
-                                val tint = if (isEndToStart) {
-                                    MaterialTheme.colorScheme.onErrorContainer
-                                } else {
-                                    Color.Transparent
-                                }
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(color)
-                                        .padding(horizontal = 20.dp),
-                                    contentAlignment = Alignment.CenterEnd
-                                ) {
-                                    if (isEndToStart) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = null,
-                                            tint = tint
-                                        )
+                                coroutineScope.launch {
+                                    val autoDismissJob = launch {
+                                        delay(5_000)
+                                        snackbarHostState.currentSnackbarData?.dismiss()
                                     }
-                                }
-                            }
-                        ) {
-                            LibraryItemCard(
-                                item = item,
-                                onSubtitleClick = onSubtitleClick,
-                                onVideoClick = onVideoClick,
-                                onVideoSearchAgain = onVideoSearchAgain,
-                                onMarkAsRead = {
-                                    viewModel.markVideoAsRead(item.videoId)
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            message = context.getString(R.string.library_marked_read),
-                                            duration = SnackbarDuration.Short
-                                        )
-                                    }
-                                },
-                                onAddToCollection = { addToCollectionTargetVideoId = item.videoId },
-                                onDownloadThumbnail = {
-                                    viewModel.downloadThumbnailForVideo(
-                                        videoId = item.videoId,
-                                        videoUrl = item.videoUrl,
-                                        title = item.title,
-                                        channelName = item.channelName,
-                                        uploadDate = item.uploadDate
+                                    val result = snackbarHostState.showSnackbar(
+                                        message = context.getString(R.string.library_removed),
+                                        actionLabel = context.getString(R.string.undo),
+                                        duration = SnackbarDuration.Indefinite
                                     )
-                                },
-                                onResetProgress = { viewModel.resetVideoProgress(item.videoId) },
-                                onRemoveFromLibrary = {
-                                    viewModel.removeLibraryItem(item.subtitles)
-                                },
-                                onSubtitleDelete = { subtitle ->
-                                    viewModel.deleteSubtitle(subtitle)
-                                },
-                                onSubtitleDownloadAgain = { subtitle ->
-                                    viewModel.downloadSubtitleAgain(subtitle)
-                                },
-                                downloadingSubtitleIds = uiState.downloadingSubtitleIds,
-                                isDownloadingThumbnail = uiState.downloadingThumbnailVideoIds.contains(item.videoId)
-                            )
-                        }
+                                    autoDismissJob.cancel()
+                                    if (result == SnackbarResult.ActionPerformed) {
+                                        viewModel.restoreLibraryItem(deletedSubtitles)
+                                    }
+                                }
+                            },
+                            onSubtitleDelete = { subtitle ->
+                                viewModel.deleteSubtitle(subtitle)
+                            },
+                            onSubtitleDownloadAgain = { subtitle ->
+                                viewModel.downloadSubtitleAgain(subtitle)
+                            },
+                            downloadingSubtitleIds = uiState.downloadingSubtitleIds,
+                            isDownloadingThumbnail = uiState.downloadingThumbnailVideoIds.contains(item.videoId)
+                        )
             }
         }
     }
@@ -534,7 +485,7 @@ fun LibraryItemCard(
             }
             onRemoveFromLibrary?.let { removeFromLibrary ->
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.library_removed)) },
+                    text = { Text(stringResource(R.string.library_remove)) },
                     onClick = {
                         removeFromLibrary()
                         showMenu = false
