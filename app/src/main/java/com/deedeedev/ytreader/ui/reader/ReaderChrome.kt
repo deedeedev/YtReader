@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
@@ -235,6 +236,10 @@ internal fun ReaderBottomBar(
                         }
                     }
 
+                    IconButton(onClick = onShowVideoNotes) {
+                        Icon(Icons.AutoMirrored.Filled.Notes, contentDescription = highlightsAndNotesLabel)
+                    }
+
                     var showOverflowMenu by remember { mutableStateOf(false) }
                     Box {
                         IconButton(onClick = { showOverflowMenu = true }) {
@@ -249,13 +254,6 @@ internal fun ReaderBottomBar(
                                 onClick = {
                                     showOverflowMenu = false
                                     onShareText(currentText)
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text(highlightsAndNotesLabel) },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    onShowVideoNotes()
                                 }
                             )
                             if (!isOriginalMode) {
