@@ -231,6 +231,8 @@ internal fun ReaderScreen(
     var hasRestoredStudyScroll by rememberSaveable(subtitle.id) { mutableStateOf(false) }
     var studyViewportHeightPx by remember { mutableStateOf(0) }
     var originalFallbackViewportHeightPx by remember { mutableStateOf(0) }
+    var stableStudyViewportHeightPx by remember { mutableStateOf(0) }
+    var stableOriginalFallbackViewportHeightPx by remember { mutableStateOf(0) }
     var showBrightnessIndicator by remember { mutableStateOf(false) }
     var brightnessIndicatorPercent by remember { mutableStateOf(100) }
     var brightnessHideJob by remember { mutableStateOf<Job?>(null) }
@@ -1073,8 +1075,8 @@ internal fun ReaderScreen(
     val fullscreenPageProgress by remember(
         readerMode,
         originalSegments,
-        studyViewportHeightPx,
-        originalFallbackViewportHeightPx
+        stableStudyViewportHeightPx,
+        stableOriginalFallbackViewportHeightPx
     ) {
         derivedStateOf {
             when (readerMode) {
@@ -1083,7 +1085,8 @@ internal fun ReaderScreen(
                         pagedScrollProgress(
                             value = originalFallbackScrollState.value,
                             maxValue = originalFallbackScrollState.maxValue,
-                            viewportHeightPx = originalFallbackViewportHeightPx
+                            viewportHeightPx = stableOriginalFallbackViewportHeightPx,
+                            canScrollForward = originalFallbackScrollState.canScrollForward
                         )
                     } else {
                         lazyListPageProgress(
@@ -1099,7 +1102,8 @@ internal fun ReaderScreen(
                     pagedScrollProgress(
                         value = studyScrollState.value,
                         maxValue = studyScrollState.maxValue,
-                        viewportHeightPx = studyViewportHeightPx
+                        viewportHeightPx = stableStudyViewportHeightPx,
+                        canScrollForward = studyScrollState.canScrollForward
                     )
                 }
             }
@@ -1181,8 +1185,14 @@ internal fun ReaderScreen(
         clearSelectionNow = { studyTextView?.clearSelection() },
         onStudyTextViewReady = { studyTextView = it },
         onEditTextChange = { editText = it },
-        onOriginalFallbackViewportChanged = { originalFallbackViewportHeightPx = it },
-        onStudyViewportChanged = { studyViewportHeightPx = it },
+        onOriginalFallbackViewportChanged = {
+            originalFallbackViewportHeightPx = it
+            if (it > stableOriginalFallbackViewportHeightPx) stableOriginalFallbackViewportHeightPx = it
+        },
+        onStudyViewportChanged = {
+            studyViewportHeightPx = it
+            if (it > stableStudyViewportHeightPx) stableStudyViewportHeightPx = it
+        },
         onRequestAction = { requestAction(it) },
         onToggleTimestamps = { showTimestamps = !showTimestamps },
         onEditSaveTap = {

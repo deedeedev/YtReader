@@ -128,7 +128,11 @@ class ReaderViewModel(
         }
     }
 
+    private var lastSavedPercent = 0
+
     fun updateReadingProgress(percent: Int, currentPage: Int, totalPages: Int) {
+        if (percent < lastSavedPercent && percent < 100) return
+        lastSavedPercent = percent.coerceIn(0, 100)
         viewModelScope.launch {
             subtitleDao.updateReadingProgress(
                 id = subtitleId,

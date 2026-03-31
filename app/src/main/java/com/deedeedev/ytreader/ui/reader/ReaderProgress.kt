@@ -51,7 +51,8 @@ internal fun lazyListScrollPercent(
 internal fun pagedScrollProgress(
     value: Int,
     maxValue: Int,
-    viewportHeightPx: Int
+    viewportHeightPx: Int,
+    canScrollForward: Boolean = true
 ): PageProgress {
     if (viewportHeightPx <= 0) {
         return PageProgress(currentPage = 1, totalPages = 1)
@@ -60,7 +61,11 @@ internal fun pagedScrollProgress(
     val totalPages = ceil(contentHeightPx.toFloat() / viewportHeightPx.toFloat())
         .toInt()
         .coerceAtLeast(1)
-    val currentPage = ((value.coerceAtLeast(0)) / viewportHeightPx) + 1
+    val currentPage = if (!canScrollForward) {
+        totalPages
+    } else {
+        ((value.coerceAtLeast(0)) / viewportHeightPx) + 1
+    }
     return PageProgress(
         currentPage = currentPage.coerceIn(1, totalPages),
         totalPages = totalPages
