@@ -75,15 +75,16 @@ open class ReaderWidgetProvider : AppWidgetProvider() {
         }
 
         fun notifyWidgetChanged(context: Context) {
-            val intent = Intent(context, ReaderWidgetProvider::class.java).apply {
-                action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-            }
             val widgetManager = AppWidgetManager.getInstance(context)
-            val ids = widgetManager.getAppWidgetIds(
-                ComponentName(context, ReaderWidgetProvider::class.java)
-            )
-            intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-            context.sendBroadcast(intent)
+            for (providerClass in listOf(
+                ReaderWidgetProvider::class.java,
+                ReaderWidgetProviderIcon::class.java
+            )) {
+                val ids = widgetManager.getAppWidgetIds(ComponentName(context, providerClass))
+                for (id in ids) {
+                    updateAppWidget(context, widgetManager, id)
+                }
+            }
         }
     }
 }
