@@ -233,7 +233,11 @@ fun MainScreen(
                         openReader(id)
                     },
                     onVideoClick = openPreferredSubtitleForVideo,
-                    onVideoSearchAgain = searchVideoAgain
+                    onVideoSearchAgain = searchVideoAgain,
+                    subtitleDao = appContainer.subtitleDao,
+                    videoDao = appContainer.videoDao,
+                    highlightNoteDao = appContainer.highlightNoteDao,
+                    bookmarkDao = appContainer.bookmarkDao
                 )
             }
             composable(
@@ -258,7 +262,11 @@ fun MainScreen(
                         navController.navigate("collection/$collectionId") {
                             launchSingleTop = true
                         }
-                    }
+                    },
+                    subtitleDao = appContainer.subtitleDao,
+                    videoDao = appContainer.videoDao,
+                    highlightNoteDao = appContainer.highlightNoteDao,
+                    bookmarkDao = appContainer.bookmarkDao
                 )
             }
             composable(
@@ -300,7 +308,11 @@ fun MainScreen(
                     },
                     onBack = { navController.popBackStack() },
                     onVideoClick = openPreferredSubtitleForVideo,
-                    onVideoSearchAgain = searchVideoAgain
+                    onVideoSearchAgain = searchVideoAgain,
+                    subtitleDao = appContainer.subtitleDao,
+                    videoDao = appContainer.videoDao,
+                    highlightNoteDao = appContainer.highlightNoteDao,
+                    bookmarkDao = appContainer.bookmarkDao
                 )
             }
             composable(

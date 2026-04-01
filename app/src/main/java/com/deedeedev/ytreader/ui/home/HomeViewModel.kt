@@ -40,8 +40,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.deedeedev.ytreader.data.preferredThumbnailUrl
+import com.deedeedev.ytreader.data.EpubExportMode
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
+import java.io.File
 
 enum class SortOption {
     TITLE, CHANNEL_NAME, DATE_PUBLISHED, DOWNLOADED, LAST_OPENED
@@ -555,6 +557,27 @@ class HomeViewModel(
             collectionRepository.addVideoToCollection(collectionId, normalizedVideoId)
         }
         return true
+    }
+
+    suspend fun exportEpub(
+        videoIds: List<String>,
+        mode: EpubExportMode,
+        bookTitle: String
+    ): File {
+        return com.deedeedev.ytreader.data.exportEpub(
+            context = appContext,
+            subtitleDao = subtitleDao,
+            videoDao = videoDao,
+            highlightNoteDao = highlightNoteDao,
+            bookmarkDao = bookmarkDao,
+            videoIds = videoIds,
+            mode = mode,
+            bookTitle = bookTitle
+        )
+    }
+
+    suspend fun getAllLibraryVideoIds(): List<String> {
+        return subtitleDao.getLibraryVideoIds()
     }
 
     fun removeVideoFromCollection(collectionId: String, videoId: String) {

@@ -43,17 +43,25 @@ import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.VideoThumbnailStore
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.local.SubtitleEntity
+import androidx.compose.material.icons.filled.IosShare
+import com.deedeedev.ytreader.data.local.BookmarkDao
+import com.deedeedev.ytreader.data.local.HighlightNoteDao
+import com.deedeedev.ytreader.data.local.SubtitleDao
+import com.deedeedev.ytreader.data.local.VideoDao
+import com.deedeedev.ytreader.ui.components.EpubExportDialog
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+import kotlinx.coroutines.launch@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     viewModel: HomeViewModel,
     onSubtitleClick: (Long) -> Unit,
     onVideoClick: (String) -> Unit,
     onVideoSearchAgain: (String) -> Unit,
+    subtitleDao: SubtitleDao,
+    videoDao: VideoDao,
+    highlightNoteDao: HighlightNoteDao,
+    bookmarkDao: BookmarkDao,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -64,6 +72,9 @@ fun LibraryScreen(
     val coroutineScope = rememberCoroutineScope()
     var addToCollectionTargetVideoId by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var showEpubExport by remember { mutableStateOf(false) }
+    var epubExportVideoIds by remember { mutableStateOf<List<String>>(emptyList()) }
+    var epubExportTitle by remember { mutableStateOf("") }
 
     LaunchedEffect(viewModel) {
         viewModel.events.collectLatest { event ->
@@ -81,13 +92,45 @@ fun LibraryScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-        ) {
-            LibraryListControls(
+            Column(
+                modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.library),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    IconButton(onClick = {
+                        coroutineScope.launch {
+                            val ids = viewModel.getAllLibraryVideoIds()
+                            if (ids.isEmpty()) {
+                                snackbarHostState.showSnackbar(
+                                    message = context.getString(R.string.epub_export_empty),
+                                    duration = SnackbarDuration.Short
+                                )
+                            } else {
+                                epubExportVideoIds = ids
+                                epubExportTitle = context.getString(R.string.library)
+                                showEpubExport = true
+                            }
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.IosShare,
+                            contentDescription = stringResource(R.string.epub_export_library)
+                        )
+                    }
+                }
+
+                LibraryListControls(
                 channels = uniqueChannels,
                 selectedChannelFilter = uiState.selectedChannelFilter,
                 visibilityFilter = uiState.libraryVisibilityFilter,
@@ -166,7 +209,12 @@ fun LibraryScreen(
                                 viewModel.downloadSubtitleAgain(subtitle)
                             },
                             downloadingSubtitleIds = uiState.downloadingSubtitleIds,
-                            isDownloadingThumbnail = uiState.downloadingThumbnailVideoIds.contains(item.videoId)
+                            isDownloadingThumbnail = uiState.downloadingThumbnailVideoIds.contains(item.videoId),
+                            onExportEpub = { videoId, title ->
+                                epubExportVideoIds = listOf(videoId)
+                                epubExportTitle = title
+                                showEpubExport = true
+                            }
                         )
             }
         }
@@ -210,6 +258,18 @@ fun LibraryScreen(
         )
     }
 
+    if (showEpubExport) {
+        EpubExportDialog(
+            bookTitle = epubExportTitle,
+            videoIds = epubExportVideoIds,
+            subtitleDao = subtitleDao,
+            videoDao = videoDao,
+            highlightNoteDao = highlightNoteDao,
+            bookmarkDao = bookmarkDao,
+            onDismiss = { showEpubExport = false }
+        )
+    }
+
 }
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
@@ -231,7 +291,8 @@ fun LibraryItemCard(
     onSubtitleDelete: (SubtitleEntity) -> Unit,
     onSubtitleDownloadAgain: (SubtitleEntity) -> Unit,
     downloadingSubtitleIds: Set<Long>,
-    isDownloadingThumbnail: Boolean = false
+    isDownloadingThumbnail: Boolean = false,
+    onExportEpub: ((String, String) -> Unit)? = null
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
@@ -398,6 +459,21 @@ fun LibraryItemCard(
                     )
                 }
             )
+            onExportEpub?.let { exportFn ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.epub_export_video)) },
+                    onClick = {
+                        exportFn(item.videoId, item.title)
+                        showMenu = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.IosShare,
+                            contentDescription = null
+                        )
+                    }
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.collection_add)) },
                 onClick = {

@@ -222,7 +222,8 @@ suspend fun exportDataBackup(
 suspend fun importDataBackup(
     context: Context,
     appContainer: AppContainer,
-    uriString: String
+    uriString: String,
+    forceImport: Boolean = false
 ) {
     var databaseWasClosed = false
     try {
@@ -230,12 +231,16 @@ suspend fun importDataBackup(
             val extracted = extractDataBackup(context, Uri.parse(uriString), "db-import")
             val backupInspection = inspectBackupDatabase(extracted)
             val installedMetadata = readInstalledDatabaseMetadata(context)
-            val compatibilityIssue = determineBackupCompatibility(
-                backupSchemaVersion = backupInspection.schemaVersion,
-                backupIdentityHash = backupInspection.roomIdentityHash,
-                installedSchemaVersion = installedMetadata.schemaVersion,
-                installedIdentityHash = installedMetadata.roomIdentityHash
-            )
+            val compatibilityIssue = if (forceImport) {
+                null
+            } else {
+                determineBackupCompatibility(
+                    backupSchemaVersion = backupInspection.schemaVersion,
+                    backupIdentityHash = backupInspection.roomIdentityHash,
+                    installedSchemaVersion = installedMetadata.schemaVersion,
+                    installedIdentityHash = installedMetadata.roomIdentityHash
+                )
+            }
             check(compatibilityIssue == null) {
                 compatibilityIssueMessage(context, compatibilityIssue)
             }
@@ -270,13 +275,13 @@ suspend fun importDataBackup(
         }
     } catch (error: Exception) {
         if (databaseWasClosed) {
-            rebuildApplicationContainer(context)
+            rebuildApplicationContainer(context, forceImport)
             (context as? Activity)?.recreate()
         }
         throw error
     }
 
-    rebuildApplicationContainer(context)
+    rebuildApplicationContainer(context, forceImport)
     (context as? Activity)?.recreate()
 }
 
@@ -610,9 +615,9 @@ private fun appVersionName(context: Context): String? {
     }
 }
 
-private fun rebuildApplicationContainer(context: Context) {
+private fun rebuildApplicationContainer(context: Context, allowDestructiveMigration: Boolean = false) {
     val application = context.applicationContext as YtReaderApplication
-    val rebuiltContainer = DefaultAppContainer(context.applicationContext)
+    val rebuiltContainer = DefaultAppContainer(context.applicationContext, allowDestructiveMigration)
     rebuiltContainer.subtitleDao
     application.container = rebuiltContainer
 }

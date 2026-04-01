@@ -60,7 +60,7 @@ class AiCleaningWorker(
         val sourceText = subtitle.aiCleaningSourceText?.takeIf { it.isNotBlank() }
         if (sourceText == null) {
             subtitleDao.storeAiCleaningFailure(
-                id = subtitleId,
+                subtitleId = subtitleId,
                 summary = applicationContext.getString(R.string.ai_cleaning_no_text_available),
                 log = applicationContext.getString(
                     R.string.ai_cleaning_log_missing_snapshot,
@@ -87,7 +87,7 @@ class AiCleaningWorker(
                 detailedLog = applicationContext.getString(R.string.ai_cleaning_log_missing_settings)
             )
             subtitleDao.storeAiCleaningFailure(
-                id = subtitleId,
+                subtitleId = subtitleId,
                 summary = failure.summary,
                 log = failure.detailedLog,
                 updatedAt = System.currentTimeMillis()
@@ -121,8 +121,8 @@ class AiCleaningWorker(
         return@withContext try {
             val cleanedText = repository.cleanText(request)
             subtitleDao.storeAiCleaningResult(
-                id = subtitleId,
-                cleanedText = cleanedText,
+                subtitleId = subtitleId,
+                result = cleanedText,
                 updatedAt = System.currentTimeMillis()
             )
             postCompletionNotification(
@@ -135,15 +135,14 @@ class AiCleaningWorker(
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
                 subtitleDao.cancelAiCleaning(
-                    id = subtitleId,
-                    updatedAt = System.currentTimeMillis()
+                    subtitleId = subtitleId
                 )
             }
             throw cancelled
         } catch (throwable: Throwable) {
             val failure = repository.toFailure(request, throwable)
             subtitleDao.storeAiCleaningFailure(
-                id = subtitleId,
+                subtitleId = subtitleId,
                 summary = failure.summary,
                 log = failure.detailedLog,
                 updatedAt = System.currentTimeMillis()
@@ -349,7 +348,7 @@ internal suspend fun cancelAiCleaningWorkAndState(
     },
     cancelSubtitleState: suspend (Context, Long, Long) -> Unit = { context, subtitleId, updatedAt ->
         val container = (context as YtReaderApplication).container
-        container.subtitleDao.cancelAiCleaning(id = subtitleId, updatedAt = updatedAt)
+        container.subtitleDao.cancelAiCleaning(subtitleId = subtitleId)
     },
     cancelNotification: (Context, Int) -> Unit = { context, notificationId ->
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

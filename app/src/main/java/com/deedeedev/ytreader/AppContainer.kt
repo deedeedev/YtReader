@@ -34,7 +34,10 @@ interface AppContainer {
     fun closeDatabase()
 }
 
-class DefaultAppContainer(private val context: Context) : AppContainer {
+class DefaultAppContainer(
+    private val context: Context,
+    allowDestructiveMigration: Boolean = false
+) : AppContainer {
     override val appContext: Context
         get() = context.applicationContext
 
@@ -54,7 +57,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             .addMigrations(AppDatabase.MIGRATION_19_20)
             .addMigrations(AppDatabase.MIGRATION_20_21)
             .addMigrations(AppDatabase.MIGRATION_21_22)
-            .fallbackToDestructiveMigration(false)
+            .fallbackToDestructiveMigration(allowDestructiveMigration)
             .build()
     }
 

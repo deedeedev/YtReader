@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +39,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.data.local.BookmarkDao
+import com.deedeedev.ytreader.data.local.HighlightNoteDao
+import com.deedeedev.ytreader.data.local.SubtitleDao
+import com.deedeedev.ytreader.data.local.VideoDao
+import com.deedeedev.ytreader.ui.components.EpubExportDialog
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -49,6 +56,10 @@ fun CollectionDetailScreen(
     onVideoClick: (String) -> Unit,
     onVideoSearchAgain: (String) -> Unit,
     onBack: () -> Unit,
+    subtitleDao: SubtitleDao,
+    videoDao: VideoDao,
+    highlightNoteDao: HighlightNoteDao,
+    bookmarkDao: BookmarkDao,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -56,6 +67,7 @@ fun CollectionDetailScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var searchQuery by remember { mutableStateOf("") }
+    var showEpubExport by remember { mutableStateOf(false) }
 
     LaunchedEffect(viewModel) {
         viewModel.events.collectLatest { event ->
@@ -135,18 +147,41 @@ fun CollectionDetailScreen(
                 return@Column
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.collection_back_to_collections)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.collection_back_to_collections)
+                        )
+                    }
+                    Text(
+                        text = collection.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
-                Text(
-                    text = collection.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold
-                )
+                IconButton(onClick = {
+                    if (collection.videoIds.isNotEmpty()) {
+                        showEpubExport = true
+                    } else {
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = context.getString(R.string.epub_export_empty),
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.IosShare,
+                        contentDescription = stringResource(R.string.epub_export_collection)
+                    )
+                }
             }
             Text(
                 text = pluralStringResource(
@@ -292,6 +327,18 @@ fun CollectionDetailScreen(
                     }
                 }
             }
+        )
+    }
+
+    if (showEpubExport && collection != null) {
+        EpubExportDialog(
+            bookTitle = collection.name,
+            videoIds = collection.videoIds,
+            subtitleDao = subtitleDao,
+            videoDao = videoDao,
+            highlightNoteDao = highlightNoteDao,
+            bookmarkDao = bookmarkDao,
+            onDismiss = { showEpubExport = false }
         )
     }
 

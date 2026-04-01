@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -64,6 +65,11 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.VideoCollection
+import com.deedeedev.ytreader.data.local.BookmarkDao
+import com.deedeedev.ytreader.data.local.HighlightNoteDao
+import com.deedeedev.ytreader.data.local.SubtitleDao
+import com.deedeedev.ytreader.data.local.VideoDao
+import com.deedeedev.ytreader.ui.components.EpubExportDialog
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -72,6 +78,10 @@ import kotlinx.coroutines.launch
 fun CollectionsScreen(
     viewModel: HomeViewModel,
     onCollectionClick: (String) -> Unit,
+    subtitleDao: SubtitleDao,
+    videoDao: VideoDao,
+    highlightNoteDao: HighlightNoteDao,
+    bookmarkDao: BookmarkDao,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -84,6 +94,9 @@ fun CollectionsScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<VideoCollection?>(null) }
     var deleteTarget by remember { mutableStateOf<VideoCollection?>(null) }
+    var showEpubExport by remember { mutableStateOf(false) }
+    var epubExportVideoIds by remember { mutableStateOf<List<String>>(emptyList()) }
+    var epubExportTitle by remember { mutableStateOf("") }
 
     LaunchedEffect(uiState.collections) {
         visibleCollections.clear()
@@ -176,7 +189,12 @@ fun CollectionsScreen(
                             index = index,
                             onOpen = { onCollectionClick(collection.id) },
                             onRename = { renameTarget = collection },
-                            onDelete = { deleteTarget = collection }
+                            onDelete = { deleteTarget = collection },
+                            onExport = {
+                                epubExportVideoIds = collection.videoIds
+                                epubExportTitle = collection.name
+                                showEpubExport = true
+                            }
                         )
                     }
                 }
@@ -252,6 +270,18 @@ fun CollectionsScreen(
             }
         )
     }
+
+    if (showEpubExport && epubExportVideoIds.isNotEmpty()) {
+        EpubExportDialog(
+            bookTitle = epubExportTitle,
+            videoIds = epubExportVideoIds,
+            subtitleDao = subtitleDao,
+            videoDao = videoDao,
+            highlightNoteDao = highlightNoteDao,
+            bookmarkDao = bookmarkDao,
+            onDismiss = { showEpubExport = false }
+        )
+    }
 }
 
 @Composable
@@ -263,7 +293,8 @@ private fun CollectionCard(
     index: Int,
     onOpen: () -> Unit,
     onRename: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onExport: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val videosCountLabel = pluralStringResource(
@@ -366,6 +397,16 @@ private fun CollectionCard(
                     },
                     leadingIcon = {
                         Icon(imageVector = Icons.Default.Delete, contentDescription = null)
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.epub_export_collection)) },
+                    onClick = {
+                        showMenu = false
+                        onExport()
+                    },
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Default.IosShare, contentDescription = null)
                     }
                 )
             }

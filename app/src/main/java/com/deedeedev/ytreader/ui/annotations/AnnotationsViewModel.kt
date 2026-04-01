@@ -207,7 +207,7 @@ class AnnotationsViewModel(
                         target = action.highlight.copy(note = null)
                     )
                     subtitleDao.updateHighlights(
-                        id = action.subtitleId,
+                        subtitleId = action.subtitleId,
                         highlights = serializeHighlights(updatedHighlights)
                     )
                     highlightNoteDao.deleteByRange(
@@ -239,7 +239,7 @@ class AnnotationsViewModel(
                         (current + action.highlight.copy(note = null)).sortedBy { it.start }
                     }
                     subtitleDao.updateHighlights(
-                        id = action.subtitleId,
+                        subtitleId = action.subtitleId,
                         highlights = serializeHighlights(restored)
                     )
                     normalizeHighlightNote(action.highlight.note)?.let { noteText ->

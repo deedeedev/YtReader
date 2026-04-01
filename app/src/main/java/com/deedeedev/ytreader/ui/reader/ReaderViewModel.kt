@@ -135,7 +135,7 @@ class ReaderViewModel(
         lastSavedPercent = percent.coerceIn(0, 100)
         viewModelScope.launch {
             subtitleDao.updateReadingProgress(
-                id = subtitleId,
+                subtitleId = subtitleId,
                 percent = percent.coerceIn(0, 100),
                 currentPage = currentPage.coerceAtLeast(0),
                 totalPages = totalPages.coerceAtLeast(0)
@@ -185,7 +185,7 @@ class ReaderViewModel(
 
         viewModelScope.launch {
             subtitleDao.updateStudyContent(subtitleId, content)
-            subtitleDao.updateHighlights(subtitleId, serializeHighlights(newHighlights))
+            subtitleDao.updateHighlights(subtitleId = subtitleId, serializeHighlights(newHighlights))
 
             highlightNoteDao.deleteBySubtitleId(subtitleId)
             bookmarkDao.deleteBySubtitleId(subtitleId)
@@ -353,7 +353,7 @@ class ReaderViewModel(
         }
 
         viewModelScope.launch {
-            subtitleDao.updateHighlights(subtitleId, serialized)
+            subtitleDao.updateHighlights(subtitleId = subtitleId, highlights = serialized)
             persistMergedHighlightNotes(mergeResult)
         }
 
@@ -393,16 +393,12 @@ class ReaderViewModel(
         }
 
         return try {
-            subtitleDao.markAiCleaningQueued(
-                id = subtitleId,
-                sourceText = inputText,
-                updatedAt = System.currentTimeMillis()
-            )
+            subtitleDao.markAiCleaningQueued(subtitleId)
             AiCleaningWorkScheduler.enqueue(appContext, subtitleId)
             Result.success(Unit)
         } catch (error: Exception) {
             subtitleDao.storeAiCleaningFailure(
-                id = subtitleId,
+                subtitleId = subtitleId,
                 summary = error.message?.takeIf { it.isNotBlank() }
                     ?: appContext.getString(R.string.ai_cleaning_start_failed),
                 log = error.stackTraceToString(),
@@ -421,7 +417,7 @@ class ReaderViewModel(
             )
         }
         viewModelScope.launch {
-            subtitleDao.updateHighlights(subtitleId, serialized)
+            subtitleDao.updateHighlights(subtitleId = subtitleId, highlights = serialized)
         }
     }
 
@@ -453,13 +449,13 @@ class ReaderViewModel(
 
     fun clearPendingAiCleaningResult() {
         viewModelScope.launch {
-            subtitleDao.clearAiCleaningResult(subtitleId, System.currentTimeMillis())
+            subtitleDao.clearAiCleaningResult(subtitleId)
         }
     }
 
     fun clearAiCleaningError() {
         viewModelScope.launch {
-            subtitleDao.clearAiCleaningError(subtitleId, System.currentTimeMillis())
+            subtitleDao.clearAiCleaningError(subtitleId)
         }
     }
 

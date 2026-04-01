@@ -357,171 +357,65 @@ interface SubtitleDao {
     @Query("UPDATE subtitles SET lastOpenedAt = :openedAt WHERE id = :id")
     suspend fun updateLastOpenedAt(id: Long, openedAt: Long)
 
+    @Query("UPDATE subtitles SET content = :content, createdAt = :createdAt WHERE id = :id")
+    suspend fun replaceContentForRedownload(id: Long, content: String, createdAt: Long)
+
+    @Query("UPDATE subtitles SET readingProgressPercent = 0, currentPage = 0 WHERE videoId = :videoId")
+    suspend fun resetReadingProgressForVideo(videoId: String)
+
+    @Query("UPDATE subtitles SET isRead = 1, readingProgressPercent = 100 WHERE videoId = :videoId")
+    suspend fun markVideoAsRead(videoId: String)
+
+    @Query("DELETE FROM subtitles WHERE videoId = :videoId")
+    suspend fun deleteByVideoId(videoId: String)
+
     @Query("SELECT * FROM subtitles WHERE lastOpenedAt > 0 ORDER BY lastOpenedAt DESC LIMIT 1")
     suspend fun getMostRecentlyOpened(): SubtitleEntity?
 
     @Query("UPDATE subtitles SET isInLibrary = :isInLibrary WHERE videoId = :videoId")
     suspend fun updateLibraryVisibility(videoId: String, isInLibrary: Boolean)
 
-    @Query("SELECT COUNT(*) FROM subtitles WHERE videoId = :videoId AND isInLibrary = 1")
-    suspend fun countLibraryEntriesByVideoId(videoId: String): Int
+    @Query("UPDATE subtitles SET highlights = :highlights WHERE id = :subtitleId")
+    suspend fun updateHighlights(subtitleId: Long, highlights: String)
 
-    @Query("UPDATE subtitles SET lastStudyScroll = :scroll WHERE id = :id")
-    suspend fun updateLastStudyScroll(id: Long, scroll: Int)
+    @Query("UPDATE subtitles SET lastStudyScroll = :scrollPosition WHERE id = :subtitleId")
+    suspend fun updateLastStudyScroll(subtitleId: Long, scrollPosition: Int)
 
-    @Query(
-        """
-        UPDATE subtitles
-        SET readingProgressPercent = :percent,
-            currentPage = :currentPage,
-            totalPages = :totalPages
-        WHERE id = :id
-        """
-    )
-    suspend fun updateReadingProgress(
-        id: Long,
-        percent: Int,
-        currentPage: Int,
-        totalPages: Int
-    )
+    @Query("UPDATE subtitles SET readingProgressPercent = :percent, currentPage = :currentPage, totalPages = :totalPages WHERE id = :subtitleId")
+    suspend fun updateReadingProgress(subtitleId: Long, percent: Int, currentPage: Int, totalPages: Int)
 
-    @Query(
-        """
-        UPDATE subtitles
-        SET readingProgressPercent = 0,
-            currentPage = 0,
-            totalPages = 0,
-            lastTimestamp = 0,
-            lastStudyScroll = 0
-        WHERE videoId = :videoId
-        """
-    )
-    suspend fun resetReadingProgressForVideo(videoId: String)
+    @Query("UPDATE subtitles SET fontSize = :fontSize WHERE id = :subtitleId")
+    suspend fun updateFontSize(subtitleId: Long, fontSize: Float)
 
-    @Query(
-        """
-        UPDATE subtitles
-        SET readingProgressPercent = 100,
-            currentPage = CASE
-                WHEN totalPages > 0 THEN totalPages
-                ELSE currentPage
-            END
-        WHERE videoId = :videoId
-        """
-    )
-    suspend fun markVideoAsRead(videoId: String)
+    @Query("UPDATE subtitles SET fontFamily = :fontFamily WHERE id = :subtitleId")
+    suspend fun updateFontFamily(subtitleId: Long, fontFamily: String)
 
-    @Query("UPDATE subtitles SET fontSize = :fontSize WHERE id = :id")
-    suspend fun updateFontSize(id: Long, fontSize: Float)
+    @Query("UPDATE subtitles SET studyContent = :studyContent WHERE id = :subtitleId")
+    suspend fun updateStudyContent(subtitleId: Long, studyContent: String)
 
-    @Query("UPDATE subtitles SET fontFamily = :fontFamily WHERE id = :id")
-    suspend fun updateFontFamily(id: Long, fontFamily: String)
+    @Query("UPDATE subtitles SET aiCleaningInProgress = 1 WHERE id = :subtitleId")
+    suspend fun markAiCleaningQueued(subtitleId: Long)
 
-    @Query("UPDATE subtitles SET content = :content WHERE id = :id")
-    suspend fun updateContent(id: Long, content: String)
+    @Query("UPDATE subtitles SET aiCleaningPendingResult = :result, aiCleaningInProgress = 0, aiCleaningUpdatedAt = :updatedAt WHERE id = :subtitleId")
+    suspend fun storeAiCleaningResult(subtitleId: Long, result: String, updatedAt: Long)
 
-    @Query("UPDATE subtitles SET studyContent = :studyContent WHERE id = :id")
-    suspend fun updateStudyContent(id: Long, studyContent: String)
+    @Query("UPDATE subtitles SET aiCleaningErrorSummary = :summary, aiCleaningErrorLog = :log, aiCleaningInProgress = 0, aiCleaningUpdatedAt = :updatedAt WHERE id = :subtitleId")
+    suspend fun storeAiCleaningFailure(subtitleId: Long, summary: String?, log: String?, updatedAt: Long)
 
-    @Query("UPDATE subtitles SET highlights = :highlights WHERE id = :id")
-    suspend fun updateHighlights(id: Long, highlights: String)
+    @Query("UPDATE subtitles SET aiCleaningInProgress = 0 WHERE id = :subtitleId")
+    suspend fun cancelAiCleaning(subtitleId: Long)
 
-    @Query(
-        """
-        UPDATE subtitles
-        SET aiCleaningInProgress = 1,
-            aiCleaningSourceText = :sourceText,
-            aiCleaningPendingResult = NULL,
-            aiCleaningErrorSummary = NULL,
-            aiCleaningErrorLog = NULL,
-            aiCleaningUpdatedAt = :updatedAt
-        WHERE id = :id
-        """
-    )
-    suspend fun markAiCleaningQueued(id: Long, sourceText: String, updatedAt: Long)
+    @Query("UPDATE subtitles SET aiCleaningPendingResult = NULL WHERE id = :subtitleId")
+    suspend fun clearAiCleaningResult(subtitleId: Long)
 
-    @Query(
-        """
-        UPDATE subtitles
-        SET aiCleaningInProgress = 0,
-            aiCleaningSourceText = NULL,
-            aiCleaningPendingResult = :cleanedText,
-            aiCleaningErrorSummary = NULL,
-            aiCleaningErrorLog = NULL,
-            aiCleaningUpdatedAt = :updatedAt
-        WHERE id = :id
-        """
-    )
-    suspend fun storeAiCleaningResult(id: Long, cleanedText: String, updatedAt: Long)
+    @Query("UPDATE subtitles SET aiCleaningErrorSummary = NULL, aiCleaningErrorLog = NULL WHERE id = :subtitleId")
+    suspend fun clearAiCleaningError(subtitleId: Long)
 
-    @Query(
-        """
-        UPDATE subtitles
-        SET aiCleaningInProgress = 0,
-            aiCleaningSourceText = NULL,
-            aiCleaningPendingResult = NULL,
-            aiCleaningErrorSummary = :summary,
-            aiCleaningErrorLog = :log,
-            aiCleaningUpdatedAt = :updatedAt
-        WHERE id = :id
-        """
-    )
-    suspend fun storeAiCleaningFailure(id: Long, summary: String, log: String, updatedAt: Long)
+ @Query("SELECT COUNT(*) FROM subtitles WHERE videoId = :videoId AND isInLibrary = 1")
+        suspend fun countLibraryEntriesByVideoId(videoId: String): Int
 
-    @Query(
-        """
-        UPDATE subtitles
-        SET aiCleaningInProgress = 0,
-            aiCleaningSourceText = NULL,
-            aiCleaningPendingResult = NULL,
-            aiCleaningErrorSummary = NULL,
-            aiCleaningErrorLog = NULL,
-            aiCleaningUpdatedAt = :updatedAt
-        WHERE id = :id
-        """
-    )
-    suspend fun cancelAiCleaning(id: Long, updatedAt: Long)
-
-    @Query(
-        """
-        UPDATE subtitles
-        SET aiCleaningPendingResult = NULL,
-            aiCleaningUpdatedAt = :updatedAt
-        WHERE id = :id
-        """
-    )
-    suspend fun clearAiCleaningResult(id: Long, updatedAt: Long)
-
-    @Query(
-        """
-        UPDATE subtitles
-        SET aiCleaningErrorSummary = NULL,
-            aiCleaningErrorLog = NULL,
-            aiCleaningUpdatedAt = :updatedAt
-        WHERE id = :id
-        """
-    )
-    suspend fun clearAiCleaningError(id: Long, updatedAt: Long)
-
-    @Query(
-        """
-        UPDATE subtitles
-        SET content = :content,
-            createdAt = :createdAt,
-            studyContent = NULL,
-            highlights = '',
-            lastTimestamp = 0,
-            lastStudyScroll = 0,
-            readingProgressPercent = 0,
-            currentPage = 0,
-            totalPages = 0
-        WHERE id = :id
-        """
-    )
-    suspend fun replaceContentForRedownload(id: Long, content: String, createdAt: Long)
-
-    @Query("DELETE FROM subtitles WHERE videoId = :videoId")
-    suspend fun deleteByVideoId(videoId: String)
+    @Query("SELECT DISTINCT videoId FROM subtitles WHERE isInLibrary = 1")
+        suspend fun getLibraryVideoIds(): List<String>
 
     @Query("""
         SELECT DISTINCT s.* FROM subtitles s

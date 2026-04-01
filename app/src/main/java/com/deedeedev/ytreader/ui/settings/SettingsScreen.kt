@@ -58,6 +58,7 @@ fun SettingsScreen(
     var pendingImportTarget by remember { mutableStateOf<SettingsImportTarget?>(null) }
     var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     var pendingDataImportPreview by remember { mutableStateOf<DataBackupPreview?>(null) }
+    var pendingForceImport by remember { mutableStateOf(false) }
     var pendingThumbnailAction by remember { mutableStateOf<ThumbnailBulkAction?>(null) }
     var isBusy by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
@@ -564,6 +565,7 @@ fun SettingsScreen(
                     pendingImportTarget = null
                     pendingImportUri = null
                     pendingDataImportPreview = null
+                    pendingForceImport = false
                 }
             },
             properties = DialogProperties(dismissOnBackPress = !isBusy, dismissOnClickOutside = !isBusy),
@@ -664,6 +666,30 @@ fun SettingsScreen(
                                     MaterialTheme.colorScheme.error
                                 }
                             )
+                            if (!preview.isCompatible) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.clickable {
+                                        pendingForceImport = !pendingForceImport
+                                    }
+                                ) {
+                                    Checkbox(
+                                        checked = pendingForceImport,
+                                        onCheckedChange = { pendingForceImport = it }
+                                    )
+                                    Column {
+                                        Text(
+                                            stringResource(R.string.settings_backup_force_import),
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        Text(
+                                            stringResource(R.string.settings_backup_force_import_warning),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            }
                         } else {
                             Text(stringResource(R.string.settings_working))
                         }
@@ -673,23 +699,28 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     enabled = !isBusy && (
-                        target != SettingsImportTarget.DATA || pendingDataImportPreview?.isCompatible == true
+                        target != SettingsImportTarget.DATA ||
+                            pendingDataImportPreview?.isCompatible == true ||
+                            pendingForceImport
                     ),
                     onClick = {
                         val uri = pendingImportUri ?: return@TextButton
                         val currentTarget = pendingImportTarget ?: return@TextButton
+                        val forceImport = pendingForceImport
                         launchTask {
                             if (currentTarget == SettingsImportTarget.PREFERENCES) {
                                 importPreferencesBackup(context, appContainer, uri.toString())
                                 pendingImportTarget = null
                                 pendingImportUri = null
                                 pendingDataImportPreview = null
+                                pendingForceImport = false
                                 context.getString(R.string.settings_preferences_imported)
                             } else {
-                                importDataBackup(context, appContainer, uri.toString())
+                                importDataBackup(context, appContainer, uri.toString(), forceImport)
                                 pendingImportTarget = null
                                 pendingImportUri = null
                                 pendingDataImportPreview = null
+                                pendingForceImport = false
                                 context.getString(R.string.settings_data_imported)
                             }
                         }
@@ -705,6 +736,7 @@ fun SettingsScreen(
                         pendingImportTarget = null
                         pendingImportUri = null
                         pendingDataImportPreview = null
+                        pendingForceImport = false
                     }
                 ) {
                     Text(stringResource(R.string.cancel))

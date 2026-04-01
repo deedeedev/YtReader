@@ -276,6 +276,8 @@
     <string name="settings_backup_error_missing_database">Selected file does not contain a database backup.</string>
     <string name="settings_backup_error_database_directory">Could not access database directory.</string>
     <string name="settings_backup_error_schema_mismatch">Backup schema version does not match this app version.</string>
+    <string name="settings_backup_force_import">Force import anyway</string>
+    <string name="settings_backup_force_import_warning">Data may be corrupted or incomplete.</string>
     <string name="settings_backup_error_identity_mismatch">Backup database schema does not match the installed app schema.</string>
     <string name="auto_backup_title">Automatic backup</string>
     <string name="auto_backup_description">Automatically create a data backup once a day at the scheduled time.</string>
@@ -376,6 +378,18 @@
         <item quantity="one">%1$d occurrence replaced</item>
         <item quantity="other">%1$d occurrences replaced</item>
     </plurals>
+    <string name="epub_export_title">Export as EPUB</string>
+    <string name="epub_export_mode_label">Choose export mode:</string>
+    <string name="epub_export_clean">Clean</string>
+    <string name="epub_export_annotated">Annotated</string>
+    <string name="epub_export_clean_description">Subtitle text and video metadata</string>
+    <string name="epub_export_annotated_description">Include highlights, notes and bookmarks</string>
+    <string name="epub_exporting">Exporting…</string>
+    <string name="epub_export_error">Export failed.</string>
+    <string name="epub_export_video">Export as EPUB</string>
+    <string name="epub_export_library">Export library</string>
+    <string name="epub_export_collection">Export as EPUB</string>
+    <string name="epub_export_empty">No videos to export.</string>
     <string name="widget_reader_description">Opens the last opened subtitle in the reader</string>
     <string name="widget_reader_icon_description">Quick open last reader</string>
     <string name="widget_no_recent">No recent reader</string>

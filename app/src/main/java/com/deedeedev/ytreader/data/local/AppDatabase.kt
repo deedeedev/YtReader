@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CollectionVideoEntity::class,
         SearchHistoryEntity::class
     ],
-    version = 22,
+    version = 23,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -266,6 +266,14 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "CREATE UNIQUE INDEX IF NOT EXISTS `index_search_history_url` ON `search_history` (`url`)"
+                )
+            }
+        }
+
+        val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE subtitles ADD COLUMN isRead INTEGER NOT NULL DEFAULT 0"
                 )
             }
         }

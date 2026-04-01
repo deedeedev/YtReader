@@ -276,6 +276,8 @@
     <string name="settings_backup_error_missing_database">Il file selezionato non contiene un backup del database.</string>
     <string name="settings_backup_error_database_directory">Impossibile accedere alla directory del database.</string>
     <string name="settings_backup_error_schema_mismatch">La versione dello schema del backup non corrisponde a quella dell\'app.</string>
+    <string name="settings_backup_force_import">Forza importazione</string>
+    <string name="settings_backup_force_import_warning">I dati potrebbero essere corrotti o incompleti.</string>
     <string name="settings_backup_error_identity_mismatch">Lo schema del database del backup non corrisponde a quello dell\'app installata.</string>
     <string name="auto_backup_title">Backup automatico</string>
     <string name="auto_backup_description">Crea automaticamente un backup dei dati una volta al giorno all\'orario programmato.</string>

@@ -140,7 +140,7 @@ class VideoNotesViewModel(
                         target = action.highlight.copy(note = null)
                     )
                     subtitleDao.updateHighlights(
-                        id = action.subtitleId,
+                        subtitleId = action.subtitleId,
                         highlights = serializeHighlights(updatedHighlights)
                     )
                     highlightNoteDao.deleteByRange(
@@ -167,7 +167,7 @@ class VideoNotesViewModel(
                         target = action.highlight.copy(note = null)
                     )
                     subtitleDao.updateHighlights(
-                        id = action.subtitleId,
+                        subtitleId = action.subtitleId,
                         highlights = serializeHighlights(restoredHighlights)
                     )
                     normalizeHighlightNote(action.highlight.note)?.let { noteText ->
