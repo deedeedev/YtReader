@@ -68,6 +68,8 @@ fun CollectionDetailScreen(
     val coroutineScope = rememberCoroutineScope()
     var searchQuery by remember { mutableStateOf("") }
     var showEpubExport by remember { mutableStateOf(false) }
+    var epubExportVideoIds by remember { mutableStateOf<List<String>>(emptyList()) }
+    var epubExportTitle by remember { mutableStateOf("") }
 
     LaunchedEffect(viewModel) {
         viewModel.events.collectLatest { event ->
@@ -167,6 +169,8 @@ fun CollectionDetailScreen(
                 }
                 IconButton(onClick = {
                     if (collection.videoIds.isNotEmpty()) {
+                        epubExportVideoIds = collection.videoIds
+                        epubExportTitle = collection.name
                         showEpubExport = true
                     } else {
                         coroutineScope.launch {
@@ -286,7 +290,12 @@ fun CollectionDetailScreen(
                                 viewModel.downloadSubtitleAgain(subtitle)
                             },
                             downloadingSubtitleIds = uiState.downloadingSubtitleIds,
-                            isDownloadingThumbnail = uiState.downloadingThumbnailVideoIds.contains(item.videoId)
+                            isDownloadingThumbnail = uiState.downloadingThumbnailVideoIds.contains(item.videoId),
+                            onExportEpub = { videoId, title ->
+                                epubExportVideoIds = listOf(videoId)
+                                epubExportTitle = title
+                                showEpubExport = true
+                            }
                         )
             }
         }
@@ -330,10 +339,10 @@ fun CollectionDetailScreen(
         )
     }
 
-    if (showEpubExport && collection != null) {
+    if (showEpubExport) {
         EpubExportDialog(
-            bookTitle = collection.name,
-            videoIds = collection.videoIds,
+            bookTitle = epubExportTitle,
+            videoIds = epubExportVideoIds,
             subtitleDao = subtitleDao,
             videoDao = videoDao,
             highlightNoteDao = highlightNoteDao,

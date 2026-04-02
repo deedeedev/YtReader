@@ -133,6 +133,11 @@ private data class EpubTrackChapter(
     val bookmarks: List<BookmarkEntity>
 )
 
+private data class AnnotatedTextResult(
+    val html: String,
+    val footnotes: List<Pair<Int, String>>
+)
+
 private fun writeEpub(
     outputFile: File,
     bookTitle: String,
@@ -231,11 +236,16 @@ private fun epubTocNcx(
     chapters: List<EpubVideoChapter>
 ): String = buildString {
     var playOrder = 1
+    val hasBookmarks = chapters.any { chapter ->
+        chapter.tracks.any { track -> track.bookmarks.isNotEmpty() }
+    }
+    val depth = if (hasBookmarks) "2" else "1"
+
     appendLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
     appendLine("<ncx xmlns=\"http://www.daisy.org/z3986/2005/ncx/\" version=\"2005-1\">")
     appendLine("  <head>")
     appendLine("    <meta name=\"dtb:uid\" content=\"urn:uuid:$uuid\"/>")
-    appendLine("    <meta name=\"dtb:depth\" content=\"1\"/>")
+    appendLine("    <meta name=\"dtb:depth\" content=\"$depth\"/>")
     appendLine("    <meta name=\"dtb:totalPageCount\" content=\"0\"/>")
     appendLine("    <meta name=\"dtb:maxPageNumber\" content=\"0\"/>")
     appendLine("  </head>")
@@ -243,15 +253,28 @@ private fun epubTocNcx(
     appendLine("  <navMap>")
     chapters.forEach { chapter ->
         chapter.tracks.forEachIndexed { trackIndex, track ->
-            val id = "chapter_${chapters.indexOf(chapter)}_${trackIndex}"
+            val chapterId = "chapter_${chapters.indexOf(chapter)}_${trackIndex}"
             val label = if (chapter.tracks.size > 1) {
                 "${chapter.title} (${track.languageCode.uppercase()})"
             } else {
                 chapter.title
             }
-            appendLine("    <navPoint id=\"nav_$id\" playOrder=\"${playOrder++}\">")
+            appendLine("    <navPoint id=\"nav_$chapterId\" playOrder=\"${playOrder++}\">")
             appendLine("      <navLabel><text>${escapeXml(label)}</text></navLabel>")
-            appendLine("      <content src=\"Text/$id.xhtml\"/>")
+            appendLine("      <content src=\"Text/$chapterId.xhtml\"/>")
+
+            if (track.bookmarks.isNotEmpty()) {
+                val sortedBookmarks = track.bookmarks.sortedBy { it.anchorStart }
+                sortedBookmarks.forEach { bookmark ->
+                    val bookmarkId = "bookmark-${bookmark.id}"
+                    val bookmarkNavId = "nav_${chapterId}_$bookmarkId"
+                    appendLine("      <navPoint id=\"$bookmarkNavId\" playOrder=\"${playOrder++}\">")
+                    appendLine("        <navLabel><text>${escapeXml(bookmark.title)}</text></navLabel>")
+                    appendLine("        <content src=\"Text/$chapterId.xhtml#$bookmarkId\"/>")
+                    appendLine("      </navPoint>")
+                }
+            }
+
             appendLine("    </navPoint>")
         }
     }
@@ -264,6 +287,7 @@ private fun epubCss(): String = buildString {
     appendLine("h1 { font-size: 1.4em; margin-bottom: 0.3em; page-break-before: always; }")
     appendLine("h1:first-of-type { page-break-before: avoid; }")
     appendLine("h2 { font-size: 1.1em; margin-top: 1em; margin-bottom: 0.3em; }")
+    appendLine("h3 { font-size: 1em; margin-top: 1em; margin-bottom: 0.3em; }")
     appendLine(".metadata { color: #666; font-size: 0.9em; margin-bottom: 1em; }")
     appendLine(".metadata p { margin: 0.2em 0; }")
     appendLine(".highlight-red { background-color: #ffcccc; }")
@@ -271,6 +295,13 @@ private fun epubCss(): String = buildString {
     appendLine(".highlight-green { background-color: #ccffcc; }")
     appendLine(".highlight-yellow { background-color: #ffffcc; }")
     appendLine(".bookmark { font-weight: bold; color: #333; }")
+    appendLine(".bookmarks-list a { margin-right: 0.5em; }")
+    appendLine(".footnote-ref { font-size: 0.7em; vertical-align: super; }")
+    appendLine(".footnote-ref a { text-decoration: none; }")
+    appendLine(".footnotes { margin-top: 2em; padding-top: 1em; border-top: 1px solid #ccc; font-size: 0.9em; }")
+    appendLine(".footnotes ol { padding-left: 1.5em; }")
+    appendLine(".footnotes li { margin-bottom: 0.5em; }")
+    appendLine(".footnotes a { text-decoration: none; margin-left: 0.3em; }")
     appendLine("p { margin: 0.5em 0; }")
 }
 
@@ -310,27 +341,39 @@ private fun epubChapterXhtml(
 
     if (mode == EpubExportMode.ANNOTATED && track.bookmarks.isNotEmpty()) {
         appendLine("  <h2>Bookmarks</h2>")
-        track.bookmarks.forEach { bookmark ->
-            appendLine("  <p class=\"bookmark\">${escapeHtml(bookmark.title)}</p>")
+        appendLine("  <p class=\"bookmarks-list\">")
+        track.bookmarks.sortedBy { it.anchorStart }.forEachIndexed { index, bookmark ->
+            if (index > 0) append(" | ")
+            append("<a href=\"#bookmark-${bookmark.id}\">${escapeHtml(bookmark.title)}</a>")
         }
+        appendLine("</p>")
     }
 
     appendLine("  <div>")
-    if (mode == EpubExportMode.ANNOTATED && track.highlights.isNotEmpty()) {
-        val annotatedText = applyEpubHighlights(track.text, track.highlights, track.notes)
-        annotatedText.split("\n\n").forEach { paragraph ->
-            if (paragraph.isNotBlank()) {
-                appendLine("    <p>$paragraph</p>")
-            }
-        }
+    val annotatedText = if (mode == EpubExportMode.ANNOTATED && (track.highlights.isNotEmpty() || track.bookmarks.isNotEmpty())) {
+        applyEpubHighlights(track.text, track.highlights, track.notes, track.bookmarks)
     } else {
-        track.text.split("\n\n").forEach { paragraph ->
-            if (paragraph.isNotBlank()) {
-                appendLine("    <p>${escapeHtml(paragraph)}</p>")
-            }
+        AnnotatedTextResult(escapeHtml(track.text), emptyList())
+    }
+    annotatedText.html.split("\n\n").forEach { paragraph ->
+        if (paragraph.isNotBlank()) {
+            appendLine("    <p>$paragraph</p>")
         }
     }
     appendLine("  </div>")
+
+    if (annotatedText.footnotes.isNotEmpty()) {
+        appendLine("  <div class=\"footnotes\">")
+        appendLine("    <h3>Notes</h3>")
+        appendLine("    <ol>")
+        annotatedText.footnotes.forEach { (num, noteText) ->
+            appendLine("      <li id=\"note-$num\">")
+            appendLine("        ${escapeHtml(noteText)} <a href=\"#ref-$num\">↑</a>")
+            appendLine("      </li>")
+        }
+        appendLine("    </ol>")
+        appendLine("  </div>")
+    }
 
     appendLine("</body>")
     appendLine("</html>")
@@ -339,36 +382,73 @@ private fun epubChapterXhtml(
 private fun applyEpubHighlights(
     text: String,
     highlights: List<TextHighlight>,
-    notes: List<com.deedeedev.ytreader.data.local.HighlightNoteEntity>
-): String {
-    if (highlights.isEmpty()) return escapeHtml(text)
-    val sorted = highlights.sortedBy { it.start }
+    notes: List<com.deedeedev.ytreader.data.local.HighlightNoteEntity>,
+    bookmarks: List<BookmarkEntity>
+): AnnotatedTextResult {
+    if (highlights.isEmpty() && bookmarks.isEmpty()) {
+        return AnnotatedTextResult(escapeHtml(text), emptyList())
+    }
+
+    val sortedHighlights = highlights.sortedBy { it.start }
+    val sortedBookmarks = bookmarks.sortedBy { it.anchorStart }
+
+    val footnoteNotes = mutableListOf<Pair<Int, String>>()
+    var footnoteNumber = 1
+
+    val allMarkers = mutableListOf<Any>()
+    sortedHighlights.forEach { allMarkers.add(it) }
+    sortedBookmarks.forEach { allMarkers.add(it) }
+    allMarkers.sortBy { (it as? TextHighlight)?.start ?: (it as BookmarkEntity).anchorStart }
+
     val result = StringBuilder()
     var lastEnd = 0
-    for (highlight in sorted) {
-        val start = highlight.start.coerceAtMost(text.length)
-        val end = highlight.end.coerceAtMost(text.length)
-        if (start > lastEnd) {
-            result.append(escapeHtml(text.substring(lastEnd, start)))
-        }
-        if (start < end) {
-            val colorClass = "highlight-${highlight.color.name.lowercase()}"
-            val highlightedText = escapeHtml(text.substring(start, end))
-            val matchingNote = notes.find { note ->
-                note.highlightStart == highlight.start && note.highlightEnd == highlight.end
+
+    for (marker in allMarkers) {
+        when (marker) {
+            is TextHighlight -> {
+                val start = marker.start.coerceAtMost(text.length)
+                val end = marker.end.coerceAtMost(text.length)
+
+                if (start > lastEnd) {
+                    result.append(escapeHtml(text.substring(lastEnd, start)))
+                }
+                if (start < end) {
+                    val colorClass = "highlight-${marker.color.name.lowercase()}"
+                    val highlightedText = escapeHtml(text.substring(start, end))
+
+                    val matchingNote = notes.find { note ->
+                        note.highlightStart == marker.start && note.highlightEnd == marker.end
+                    }
+                    val noteText = matchingNote?.noteText?.takeIf { it.isNotBlank() }
+
+                    if (noteText != null) {
+                        footnoteNotes.add(footnoteNumber to noteText)
+                        result.append("<span class=\"$colorClass\">$highlightedText</span><sup class=\"footnote-ref\"><a id=\"ref-$footnoteNumber\" href=\"#note-$footnoteNumber\">$footnoteNumber</a></sup>")
+                        footnoteNumber++
+                    } else {
+                        result.append("<span class=\"$colorClass\">$highlightedText</span>")
+                    }
+                }
+                lastEnd = end.coerceAtLeast(lastEnd)
             }
-            if (matchingNote != null && matchingNote.noteText.isNotBlank()) {
-                result.append("<span class=\"$colorClass\" title=\"${escapeHtml(matchingNote.noteText)}\">$highlightedText</span>")
-            } else {
-                result.append("<span class=\"$colorClass\">$highlightedText</span>")
+
+            is BookmarkEntity -> {
+                val anchorStart = marker.anchorStart.coerceAtMost(text.length)
+
+                if (anchorStart > lastEnd) {
+                    result.append(escapeHtml(text.substring(lastEnd, anchorStart)))
+                }
+                result.append("<a id=\"bookmark-${marker.id}\"/>")
+                lastEnd = anchorStart.coerceAtLeast(lastEnd)
             }
         }
-        lastEnd = end.coerceAtLeast(lastEnd)
     }
+
     if (lastEnd < text.length) {
         result.append(escapeHtml(text.substring(lastEnd)))
     }
-    return result.toString()
+
+    return AnnotatedTextResult(result.toString(), footnoteNotes)
 }
 
 private fun escapeHtml(text: String): String = text
