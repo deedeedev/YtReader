@@ -123,12 +123,27 @@ fun MainScreen(
     var pendingReaderInitialLocation by remember { mutableStateOf<ReaderLocation?>(null) }
     var pendingReaderJumpBackState by remember { mutableStateOf<JumpBackState?>(null) }
     var navigatingFromVideoNotes by remember { mutableStateOf(false) }
+    var libraryScrollPosition by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var collectionScrollPosition by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    val openPreferredSubtitleForVideo: (String) -> Unit = { videoId ->
+    val openPreferredSubtitleForVideo: (String, Pair<Int, Int>) -> Unit = { videoId, scrollPosition ->
         coroutineScope.launch {
             val subtitleId = viewModel.getPreferredSubtitleIdForVideo(videoId) ?: return@launch
             pendingReaderInitialLocation = null
             pendingReaderJumpBackState = null
+            libraryScrollPosition = scrollPosition
+            navController.navigate(Screen.Reader.createRoute(subtitleId)) {
+                launchSingleTop = true
+            }
+        }
+    }
+
+    val openPreferredSubtitleForVideoFromCollection: (String, Pair<Int, Int>) -> Unit = { videoId, scrollPosition ->
+        coroutineScope.launch {
+            val subtitleId = viewModel.getPreferredSubtitleIdForVideo(videoId) ?: return@launch
+            pendingReaderInitialLocation = null
+            pendingReaderJumpBackState = null
+            collectionScrollPosition = scrollPosition
             navController.navigate(Screen.Reader.createRoute(subtitleId)) {
                 launchSingleTop = true
             }
@@ -147,9 +162,19 @@ fun MainScreen(
         }
     }
 
-    val openReader: (Long) -> Unit = { subtitleId ->
+    val openReader: (Long, Pair<Int, Int>) -> Unit = { subtitleId, scrollPosition ->
         pendingReaderInitialLocation = null
         pendingReaderJumpBackState = null
+        libraryScrollPosition = scrollPosition
+        navController.navigate(Screen.Reader.createRoute(subtitleId)) {
+            launchSingleTop = true
+        }
+    }
+
+    val openReaderFromCollection: (Long, Pair<Int, Int>) -> Unit = { subtitleId, scrollPosition ->
+        pendingReaderInitialLocation = null
+        pendingReaderJumpBackState = null
+        collectionScrollPosition = scrollPosition
         navController.navigate(Screen.Reader.createRoute(subtitleId)) {
             launchSingleTop = true
         }
@@ -169,7 +194,7 @@ fun MainScreen(
 
     LaunchedEffect(requestedReaderSubtitleId) {
         val subtitleId = requestedReaderSubtitleId ?: return@LaunchedEffect
-        openReader(subtitleId)
+        openReader(subtitleId, 0 to 0)
         onReaderSubtitleHandled()
     }
 
@@ -216,7 +241,7 @@ fun MainScreen(
                 SearchScreen(
                     viewModel = viewModel,
                     onSubtitleClick = { id ->
-                        openReader(id)
+                        openReader(id, 0 to 0)
                     }
                 )
             }
@@ -229,15 +254,16 @@ fun MainScreen(
             ) {
                 LibraryScreen(
                     viewModel = viewModel,
-                    onSubtitleClick = { id ->
-                        openReader(id)
+                    onSubtitleClick = { id, scrollPosition ->
+                        openReader(id, scrollPosition)
                     },
                     onVideoClick = openPreferredSubtitleForVideo,
                     onVideoSearchAgain = searchVideoAgain,
                     subtitleDao = appContainer.subtitleDao,
                     videoDao = appContainer.videoDao,
                     highlightNoteDao = appContainer.highlightNoteDao,
-                    bookmarkDao = appContainer.bookmarkDao
+                    bookmarkDao = appContainer.bookmarkDao,
+                    initialScrollPosition = libraryScrollPosition
                 )
             }
             composable(
@@ -303,16 +329,17 @@ fun MainScreen(
                 CollectionDetailScreen(
                     viewModel = viewModel,
                     collectionId = collectionId,
-                    onSubtitleClick = { id ->
-                        openReader(id)
+                    onSubtitleClick = { id, scrollPosition ->
+                        openReaderFromCollection(id, scrollPosition)
                     },
                     onBack = { navController.popBackStack() },
-                    onVideoClick = openPreferredSubtitleForVideo,
+                    onVideoClick = openPreferredSubtitleForVideoFromCollection,
                     onVideoSearchAgain = searchVideoAgain,
                     subtitleDao = appContainer.subtitleDao,
                     videoDao = appContainer.videoDao,
                     highlightNoteDao = appContainer.highlightNoteDao,
-                    bookmarkDao = appContainer.bookmarkDao
+                    bookmarkDao = appContainer.bookmarkDao,
+                    initialScrollPosition = collectionScrollPosition
                 )
             }
             composable(

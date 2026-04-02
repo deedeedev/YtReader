@@ -2,12 +2,15 @@ package com.deedeedev.ytreader.ui.home
 
 import android.content.res.Resources
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.deedeedev.ytreader.R
@@ -30,11 +33,34 @@ fun <T> LibraryListSection(
     emptyText: String,
     modifier: Modifier = Modifier,
     key: ((T) -> Any)? = null,
+    initialScrollPosition: Pair<Int, Int>? = null,
+    onGetScrollPosition: ((Pair<Int, Int>) -> Unit)? = null,
     itemContent: @Composable (T) -> Unit
 ) {
+    val lazyListState = rememberLazyListState()
+
+    LaunchedEffect(initialScrollPosition) {
+        initialScrollPosition?.let { (index, offset) ->
+            if (items.isNotEmpty() && index < items.size) {
+                lazyListState.scrollToItem(index, offset)
+            }
+        }
+    }
+
+    LaunchedEffect(lazyListState) {
+        while (true) {
+            kotlinx.coroutines.delay(100)
+            onGetScrollPosition?.invoke(
+                lazyListState.firstVisibleItemIndex to lazyListState.firstVisibleItemScrollOffset
+            )
+        }
+    }
+
     LazyColumn(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        state = lazyListState,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(vertical = 8.dp)
     ) {
         if (items.isEmpty()) {
             item {

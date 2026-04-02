@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -55,14 +56,15 @@ import kotlinx.coroutines.launch@OptIn(ExperimentalLayoutApi::class, Experimenta
 @Composable
 fun LibraryScreen(
     viewModel: HomeViewModel,
-    onSubtitleClick: (Long) -> Unit,
-    onVideoClick: (String) -> Unit,
+    onSubtitleClick: (Long, Pair<Int, Int>) -> Unit,
+    onVideoClick: (String, Pair<Int, Int>) -> Unit,
     onVideoSearchAgain: (String) -> Unit,
     subtitleDao: SubtitleDao,
     videoDao: VideoDao,
     highlightNoteDao: HighlightNoteDao,
     bookmarkDao: BookmarkDao,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    initialScrollPosition: Pair<Int, Int>? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val uniqueChannels by viewModel.libraryChannels.collectAsStateWithLifecycle()
@@ -151,16 +153,22 @@ fun LibraryScreen(
                 libraryItems.filterByTitle(searchQuery)
             }
 
+            var libraryScrollPosition by remember { mutableStateOf<Pair<Int, Int>>(0 to 0) }
+
             LibraryListSection(
                 items = filteredLibraryItems,
                 emptyText = stringResource(R.string.library_empty),
                 modifier = Modifier.fillMaxSize(),
-                key = { it.videoId }
+                key = { it.videoId },
+                initialScrollPosition = initialScrollPosition,
+                onGetScrollPosition = { position ->
+                    libraryScrollPosition = position
+                }
             ) { item ->
                         LibraryItemCard(
                             item = item,
-                            onSubtitleClick = onSubtitleClick,
-                            onVideoClick = onVideoClick,
+                            onSubtitleClick = { id, _ -> onSubtitleClick(id, libraryScrollPosition) },
+                            onVideoClick = { id, _ -> onVideoClick(id, libraryScrollPosition) },
                             onVideoSearchAgain = onVideoSearchAgain,
                             onMarkAsRead = {
                                 viewModel.markVideoAsRead(item.videoId)
@@ -276,8 +284,8 @@ fun LibraryScreen(
 @Composable
 fun LibraryItemCard(
     item: LibraryItem,
-    onSubtitleClick: (Long) -> Unit,
-    onVideoClick: (String) -> Unit,
+    onSubtitleClick: (Long, Pair<Int, Int>) -> Unit,
+    onVideoClick: (String, Pair<Int, Int>) -> Unit,
     onVideoSearchAgain: (String) -> Unit,
     onMarkAsRead: (() -> Unit)? = null,
     onAddToCollection: () -> Unit,
@@ -308,7 +316,7 @@ fun LibraryItemCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .combinedClickable(
-                    onClick = { onVideoClick(item.videoId) },
+                    onClick = { onVideoClick(item.videoId, 0 to 0) },
                     onLongClick = { showMenu = true }
                 ),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -399,7 +407,7 @@ fun LibraryItemCard(
                         item.subtitles.forEach { subtitle ->
                             SubtitleChip(
                                 subtitle = subtitle,
-                                onClick = { onSubtitleClick(subtitle.id) },
+                                onClick = { onSubtitleClick(subtitle.id, 0 to 0) },
                                 onDelete = { onSubtitleDelete(subtitle) },
                                 onDownloadAgain = { onSubtitleDownloadAgain(subtitle) },
                                 isDownloading = downloadingSubtitleIds.contains(subtitle.id)

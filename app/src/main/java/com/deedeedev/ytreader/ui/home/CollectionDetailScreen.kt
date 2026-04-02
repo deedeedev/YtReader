@@ -52,15 +52,16 @@ import kotlinx.coroutines.launch
 fun CollectionDetailScreen(
     viewModel: HomeViewModel,
     collectionId: String,
-    onSubtitleClick: (Long) -> Unit,
-    onVideoClick: (String) -> Unit,
+    onSubtitleClick: (Long, Pair<Int, Int>) -> Unit,
+    onVideoClick: (String, Pair<Int, Int>) -> Unit,
     onVideoSearchAgain: (String) -> Unit,
     onBack: () -> Unit,
     subtitleDao: SubtitleDao,
     videoDao: VideoDao,
     highlightNoteDao: HighlightNoteDao,
     bookmarkDao: BookmarkDao,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    initialScrollPosition: Pair<Int, Int>? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -225,6 +226,8 @@ fun CollectionDetailScreen(
                 sortedItems.filterByTitle(searchQuery)
             }
 
+            var collectionScrollPosition by remember { mutableStateOf<Pair<Int, Int>>(0 to 0) }
+
             LibraryListSection(
                 items = filteredSortedItems,
                 emptyText = collectionEmptyText(
@@ -233,12 +236,16 @@ fun CollectionDetailScreen(
                     selectedChannelFilter = filterState.selectedChannelFilter
                 ),
                 modifier = Modifier.fillMaxSize(),
-                key = { it.videoId }
+                key = { it.videoId },
+                initialScrollPosition = initialScrollPosition,
+                onGetScrollPosition = { position ->
+                    collectionScrollPosition = position
+                }
             ) { item ->
                         LibraryItemCard(
                             item = item,
-                            onSubtitleClick = onSubtitleClick,
-                            onVideoClick = onVideoClick,
+                            onSubtitleClick = { id, _ -> onSubtitleClick(id, collectionScrollPosition) },
+                            onVideoClick = { id, _ -> onVideoClick(id, collectionScrollPosition) },
                             onVideoSearchAgain = onVideoSearchAgain,
                             onMarkAsRead = {
                                 viewModel.markVideoAsRead(item.videoId)
