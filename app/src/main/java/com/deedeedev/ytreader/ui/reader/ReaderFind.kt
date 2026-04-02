@@ -162,7 +162,31 @@ internal fun findRegexMatchesInSegments(
     return results
 }
 
-private fun buildFindExcerpt(
+internal fun findLiteralInSegments(
+    query: String,
+    segments: List<SubtitleSegment>,
+    excerptEllipsis: String
+): List<SearchInOriginalResult> {
+    val trimmed = query.trim()
+    if (trimmed.isBlank() || segments.isEmpty()) return emptyList()
+    val regex = Regex(Regex.escape(trimmed), RegexOption.IGNORE_CASE)
+    val results = mutableListOf<SearchInOriginalResult>()
+    segments.forEachIndexed { index, segment ->
+        val match = regex.find(segment.text) ?: return@forEachIndexed
+        val start = match.range.first
+        val end = match.range.last + 1
+        results += SearchInOriginalResult(
+            segmentIndex = index,
+            startTime = segment.startTime,
+            excerpt = buildFindExcerpt(segment.text, start, end, excerptEllipsis),
+            matchStart = start,
+            matchEnd = end
+        )
+    }
+    return results
+}
+
+internal fun buildFindExcerpt(
     text: String,
     start: Int,
     end: Int,

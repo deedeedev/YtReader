@@ -26,6 +26,8 @@ internal fun BoxScope.ReaderOverlayHost(
     selectionHasNote: Boolean,
     onDeleteHighlight: () -> Unit,
     hasActiveHighlight: Boolean,
+    showSearchInOriginal: Boolean,
+    onSearchInOriginal: () -> Unit,
     showSearchResultsToolbar: Boolean,
     showJumpBackToolbar: Boolean,
     searchResultsCurrentIndex: Int,
@@ -63,7 +65,9 @@ internal fun BoxScope.ReaderOverlayHost(
             onNoteClick = onSelectionNoteClick,
             hasNote = selectionHasNote,
             showDelete = hasActiveHighlight,
-            onDeleteHighlight = onDeleteHighlight
+            onDeleteHighlight = onDeleteHighlight,
+            showSearchInOriginal = showSearchInOriginal,
+            onSearchInOriginal = onSearchInOriginal
         )
     }
 

@@ -418,4 +418,10 @@
         <item quantity="one">%1$d note</item>
         <item quantity="other">%1$d notes</item>
     </plurals>
+    <string name="reader_search_in_original">Search in original</string>
+    <string name="reader_search_in_original_title">Results for \"%1$s\"</string>
+    <string name="reader_search_in_original_no_results">No results found in original subtitles</string>
+    <string name="reader_search_in_original_close">Close</string>
+    <string name="reader_search_in_original_segment">Segment %1$d of %2$d</string>
+    <string name="reader_open_in_youtube">Open in YouTube</string>
 </resources>

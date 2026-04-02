@@ -1,5 +1,6 @@
 package com.deedeedev.ytreader.ui.reader
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +14,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -21,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -597,6 +601,92 @@ internal fun JumpToTimeDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(cancelLabel)
+            }
+        }
+    )
+}
+
+@Composable
+internal fun SearchInOriginalDialog(
+    query: String,
+    results: List<SearchInOriginalResult>,
+    totalSegments: Int,
+    onSelectResult: (SearchInOriginalResult) -> Unit,
+    onOpenInYoutube: (SearchInOriginalResult) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val title = stringResource(R.string.reader_search_in_original_title, query.take(40))
+    val noResultsLabel = stringResource(R.string.reader_search_in_original_no_results)
+    val closeLabel = stringResource(R.string.reader_search_in_original_close)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, maxLines = 2) },
+        text = {
+            if (results.isEmpty()) {
+                Text(noResultsLabel)
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                ) {
+                    items(results) { result ->
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                                .clickable { onSelectResult(result) },
+                            shape = MaterialTheme.shapes.medium,
+                            tonalElevation = 2.dp
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = formatTime(result.startTime),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.secondary,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    IconButton(
+                                        onClick = { onOpenInYoutube(result) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                            contentDescription = stringResource(R.string.reader_open_in_youtube),
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.secondary
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = result.excerpt,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Text(
+                                    text = stringResource(
+                                        R.string.reader_search_in_original_segment,
+                                        result.segmentIndex + 1,
+                                        totalSegments
+                                    ),
+                                    modifier = Modifier.padding(top = 4.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(closeLabel)
             }
         }
     )

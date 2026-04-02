@@ -206,4 +206,73 @@ class ReaderFindTest {
         assertEquals(original, replaceSingleMatch(original, 3, 2, "x"))
         assertEquals(original, replaceSingleMatch(original, 0, 99, "x"))
     }
+
+    @Test
+    fun `findLiteralInSegments returns empty for blank query`() {
+        val segments = listOf(SubtitleSegment(0, 1000, "hello world"))
+        assertEquals(emptyList<SearchInOriginalResult>(), findLiteralInSegments("", segments, "..."))
+        assertEquals(emptyList<SearchInOriginalResult>(), findLiteralInSegments("   ", segments, "..."))
+    }
+
+    @Test
+    fun `findLiteralInSegments returns empty for empty segments`() {
+        assertEquals(emptyList<SearchInOriginalResult>(), findLiteralInSegments("hello", emptyList(), "..."))
+    }
+
+    @Test
+    fun `findLiteralInSegments returns empty when no matches`() {
+        val segments = listOf(SubtitleSegment(0, 1000, "hello world"))
+        assertEquals(emptyList<SearchInOriginalResult>(), findLiteralInSegments("xyz", segments, "..."))
+    }
+
+    @Test
+    fun `findLiteralInSegments finds single match with correct offsets`() {
+        val segments = listOf(SubtitleSegment(0, 1000, "hello world"))
+        val results = findLiteralInSegments("world", segments, "...")
+        assertEquals(1, results.size)
+        assertEquals(0, results[0].segmentIndex)
+        assertEquals(0L, results[0].startTime)
+        assertEquals(6, results[0].matchStart)
+        assertEquals(11, results[0].matchEnd)
+    }
+
+    @Test
+    fun `findLiteralInSegments returns one result per segment`() {
+        val segments = listOf(
+            SubtitleSegment(0, 1000, "hello there"),
+            SubtitleSegment(1000, 2000, "hello again")
+        )
+        val results = findLiteralInSegments("hello", segments, "...")
+        assertEquals(2, results.size)
+        assertEquals(0, results[0].segmentIndex)
+        assertEquals(1, results[1].segmentIndex)
+    }
+
+    @Test
+    fun `findLiteralInSegments is case insensitive`() {
+        val segments = listOf(
+            SubtitleSegment(0, 1000, "Hello World"),
+            SubtitleSegment(1000, 2000, "HELLO AGAIN")
+        )
+        val results = findLiteralInSegments("hello", segments, "...")
+        assertEquals(2, results.size)
+    }
+
+    @Test
+    fun `findLiteralInSegments escapes regex special characters`() {
+        val segments = listOf(SubtitleSegment(0, 1000, "hello.world"))
+        val results = findLiteralInSegments("hello.world", segments, "...")
+        assertEquals(1, results.size)
+        val noResults = findLiteralInSegments("helloXworld", segments, "...")
+        assertEquals(0, noResults.size)
+    }
+
+    @Test
+    fun `findLiteralInSegments returns only first match per segment`() {
+        val segments = listOf(SubtitleSegment(0, 1000, "hello hello hello"))
+        val results = findLiteralInSegments("hello", segments, "...")
+        assertEquals(1, results.size)
+        assertEquals(0, results[0].matchStart)
+        assertEquals(5, results[0].matchEnd)
+    }
 }

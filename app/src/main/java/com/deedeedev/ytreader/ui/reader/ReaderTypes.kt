@@ -83,3 +83,11 @@ internal data class InteractiveReplaceState(
     val isCaseSensitive: Boolean,
     val totalReplacements: Int = 0
 )
+
+internal data class SearchInOriginalResult(
+    val segmentIndex: Int,
+    val startTime: Long,
+    val excerpt: String,
+    val matchStart: Int,
+    val matchEnd: Int
+)

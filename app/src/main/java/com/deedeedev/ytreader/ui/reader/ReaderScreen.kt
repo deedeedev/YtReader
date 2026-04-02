@@ -180,6 +180,9 @@ internal fun ReaderScreen(
     var replaceText by rememberSaveable { mutableStateOf("") }
     var isCaseSensitive by rememberSaveable { mutableStateOf(false) }
     var interactiveReplaceState by remember { mutableStateOf<InteractiveReplaceState?>(null) }
+    var searchInOriginalResults by remember { mutableStateOf<List<SearchInOriginalResult>>(emptyList()) }
+    var showSearchInOriginalDialog by remember { mutableStateOf(false) }
+    var searchInOriginalQuery by remember { mutableStateOf("") }
     var showAiPreviewDialog by remember { mutableStateOf(false) }
     var showAiErrorDialog by remember { mutableStateOf(false) }
     var pendingAiCleaningSourceText by remember { mutableStateOf<String?>(null) }
@@ -1332,6 +1335,21 @@ internal fun ReaderScreen(
             dismissHighlightNoteDialog()
             studyTextView?.clearSelection()
         },
+        showSearchInOriginal = readerMode == ReaderMode.STUDY && !isEditing,
+        onSearchInOriginal = {
+            val range = selectionRange ?: return@ReaderScreenMainLayer
+            val query = uiState.content.substring(range.start, range.end)
+            val results = findLiteralInSegments(
+                query = query,
+                segments = originalSegments,
+                excerptEllipsis = context.getString(R.string.reader_excerpt_ellipsis)
+            )
+            searchInOriginalQuery = query
+            searchInOriginalResults = results
+            showSearchInOriginalDialog = true
+            selectionRange = null
+            studyTextView?.clearSelection()
+        },
         onBookmarkTapped = { bookmark ->
             suppressSelectionToolbar = false
             clearSearchResultsMode()
@@ -1618,4 +1636,26 @@ internal fun ReaderScreen(
         snackbarHostState = snackbarHostState,
         coroutineScope = coroutineScope
     )
+
+    if (showSearchInOriginalDialog) {
+        SearchInOriginalDialog(
+            query = searchInOriginalQuery,
+            results = searchInOriginalResults,
+            totalSegments = originalSegments.size,
+            onSelectResult = { result ->
+                showSearchInOriginalDialog = false
+                registerProgrammaticJump(ReaderJumpReason.SEARCH)
+                readerMode = ReaderMode.ORIGINAL
+                coroutineScope.launch {
+                    originalListState.scrollToItem(result.segmentIndex)
+                }
+            },
+            onOpenInYoutube = { result ->
+                openOriginalTimestamp(subtitle.videoId, result.startTime)
+            },
+            onDismiss = {
+                showSearchInOriginalDialog = false
+            }
+        )
+    }
 }

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.automirrored.filled.StickyNote2
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,10 +43,13 @@ internal fun HighlightSelectionToolbar(
     onNoteClick: () -> Unit,
     hasNote: Boolean,
     showDelete: Boolean,
-    onDeleteHighlight: () -> Unit
+    onDeleteHighlight: () -> Unit,
+    showSearchInOriginal: Boolean = false,
+    onSearchInOriginal: () -> Unit = {}
 ) {
     val editNoteLabel = stringResource(R.string.reader_edit_note)
     val deleteHighlightLabel = stringResource(R.string.reader_remove_highlight)
+    val searchInOriginalLabel = stringResource(R.string.reader_search_in_original)
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.extraLarge,
@@ -60,6 +64,23 @@ internal fun HighlightSelectionToolbar(
             HighlightColorButton(color = HighlightColor.BLUE, onClick = onColorSelected)
             HighlightColorButton(color = HighlightColor.GREEN, onClick = onColorSelected)
             HighlightColorButton(color = HighlightColor.YELLOW, onClick = onColorSelected)
+            if (showSearchInOriginal) {
+                FilledTonalButton(
+                    onClick = onSearchInOriginal,
+                    modifier = Modifier.size(44.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    ),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = searchInOriginalLabel
+                    )
+                }
+            }
             FilledTonalButton(
                 onClick = onNoteClick,
                 modifier = Modifier.size(44.dp),
