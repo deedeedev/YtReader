@@ -15,6 +15,7 @@ import com.deedeedev.ytreader.data.local.HighlightNoteEntity
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.domain.SubtitleParser
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class ReaderUiState(
     val subtitle: SubtitleEntity? = null,
@@ -165,59 +167,86 @@ class ReaderViewModel(
         val hasAnnotations = oldHighlights.isNotEmpty() || oldBookmarks.isNotEmpty()
         val textChanged = oldContent != content
 
-        val remapResult = if (textChanged && hasAnnotations) {
-            remapAnnotations(oldContent, content, oldHighlights, oldBookmarks)
-        } else null
+        if (!textChanged) {
+            return
+        }
 
-        val newHighlights = remapResult?.highlights ?: if (textChanged) emptyList() else oldHighlights
-        val newBookmarks = remapResult?.bookmarks ?: if (textChanged) emptyList() else oldBookmarks
+        if (!hasAnnotations) {
+            val newHighlights = emptyList<TextHighlight>()
+            val newBookmarks = emptyList<BookmarkEntity>()
 
-        _uiState.update { state ->
-            state.copy(
-                content = content,
-                highlights = newHighlights,
-                subtitle = state.subtitle?.copy(
-                    studyContent = content,
-                    highlights = serializeHighlights(newHighlights)
+            _uiState.update { state ->
+                state.copy(
+                    content = content,
+                    highlights = newHighlights,
+                    subtitle = state.subtitle?.copy(
+                        studyContent = content,
+                        highlights = serializeHighlights(newHighlights)
+                    )
                 )
-            )
+            }
+
+            viewModelScope.launch {
+                subtitleDao.updateStudyContent(subtitleId, content)
+                subtitleDao.updateHighlights(subtitleId = subtitleId, serializeHighlights(newHighlights))
+                highlightNoteDao.deleteBySubtitleId(subtitleId)
+                bookmarkDao.deleteBySubtitleId(subtitleId)
+            }
+            return
         }
 
         viewModelScope.launch {
+            val oldContentSnapshot = oldContent
+            val remapResult = withContext(Dispatchers.Default) {
+                remapAnnotations(oldContentSnapshot, content, oldHighlights, oldBookmarks)
+            }
+
+            val newHighlights = remapResult.highlights
+            val newBookmarks = remapResult.bookmarks
+
+            _uiState.update { state ->
+                state.copy(
+                    content = content,
+                    highlights = newHighlights,
+                    subtitle = state.subtitle?.copy(
+                        studyContent = content,
+                        highlights = serializeHighlights(newHighlights)
+                    )
+                )
+            }
+
             subtitleDao.updateStudyContent(subtitleId, content)
             subtitleDao.updateHighlights(subtitleId = subtitleId, serializeHighlights(newHighlights))
 
             highlightNoteDao.deleteBySubtitleId(subtitleId)
             bookmarkDao.deleteBySubtitleId(subtitleId)
 
-            remapResult?.let { result ->
-                val timestamp = System.currentTimeMillis()
+            val timestamp = System.currentTimeMillis()
 
-                result.highlights.filter { it.note != null }.forEach { highlight ->
-                    highlightNoteDao.upsert(
-                        HighlightNoteEntity(
-                            subtitleId = subtitleId,
-                            highlightStart = highlight.start,
-                            highlightEnd = highlight.end,
-                            noteText = highlight.note!!,
-                            createdAt = timestamp,
-                            updatedAt = timestamp
-                        )
+            remapResult.highlights.filter { it.note != null }.forEach { highlight ->
+                highlightNoteDao.upsert(
+                    HighlightNoteEntity(
+                        subtitleId = subtitleId,
+                        highlightStart = highlight.start,
+                        highlightEnd = highlight.end,
+                        noteText = highlight.note!!,
+                        createdAt = timestamp,
+                        updatedAt = timestamp
                     )
-                }
+                )
+            }
 
-                result.bookmarks.forEach { bookmark ->
-                    bookmarkDao.upsert(
-                        BookmarkEntity(
-                            id = bookmark.id,
-                            subtitleId = subtitleId,
-                            anchorStart = bookmark.anchorStart,
-                            title = bookmark.title,
-                            createdAt = bookmark.createdAt,
-                            updatedAt = timestamp
-                        )
+            newBookmarks.forEach { bookmark ->
+                bookmarkDao.upsert(
+                    BookmarkEntity(
+                        id = bookmark.id,
+                        subtitleId = subtitleId,
+                        anchorStart = bookmark.anchorStart,
+                        title = bookmark.title,
+                        createdAt = bookmark.createdAt,
+                        updatedAt = timestamp
                     )
-                }
+                )
             }
         }
     }
