@@ -1335,6 +1335,7 @@ internal fun ReaderScreen(
             dismissHighlightNoteDialog()
             studyTextView?.clearSelection()
         },
+        selectedColor = activeHighlight?.color ?: HighlightColor.RED,
         showSearchInOriginal = readerMode == ReaderMode.STUDY && !isEditing,
         onSearchInOriginal = {
             val range = selectionRange ?: return@ReaderScreenMainLayer

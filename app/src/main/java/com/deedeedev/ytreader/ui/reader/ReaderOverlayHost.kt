@@ -26,6 +26,7 @@ internal fun BoxScope.ReaderOverlayHost(
     selectionHasNote: Boolean,
     onDeleteHighlight: () -> Unit,
     hasActiveHighlight: Boolean,
+    selectedColor: HighlightColor = HighlightColor.RED,
     showSearchInOriginal: Boolean,
     onSearchInOriginal: () -> Unit,
     showSearchResultsToolbar: Boolean,
@@ -67,7 +68,8 @@ internal fun BoxScope.ReaderOverlayHost(
             showDelete = hasActiveHighlight,
             onDeleteHighlight = onDeleteHighlight,
             showSearchInOriginal = showSearchInOriginal,
-            onSearchInOriginal = onSearchInOriginal
+            onSearchInOriginal = onSearchInOriginal,
+            selectedColor = selectedColor
         )
     }
 

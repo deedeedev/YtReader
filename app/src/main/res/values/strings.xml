@@ -146,6 +146,7 @@
     <string name="reader_previous_search_result">Previous search result</string>
     <string name="reader_regex">Regex</string>
     <string name="reader_remove_highlight">Delete highlight</string>
+    <string name="reader_select_color">Select highlight color</string>
     <string name="reader_remove_note">Remove note</string>
     <string name="reader_replace">Replace</string>
     <string name="reader_replace_all">Replace All</string>

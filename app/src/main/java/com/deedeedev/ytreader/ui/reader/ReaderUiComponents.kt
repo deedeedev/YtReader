@@ -1,8 +1,15 @@
 package com.deedeedev.ytreader.ui.reader
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import android.graphics.Color as AndroidColor
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -27,15 +34,25 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deedeedev.ytreader.R
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun HighlightSelectionToolbar(
     modifier: Modifier = Modifier,
@@ -45,11 +62,15 @@ internal fun HighlightSelectionToolbar(
     showDelete: Boolean,
     onDeleteHighlight: () -> Unit,
     showSearchInOriginal: Boolean = false,
-    onSearchInOriginal: () -> Unit = {}
+    onSearchInOriginal: () -> Unit = {},
+    selectedColor: HighlightColor = HighlightColor.RED
 ) {
+    val expanded = rememberSaveable { mutableStateOf(false) }
+    var currentColor by remember { mutableStateOf(selectedColor) }
     val editNoteLabel = stringResource(R.string.reader_edit_note)
     val deleteHighlightLabel = stringResource(R.string.reader_remove_highlight)
     val searchInOriginalLabel = stringResource(R.string.reader_search_in_original)
+    val selectColorLabel = stringResource(R.string.reader_select_color)
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.extraLarge,
@@ -60,14 +81,49 @@ internal fun HighlightSelectionToolbar(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            HighlightColorButton(color = HighlightColor.RED, onClick = onColorSelected)
-            HighlightColorButton(color = HighlightColor.BLUE, onClick = onColorSelected)
-            HighlightColorButton(color = HighlightColor.GREEN, onClick = onColorSelected)
-            HighlightColorButton(color = HighlightColor.YELLOW, onClick = onColorSelected)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AnimatedVisibility(
+                    visible = expanded.value,
+                    enter = expandVertically(),
+                    exit = shrinkVertically()
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    ) {
+                        HighlightColor.entries.forEach { color ->
+                            HighlightColorButton(
+                                color = color,
+                                onClick = { clickedColor ->
+                                    currentColor = clickedColor
+                                    onColorSelected(clickedColor)
+                                    expanded.value = false
+                                }
+                            )
+                        }
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(MaterialTheme.shapes.extraLarge)
+                        .background(highlightButtonColor(currentColor))
+                        .combinedClickable(
+                            onClick = {
+                                onColorSelected(currentColor)
+                                expanded.value = false
+                            },
+                            onLongClick = { expanded.value = true }
+                        )
+                        .semantics { contentDescription = selectColorLabel }
+                )
+            }
             if (showSearchInOriginal) {
                 FilledTonalButton(
                     onClick = onSearchInOriginal,
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(44.dp).align(Alignment.Bottom),
                     shape = MaterialTheme.shapes.extraLarge,
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
@@ -83,7 +139,7 @@ internal fun HighlightSelectionToolbar(
             }
             FilledTonalButton(
                 onClick = onNoteClick,
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier.size(44.dp).align(Alignment.Bottom),
                 shape = MaterialTheme.shapes.extraLarge,
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = if (hasNote) {
@@ -107,7 +163,7 @@ internal fun HighlightSelectionToolbar(
             if (showDelete) {
                 FilledTonalButton(
                     onClick = onDeleteHighlight,
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(44.dp).align(Alignment.Bottom),
                     shape = MaterialTheme.shapes.extraLarge,
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer,
