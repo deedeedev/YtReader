@@ -39,7 +39,7 @@ fun <T> LibraryListSection(
 ) {
     val lazyListState = rememberLazyListState()
 
-    LaunchedEffect(initialScrollPosition) {
+    LaunchedEffect(initialScrollPosition, items.size) {
         initialScrollPosition?.let { (index, offset) ->
             if (items.isNotEmpty() && index < items.size) {
                 lazyListState.scrollToItem(index, offset)
