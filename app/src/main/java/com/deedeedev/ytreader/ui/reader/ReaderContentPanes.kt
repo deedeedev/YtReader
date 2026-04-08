@@ -16,7 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
@@ -265,6 +267,9 @@ internal fun ReaderStudyPane(
     val memoizedOnClearActiveHighlight by rememberUpdatedState(onClearActiveHighlight)
     val memoizedClearSelectionNow by rememberUpdatedState(clearSelectionNow)
     val memoizedOnUserDrag by rememberUpdatedState(onUserDrag)
+    val isStudyScrolling by remember {
+        derivedStateOf { studyScrollState.isScrollInProgress }
+    }
 
     if (isEditing) {
         androidx.compose.foundation.layout.Box(
@@ -336,6 +341,7 @@ internal fun ReaderStudyPane(
             },
             update = { textView ->
                 memoizedOnStudyTextViewReady(textView)
+                textView.setScrolling(isStudyScrolling)
                 textView.bindStudyContent(
                     fontSize = fontSize,
                     lineHeightMultiplier = lineHeightMultiplier,

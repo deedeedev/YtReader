@@ -95,21 +95,28 @@ class ReaderViewModel(
                         )
                     }
 
-                    _uiState.update {
-                        it.copy(
-                            subtitle = subtitle,
-                            content = content,
-                            originalParsedText = originalParsedText,
-                            highlights = highlights,
-                            bookmarks = bookmarks,
-                            fontSize = subtitle.fontSize,
-                            fontFamily = subtitle.fontFamily,
-                            isAiCleaning = subtitle.aiCleaningInProgress,
-                            pendingAiCleanedText = subtitle.aiCleaningPendingResult,
-                            aiCleaningErrorSummary = subtitle.aiCleaningErrorSummary,
-                            aiCleaningErrorLog = subtitle.aiCleaningErrorLog,
-                            isLoading = false
-                        )
+                    val current = _uiState.value
+                    val subtitleChanged = current.subtitle == null || current.subtitle.content != subtitle.content || current.subtitle.studyContent != subtitle.studyContent || current.subtitle.highlights != subtitle.highlights || current.subtitle.fontSize != subtitle.fontSize || current.subtitle.fontFamily != subtitle.fontFamily || current.subtitle.aiCleaningInProgress != subtitle.aiCleaningInProgress || current.subtitle.aiCleaningPendingResult != subtitle.aiCleaningPendingResult || current.subtitle.aiCleaningErrorSummary != subtitle.aiCleaningErrorSummary || current.subtitle.aiCleaningErrorLog != subtitle.aiCleaningErrorLog
+                    val highlightsChanged = current.highlights != highlights
+                    val bookmarksChanged = current.bookmarks != bookmarks
+
+                    if (subtitleChanged || highlightsChanged || bookmarksChanged || current.isLoading) {
+                        _uiState.update {
+                            it.copy(
+                                subtitle = subtitle,
+                                content = content,
+                                originalParsedText = originalParsedText,
+                                highlights = highlights,
+                                bookmarks = bookmarks,
+                                fontSize = subtitle.fontSize,
+                                fontFamily = subtitle.fontFamily,
+                                isAiCleaning = subtitle.aiCleaningInProgress,
+                                pendingAiCleanedText = subtitle.aiCleaningPendingResult,
+                                aiCleaningErrorSummary = subtitle.aiCleaningErrorSummary,
+                                aiCleaningErrorLog = subtitle.aiCleaningErrorLog,
+                                isLoading = false
+                            )
+                        }
                     }
                 } else {
                     _uiState.update { it.copy(isLoading = false) }

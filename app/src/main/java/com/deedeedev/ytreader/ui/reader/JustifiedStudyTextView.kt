@@ -60,6 +60,10 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     private val rangePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
     }
+    private val visibleRect = Rect()
+    private val bookmarkPath = Path()
+    private var cachedBookmarkBounds: List<BookmarkMarkerBounds>? = null
+    private var cachedBookmarkBoundsKey: String = ""
     private var cachedLayoutWidth = -1
     private var layoutDirty = true
     private var selectionRange: TextRange? = null
@@ -115,17 +119,20 @@ class JustifiedStudyTextView @JvmOverloads constructor(
             canvas.drawColor(backgroundColorInt)
         }
         val textLayout = layout ?: return
+        getLocalVisibleRect(visibleRect)
+        val visTop = visibleRect.top - paddingTop
+        val visBottom = visibleRect.bottom - paddingTop
         canvas.save()
         canvas.translate(paddingLeft.toFloat(), paddingTop.toFloat())
 
-        drawHighlightBackgrounds(canvas, textLayout)
-        drawSearchResultBackground(canvas, textLayout)
-        drawSelectionBackground(canvas, textLayout)
+        drawHighlightBackgrounds(canvas, textLayout, visTop, visBottom)
+        drawSearchResultBackground(canvas, textLayout, visTop, visBottom)
+        drawSelectionBackground(canvas, textLayout, visTop, visBottom)
 
         textLayout.draw(canvas)
 
-        drawBookmarkIndicators(canvas, textLayout)
-        drawHighlightNoteIndicators(canvas, textLayout)
+        drawBookmarkIndicators(canvas, textLayout, visTop, visBottom)
+        drawHighlightNoteIndicators(canvas, textLayout, visTop, visBottom)
         selectionHandleVisuals(textLayout).forEach { handle ->
             drawHandle(canvas, handle)
         }
@@ -198,14 +205,13 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         searchResultColor: Int
     ) {
         val contentChanged = this.content != content
-        this.content = content
-        this.highlights = highlights
+        val newHighlights = highlights
             .mapNotNull { highlight ->
                 val start = highlight.start.coerceIn(0, content.length)
                 val end = highlight.end.coerceIn(0, content.length)
                 if (end <= start) null else highlight.copy(start = start, end = end)
             }
-        this.bookmarks = bookmarks.mapNotNull { bookmark ->
+        val newBookmarks = bookmarks.mapNotNull { bookmark ->
             val boundedAnchor = bookmark.anchorStart.coerceIn(0, content.length)
             if (content.isEmpty() || boundedAnchor >= content.length) {
                 null
@@ -213,26 +219,39 @@ class JustifiedStudyTextView @JvmOverloads constructor(
                 bookmark.copy(anchorStart = boundedAnchor)
             }
         }
+        val newSearchResultRange = searchResultRange?.let { range ->
+            val start = range.start.coerceIn(0, content.length)
+            val end = range.end.coerceIn(0, content.length)
+            if (end <= start) null else TextRange(start, end)
+        }
+        val highlightsChanged = this.highlights != newHighlights
+        val bookmarksChanged = this.bookmarks != newBookmarks
+        val colorsChanged = this.redColor != redColor || this.blueColor != blueColor || this.greenColor != greenColor || this.yellowColor != yellowColor || this.searchResultColor != searchResultColor
+        val searchChanged = this.searchResultRange != newSearchResultRange
+        val needsInvalidate = contentChanged || highlightsChanged || bookmarksChanged || colorsChanged || searchChanged
+
+        this.content = content
+        this.highlights = newHighlights
+        this.bookmarks = newBookmarks
         this.redColor = redColor
         this.blueColor = blueColor
         this.greenColor = greenColor
         this.yellowColor = yellowColor
         this.searchResultColor = searchResultColor
-        this.searchResultRange = searchResultRange?.let { range ->
-            val start = range.start.coerceIn(0, content.length)
-            val end = range.end.coerceIn(0, content.length)
-            if (end <= start) null else TextRange(start, end)
-        }
+        this.searchResultRange = newSearchResultRange
         selectionRange = selectionRange?.let { range ->
             val start = range.start.coerceIn(0, content.length)
             val end = range.end.coerceIn(0, content.length)
             if (end > start) TextRange(start, end) else null
         }
+        invalidateBookmarkBoundsCache()
         if (contentChanged) {
             layoutDirty = true
             requestLayout()
         }
-        invalidate()
+        if (needsInvalidate) {
+            invalidate()
+        }
     }
 
     fun clearSelection() {
@@ -333,6 +352,13 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         textPaint.color = textColor
         backgroundColorInt = backgroundColor
         invalidate()
+    }
+
+    fun setScrolling(isScrolling: Boolean) {
+        setLayerType(
+            if (isScrolling) LAYER_TYPE_HARDWARE else LAYER_TYPE_NONE,
+            null
+        )
     }
 
     fun hasActiveSelection(): Boolean {
@@ -481,7 +507,10 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         }
     }
 
-    private fun drawHighlightBackgrounds(canvas: Canvas, textLayout: StaticLayout) {
+    private fun drawHighlightBackgrounds(canvas: Canvas, textLayout: StaticLayout, visTop: Int, visBottom: Int) {
+        if (highlights.isEmpty() || content.isEmpty()) return
+        val visLineStart = textLayout.getLineForVertical(visTop.coerceAtLeast(0))
+        val visLineEnd = textLayout.getLineForVertical(visBottom.coerceAtLeast(0))
         highlights.forEach { highlight ->
             val color = when (highlight.color) {
                 HighlightColor.RED -> redColor
@@ -489,18 +518,37 @@ class JustifiedStudyTextView @JvmOverloads constructor(
                 HighlightColor.GREEN -> greenColor
                 HighlightColor.YELLOW -> yellowColor
             }
+            val hlStartLine = textLayout.getLineForOffset(highlight.start)
+            if (hlStartLine > visLineEnd) return@forEach
+            val hlEndCharOffset = (highlight.end - 1).coerceIn(0, content.length - 1)
+            val hlEndLine = textLayout.getLineForOffset(hlEndCharOffset)
+            if (hlEndLine < visLineStart) return@forEach
             drawRangeBackground(canvas, textLayout, highlight.start, highlight.end, color)
         }
     }
 
-    private fun drawSearchResultBackground(canvas: Canvas, textLayout: StaticLayout) {
+    private fun drawSearchResultBackground(canvas: Canvas, textLayout: StaticLayout, visTop: Int, visBottom: Int) {
         searchResultRange?.let { range ->
+            val visLineStart = textLayout.getLineForVertical(visTop.coerceAtLeast(0))
+            val visLineEnd = textLayout.getLineForVertical(visBottom.coerceAtLeast(0))
+            val startLine = textLayout.getLineForOffset(range.start)
+            if (startLine > visLineEnd) return
+            val endCharOffset = (range.end - 1).coerceIn(0, content.length - 1)
+            val endLine = textLayout.getLineForOffset(endCharOffset)
+            if (endLine < visLineStart) return
             drawRangeBackground(canvas, textLayout, range.start, range.end, searchResultColor)
         }
     }
 
-    private fun drawSelectionBackground(canvas: Canvas, textLayout: StaticLayout) {
+    private fun drawSelectionBackground(canvas: Canvas, textLayout: StaticLayout, visTop: Int, visBottom: Int) {
         selectionRange?.let { range ->
+            val visLineStart = textLayout.getLineForVertical(visTop.coerceAtLeast(0))
+            val visLineEnd = textLayout.getLineForVertical(visBottom.coerceAtLeast(0))
+            val startLine = textLayout.getLineForOffset(range.start)
+            if (startLine > visLineEnd) return
+            val endCharOffset = (range.end - 1).coerceIn(0, content.length - 1)
+            val endLine = textLayout.getLineForOffset(endCharOffset)
+            if (endLine < visLineStart) return
             drawRangeBackground(canvas, textLayout, range.start, range.end, selectionColor)
         }
     }
@@ -521,15 +569,18 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         )
     }
 
-    private fun drawHighlightNoteIndicators(canvas: Canvas, textLayout: StaticLayout) {
-        if (content.isEmpty()) return
+    private fun drawHighlightNoteIndicators(canvas: Canvas, textLayout: StaticLayout, visTop: Int, visBottom: Int) {
+        if (content.isEmpty() || highlights.isEmpty()) return
         val radius = dpToPx(4.5f)
         val horizontalGap = dpToPx(5f)
         val topInset = dpToPx(4f)
+        val visLineStart = textLayout.getLineForVertical(visTop.coerceAtLeast(0))
+        val visLineEnd = textLayout.getLineForVertical(visBottom.coerceAtLeast(0))
         highlights.forEach { highlight ->
             if (highlight.note.isNullOrBlank()) return@forEach
             val startOffset = highlight.start.coerceIn(0, content.lastIndex)
             val line = textLayout.getLineForOffset(startOffset)
+            if (line > visLineEnd || line < visLineStart) return@forEach
             val lineRight = textLayout.getLineRight(line)
             val lineLeft = textLayout.getLineLeft(line)
             val rangeStartX = textLayout.getPrimaryHorizontal(startOffset)
@@ -543,20 +594,23 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         }
     }
 
-    private fun drawBookmarkIndicators(canvas: Canvas, textLayout: StaticLayout) {
+    private fun drawBookmarkIndicators(canvas: Canvas, textLayout: StaticLayout, visTop: Int, visBottom: Int) {
         if (content.isEmpty() || bookmarks.isEmpty()) return
+        val visLineStart = textLayout.getLineForVertical(visTop.coerceAtLeast(0))
+        val visLineEnd = textLayout.getLineForVertical(visBottom.coerceAtLeast(0))
         bookmarkMarkerBounds(textLayout).forEach { marker ->
+            val line = textLayout.getLineForOffset(marker.bookmark.anchorStart.coerceIn(0, content.lastIndex))
+            if (line > visLineEnd || line < visLineStart) return@forEach
             val centerX = marker.left + (bookmarkMarkerWidthPx() / 2f)
-            val path = Path().apply {
-                moveTo(marker.left, marker.top)
-                lineTo(marker.right, marker.top)
-                lineTo(marker.right, marker.bottom)
-                lineTo(centerX, marker.bottom - bookmarkMarkerNotchDepthPx())
-                lineTo(marker.left, marker.bottom)
-                close()
-            }
-            canvas.drawPath(path, noteIndicatorPaint)
-            canvas.drawPath(path, noteIndicatorStrokePaint)
+            bookmarkPath.reset()
+            bookmarkPath.moveTo(marker.left, marker.top)
+            bookmarkPath.lineTo(marker.right, marker.top)
+            bookmarkPath.lineTo(marker.right, marker.bottom)
+            bookmarkPath.lineTo(centerX, marker.bottom - bookmarkMarkerNotchDepthPx())
+            bookmarkPath.lineTo(marker.left, marker.bottom)
+            bookmarkPath.close()
+            canvas.drawPath(bookmarkPath, noteIndicatorPaint)
+            canvas.drawPath(bookmarkPath, noteIndicatorStrokePaint)
         }
     }
 
@@ -574,11 +628,15 @@ class JustifiedStudyTextView @JvmOverloads constructor(
 
     private fun bookmarkMarkerBounds(textLayout: StaticLayout): List<BookmarkMarkerBounds> {
         if (content.isEmpty() || bookmarks.isEmpty()) return emptyList()
+        val key = "${bookmarks.size}_${bookmarks.hashCode()}_${textLayout.width}"
+        if (cachedBookmarkBounds != null && cachedBookmarkBoundsKey == key) {
+            return cachedBookmarkBounds!!
+        }
         val markerWidth = bookmarkMarkerWidthPx()
         val markerHeight = bookmarkMarkerHeightPx()
         val topInset = bookmarkMarkerTopInsetPx()
         val endInset = bookmarkMarkerEndInsetPx()
-        return bookmarks.map { bookmark ->
+        val result = bookmarks.map { bookmark ->
             val line = textLayout.getLineForOffset(bookmark.anchorStart.coerceIn(0, content.lastIndex))
             val top = (textLayout.getLineTop(line) + topInset)
                 .coerceAtMost(textLayout.getLineBottom(line) - markerHeight)
@@ -591,6 +649,14 @@ class JustifiedStudyTextView @JvmOverloads constructor(
                 bottom = top + markerHeight
             )
         }
+        cachedBookmarkBounds = result
+        cachedBookmarkBoundsKey = key
+        return result
+    }
+
+    private fun invalidateBookmarkBoundsCache() {
+        cachedBookmarkBounds = null
+        cachedBookmarkBoundsKey = ""
     }
 
     private fun bookmarkMarkerWidthPx(): Float = dpToPx(10f)
