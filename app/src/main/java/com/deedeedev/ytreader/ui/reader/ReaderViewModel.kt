@@ -429,7 +429,7 @@ class ReaderViewModel(
         }
 
         return try {
-            subtitleDao.markAiCleaningQueued(subtitleId)
+            subtitleDao.markAiCleaningQueued(subtitleId, inputText, System.currentTimeMillis())
             AiCleaningWorkScheduler.enqueue(appContext, subtitleId)
             Result.success(Unit)
         } catch (error: Exception) {

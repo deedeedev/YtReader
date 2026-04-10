@@ -357,7 +357,21 @@ interface SubtitleDao {
     @Query("UPDATE subtitles SET lastOpenedAt = :openedAt WHERE id = :id")
     suspend fun updateLastOpenedAt(id: Long, openedAt: Long)
 
-    @Query("UPDATE subtitles SET content = :content, createdAt = :createdAt WHERE id = :id")
+    @Query(
+        """
+        UPDATE subtitles SET
+            content = :content,
+            createdAt = :createdAt,
+            studyContent = NULL,
+            highlights = '',
+            lastTimestamp = 0,
+            lastStudyScroll = 0,
+            readingProgressPercent = 0,
+            currentPage = 0,
+            totalPages = 0
+        WHERE id = :id
+        """
+    )
     suspend fun replaceContentForRedownload(id: Long, content: String, createdAt: Long)
 
     @Query("UPDATE subtitles SET readingProgressPercent = 0, currentPage = 0 WHERE videoId = :videoId")
@@ -393,17 +407,17 @@ interface SubtitleDao {
     @Query("UPDATE subtitles SET studyContent = :studyContent WHERE id = :subtitleId")
     suspend fun updateStudyContent(subtitleId: Long, studyContent: String)
 
-    @Query("UPDATE subtitles SET aiCleaningInProgress = 1 WHERE id = :subtitleId")
-    suspend fun markAiCleaningQueued(subtitleId: Long)
+    @Query("UPDATE subtitles SET aiCleaningInProgress = 1, aiCleaningSourceText = :sourceText, aiCleaningErrorSummary = NULL, aiCleaningErrorLog = NULL, aiCleaningPendingResult = NULL, aiCleaningUpdatedAt = :updatedAt WHERE id = :subtitleId")
+    suspend fun markAiCleaningQueued(subtitleId: Long, sourceText: String, updatedAt: Long)
 
-    @Query("UPDATE subtitles SET aiCleaningPendingResult = :result, aiCleaningInProgress = 0, aiCleaningUpdatedAt = :updatedAt WHERE id = :subtitleId")
+    @Query("UPDATE subtitles SET aiCleaningPendingResult = :result, aiCleaningSourceText = NULL, aiCleaningInProgress = 0, aiCleaningUpdatedAt = :updatedAt WHERE id = :subtitleId")
     suspend fun storeAiCleaningResult(subtitleId: Long, result: String, updatedAt: Long)
 
-    @Query("UPDATE subtitles SET aiCleaningErrorSummary = :summary, aiCleaningErrorLog = :log, aiCleaningInProgress = 0, aiCleaningUpdatedAt = :updatedAt WHERE id = :subtitleId")
+    @Query("UPDATE subtitles SET aiCleaningErrorSummary = :summary, aiCleaningErrorLog = :log, aiCleaningSourceText = NULL, aiCleaningInProgress = 0, aiCleaningUpdatedAt = :updatedAt WHERE id = :subtitleId")
     suspend fun storeAiCleaningFailure(subtitleId: Long, summary: String?, log: String?, updatedAt: Long)
 
-    @Query("UPDATE subtitles SET aiCleaningInProgress = 0 WHERE id = :subtitleId")
-    suspend fun cancelAiCleaning(subtitleId: Long)
+    @Query("UPDATE subtitles SET aiCleaningInProgress = 0, aiCleaningSourceText = NULL, aiCleaningPendingResult = NULL, aiCleaningErrorSummary = NULL, aiCleaningErrorLog = NULL, aiCleaningUpdatedAt = :updatedAt WHERE id = :subtitleId")
+    suspend fun cancelAiCleaning(subtitleId: Long, updatedAt: Long)
 
     @Query("UPDATE subtitles SET aiCleaningPendingResult = NULL WHERE id = :subtitleId")
     suspend fun clearAiCleaningResult(subtitleId: Long)

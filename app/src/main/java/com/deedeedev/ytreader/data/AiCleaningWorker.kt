@@ -135,7 +135,8 @@ class AiCleaningWorker(
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
                 subtitleDao.cancelAiCleaning(
-                    subtitleId = subtitleId
+                    subtitleId = subtitleId,
+                    updatedAt = System.currentTimeMillis()
                 )
             }
             throw cancelled
@@ -348,7 +349,7 @@ internal suspend fun cancelAiCleaningWorkAndState(
     },
     cancelSubtitleState: suspend (Context, Long, Long) -> Unit = { context, subtitleId, updatedAt ->
         val container = (context as YtReaderApplication).container
-        container.subtitleDao.cancelAiCleaning(subtitleId = subtitleId)
+        container.subtitleDao.cancelAiCleaning(subtitleId = subtitleId, updatedAt = updatedAt)
     },
     cancelNotification: (Context, Int) -> Unit = { context, notificationId ->
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
