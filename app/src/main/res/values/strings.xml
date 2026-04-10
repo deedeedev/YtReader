@@ -2,8 +2,8 @@
     <string name="app_name">YtReader</string>
     <string name="ai_cleaning_started_notification_hint">AI cleaning started. Check notifications for progress.</string>
     <string name="ai_cleaning_failed">AI cleaning failed.</string>
-    <string name="ai_cleaning_menu_label">AI cleaning</string>
-    <string name="ai_cleaning_running_menu_label">AI cleaning...</string>
+    <string name="ai_cleaning_menu_label">AI Cleaning</string>
+    <string name="ai_cleaning_running_menu_label">AI Cleaning...</string>
     <string name="ai_cleaning_external_menu_label">AI Cleaning (ext)</string>
     <string name="ai_cleaning_external_share_title">Share AI cleaning prompt</string>
     <string name="ai_cleaning_external_nothing_to_share">Nothing to share.</string>
