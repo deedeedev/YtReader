@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
                     factory = LibraryViewModel.provideFactory(
                         appContainer.appContext,
                         appContainer.youtubeRepository,
+                        appContainer.database,
                         appContainer.subtitleDao,
                         appContainer.videoDao,
                         appContainer.highlightNoteDao,
@@ -90,6 +91,7 @@ class MainActivity : ComponentActivity() {
                     factory = CollectionsViewModel.provideFactory(
                         appContainer.appContext,
                         appContainer.youtubeRepository,
+                        appContainer.database,
                         appContainer.subtitleDao,
                         appContainer.videoDao,
                         appContainer.highlightNoteDao,

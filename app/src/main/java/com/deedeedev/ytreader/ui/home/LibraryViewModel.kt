@@ -4,12 +4,14 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.CollectionRepository
 import com.deedeedev.ytreader.data.PersistedLibraryFilters
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.YoutubeRepository
+import com.deedeedev.ytreader.data.local.AppDatabase
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
@@ -51,6 +53,7 @@ sealed interface LibraryEvent {
 class LibraryViewModel(
     private val appContext: Context,
     private val youtubeRepository: YoutubeRepository,
+    private val database: AppDatabase,
     private val subtitleDao: SubtitleDao,
     private val videoDao: VideoDao,
     private val highlightNoteDao: HighlightNoteDao,
@@ -162,11 +165,15 @@ class LibraryViewModel(
                     subtitleContent
                 }
 
-                subtitleDao.replaceContentForRedownload(
-                    id = subtitle.id,
-                    content = rawContent,
-                    createdAt = System.currentTimeMillis()
-                )
+                database.withTransaction {
+                    subtitleDao.replaceContentForRedownload(
+                        id = subtitle.id,
+                        content = rawContent,
+                        createdAt = System.currentTimeMillis()
+                    )
+                    highlightNoteDao.deleteBySubtitleId(subtitle.id)
+                    bookmarkDao.deleteBySubtitleId(subtitle.id)
+                }
                 upsertVideoMetadata(
                     videoDao = videoDao,
                     youtubeRepository = youtubeRepository,
@@ -178,8 +185,6 @@ class LibraryViewModel(
                     fallbackUploadDate = info.uploadDate?.instant?.toEpochMilli() ?: 0L,
                     info = info
                 )
-                highlightNoteDao.deleteBySubtitleId(subtitle.id)
-                bookmarkDao.deleteBySubtitleId(subtitle.id)
                 _uiState.update { it.copy(error = null) }
             } catch (e: Exception) {
                 _uiState.update {
@@ -367,6 +372,7 @@ class LibraryViewModel(
         fun provideFactory(
             appContext: Context,
             youtubeRepository: YoutubeRepository,
+            database: AppDatabase,
             subtitleDao: SubtitleDao,
             videoDao: VideoDao,
             highlightNoteDao: HighlightNoteDao,
@@ -379,6 +385,7 @@ class LibraryViewModel(
                 return LibraryViewModel(
                     appContext,
                     youtubeRepository,
+                    database,
                     subtitleDao,
                     videoDao,
                     highlightNoteDao,

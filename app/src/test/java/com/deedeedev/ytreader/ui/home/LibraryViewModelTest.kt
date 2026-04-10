@@ -8,6 +8,7 @@ import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
+import com.deedeedev.ytreader.data.local.AppDatabase
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
@@ -42,6 +43,7 @@ class LibraryViewModelTest {
 
     private lateinit var appContext: Context
     private lateinit var youtubeRepository: YoutubeRepository
+    private lateinit var database: AppDatabase
     private lateinit var subtitleDao: SubtitleDao
     private lateinit var videoDao: VideoDao
     private lateinit var highlightNoteDao: HighlightNoteDao
@@ -54,6 +56,7 @@ class LibraryViewModelTest {
     fun setUp() {
         appContext = mock()
         youtubeRepository = mock()
+        database = mock()
         subtitleDao = mock()
         videoDao = mock()
         highlightNoteDao = mock()
@@ -77,6 +80,7 @@ class LibraryViewModelTest {
         return LibraryViewModel(
             appContext,
             youtubeRepository,
+            database,
             subtitleDao,
             videoDao,
             highlightNoteDao,

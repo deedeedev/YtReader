@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit
 
 interface AppContainer {
     val appContext: Context
+    val database: AppDatabase
     val subtitleDao: SubtitleDao
     val videoDao: VideoDao
     val highlightNoteDao: HighlightNoteDao
@@ -41,7 +42,7 @@ class DefaultAppContainer(
     override val appContext: Context
         get() = context.applicationContext
 
-    private val database: AppDatabase by lazy {
+    override val database: AppDatabase by lazy {
         Room.databaseBuilder(
             context.applicationContext,
             AppDatabase::class.java,
