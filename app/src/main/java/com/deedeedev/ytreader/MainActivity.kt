@@ -18,7 +18,9 @@ import com.deedeedev.ytreader.data.LocaleHelper
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.ui.AppLanguage
 import com.deedeedev.ytreader.ui.MainScreen
-import com.deedeedev.ytreader.ui.home.HomeViewModel
+import com.deedeedev.ytreader.ui.home.SearchViewModel
+import com.deedeedev.ytreader.ui.home.LibraryViewModel
+import com.deedeedev.ytreader.ui.home.CollectionsViewModel
 import com.deedeedev.ytreader.ui.theme.YtReaderTheme
 
 class MainActivity : ComponentActivity() {
@@ -62,8 +64,18 @@ class MainActivity : ComponentActivity() {
             }
 
             YtReaderTheme(appTheme = appTheme) {
-                val viewModel: HomeViewModel = viewModel(
-                    factory = HomeViewModel.provideFactory(
+                val searchViewModel: SearchViewModel = viewModel(
+                    factory = SearchViewModel.provideFactory(
+                        appContainer.appContext,
+                        appContainer.youtubeRepository,
+                        appContainer.subtitleDao,
+                        appContainer.videoDao,
+                        appContainer.userPreferencesRepository,
+                        appContainer.searchHistoryDao
+                    )
+                )
+                val libraryViewModel: LibraryViewModel = viewModel(
+                    factory = LibraryViewModel.provideFactory(
                         appContainer.appContext,
                         appContainer.youtubeRepository,
                         appContainer.subtitleDao,
@@ -71,16 +83,27 @@ class MainActivity : ComponentActivity() {
                         appContainer.highlightNoteDao,
                         appContainer.bookmarkDao,
                         appContainer.userPreferencesRepository,
-                        appContainer.collectionRepository,
-                        appContainer.searchHistoryDao
+                        appContainer.collectionRepository
+                    )
+                )
+                val collectionsViewModel: CollectionsViewModel = viewModel(
+                    factory = CollectionsViewModel.provideFactory(
+                        appContainer.appContext,
+                        appContainer.youtubeRepository,
+                        appContainer.subtitleDao,
+                        appContainer.videoDao,
+                        appContainer.highlightNoteDao,
+                        appContainer.bookmarkDao,
+                        appContainer.userPreferencesRepository,
+                        appContainer.collectionRepository
                     )
                 )
 
                 LaunchedEffect(currentIntent) {
                     if (currentIntent?.action == Intent.ACTION_SEND && currentIntent.type == "text/plain") {
                         currentIntent.getStringExtra(Intent.EXTRA_TEXT)?.let { url ->
-                            viewModel.onUrlChange(url)
-                            viewModel.searchVideo()
+                            searchViewModel.onUrlChange(url)
+                            searchViewModel.searchVideo()
                         }
                     }
                 }
@@ -98,7 +121,9 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     },
-                    viewModel = viewModel,
+                    searchViewModel = searchViewModel,
+                    libraryViewModel = libraryViewModel,
+                    collectionsViewModel = collectionsViewModel,
                     requestedReaderSubtitleId = extractRequestedSubtitleId(currentIntent),
                     onReaderSubtitleHandled = {
                         val current = latestIntent

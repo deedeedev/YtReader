@@ -50,7 +50,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CollectionDetailScreen(
-    viewModel: HomeViewModel,
+    viewModel: CollectionsViewModel,
     collectionId: String,
     onSubtitleClick: (Long, Pair<Int, Int>) -> Unit,
     onVideoClick: (String, Pair<Int, Int>) -> Unit,
@@ -75,7 +75,7 @@ fun CollectionDetailScreen(
     LaunchedEffect(viewModel) {
         viewModel.events.collectLatest { event ->
             when (event) {
-                is HomeEvent.ShowMessage -> snackbarHostState.showSnackbar(
+                is CollectionsEvent.ShowMessage -> snackbarHostState.showSnackbar(
                     message = event.message,
                     duration = SnackbarDuration.Short
                 )

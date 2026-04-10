@@ -55,7 +55,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
-    viewModel: HomeViewModel,
+    viewModel: LibraryViewModel,
     onSubtitleClick: (Long, Pair<Int, Int>) -> Unit,
     onVideoClick: (String, Pair<Int, Int>) -> Unit,
     onVideoSearchAgain: (String) -> Unit,
@@ -81,7 +81,7 @@ fun LibraryScreen(
     LaunchedEffect(viewModel) {
         viewModel.events.collectLatest { event ->
             when (event) {
-                is HomeEvent.ShowMessage -> snackbarHostState.showSnackbar(
+                is LibraryEvent.ShowMessage -> snackbarHostState.showSnackbar(
                     message = event.message,
                     duration = SnackbarDuration.Short
                 )

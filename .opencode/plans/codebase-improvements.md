@@ -2,33 +2,6 @@
 
 ## HIGH PRIORITY
 
-### 1. Split `HomeViewModel` God Class (855 lines, 9 dependencies)
-
-This ViewModel serves **four** screens (Search, Library, Collections, CollectionDetail). Split into `SearchViewModel`, `LibraryViewModel`, and `CollectionsViewModel`.
-
-**Current constructor takes 9 parameters:**
-- `appContext`, `youtubeRepository`, `subtitleDao`, `videoDao`, `highlightNoteDao`, `bookmarkDao`, `userPreferencesRepository`, `collectionRepository`, `searchHistoryDao`
-
-**Responsibilities that should be separated:**
-- YouTube URL search and stream info fetching → `SearchViewModel`
-- Subtitle downloading and re-downloading → `SearchViewModel` or `LibraryViewModel`
-- Thumbnail downloading → `LibraryViewModel`
-- Library item management (add, remove, restore, delete) → `LibraryViewModel`
-- Collection CRUD, reordering, video assignment → `CollectionsViewModel`
-- Library filter/sort persistence → `LibraryViewModel`
-- Collection filter/sort persistence → `CollectionsViewModel`
-- Search history management → `SearchViewModel`
-- EPUB export delegation → `LibraryViewModel`
-- Reading progress management → `LibraryViewModel`
-- Annotation deletion on re-download → `LibraryViewModel`
-
-**Files affected:**
-- `app/src/main/java/com/deedeedev/ytreader/ui/home/HomeViewModel.kt`
-- `app/src/main/java/com/deedeedev/ytreader/ui/MainScreen.kt` (ViewModel wiring)
-- `app/src/main/java/com/deedeedev/ytreader/AppContainer.kt` (DI adjustments)
-
----
-
 ### 2. `runBlocking` on Main Thread (ANR Risk)
 
 **Location A — `AppContainer.kt:115-117`:**

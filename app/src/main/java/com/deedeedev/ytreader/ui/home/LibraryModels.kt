@@ -11,6 +11,17 @@ enum class ReadStatusFilter {
     ALL, READ, NOT_READ
 }
 
+enum class SortOption {
+    TITLE, CHANNEL_NAME, DATE_PUBLISHED, DOWNLOADED, LAST_OPENED
+}
+
+data class CollectionFilterState(
+    val selectedChannelFilter: String? = null,
+    val readStatusFilter: ReadStatusFilter = ReadStatusFilter.ALL,
+    val sortOption: SortOption = SortOption.DOWNLOADED,
+    val isAscending: Boolean = false
+)
+
 data class LibraryItem(
     val videoId: String,
     val videoUrl: String,

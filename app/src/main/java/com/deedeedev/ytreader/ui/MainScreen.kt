@@ -34,7 +34,9 @@ import com.deedeedev.ytreader.AppContainer
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.ui.annotations.AnnotationsScreen
 import com.deedeedev.ytreader.ui.annotations.AnnotationsViewModel
-import com.deedeedev.ytreader.ui.home.HomeViewModel
+import com.deedeedev.ytreader.ui.home.SearchViewModel
+import com.deedeedev.ytreader.ui.home.LibraryViewModel
+import com.deedeedev.ytreader.ui.home.CollectionsViewModel
 import com.deedeedev.ytreader.ui.home.CollectionDetailScreen
 import com.deedeedev.ytreader.ui.home.CollectionsScreen
 import com.deedeedev.ytreader.ui.home.LibraryScreen
@@ -95,19 +97,9 @@ fun MainScreen(
     onHomeRouteHandled: () -> Unit = {},
     requestedReaderSubtitleId: Long? = null,
     onReaderSubtitleHandled: () -> Unit = {},
-    viewModel: HomeViewModel = viewModel(
-        factory = HomeViewModel.provideFactory(
-            appContainer.appContext,
-            appContainer.youtubeRepository,
-            appContainer.subtitleDao,
-            appContainer.videoDao,
-            appContainer.highlightNoteDao,
-            appContainer.bookmarkDao,
-            appContainer.userPreferencesRepository,
-            appContainer.collectionRepository,
-            appContainer.searchHistoryDao
-        )
-    )
+    searchViewModel: SearchViewModel,
+    libraryViewModel: LibraryViewModel,
+    collectionsViewModel: CollectionsViewModel
 ) {
     val annotationsViewModel: AnnotationsViewModel = viewModel(
         factory = AnnotationsViewModel.provideFactory(
@@ -128,7 +120,7 @@ fun MainScreen(
 
     val openPreferredSubtitleForVideo: (String, Pair<Int, Int>) -> Unit = { videoId, scrollPosition ->
         coroutineScope.launch {
-            val subtitleId = viewModel.getPreferredSubtitleIdForVideo(videoId) ?: return@launch
+            val subtitleId = libraryViewModel.getPreferredSubtitleIdForVideo(videoId) ?: return@launch
             pendingReaderInitialLocation = null
             pendingReaderJumpBackState = null
             libraryScrollPosition = scrollPosition
@@ -140,7 +132,7 @@ fun MainScreen(
 
     val openPreferredSubtitleForVideoFromCollection: (String, Pair<Int, Int>) -> Unit = { videoId, scrollPosition ->
         coroutineScope.launch {
-            val subtitleId = viewModel.getPreferredSubtitleIdForVideo(videoId) ?: return@launch
+            val subtitleId = libraryViewModel.getPreferredSubtitleIdForVideo(videoId) ?: return@launch
             pendingReaderInitialLocation = null
             pendingReaderJumpBackState = null
             collectionScrollPosition = scrollPosition
@@ -151,8 +143,8 @@ fun MainScreen(
     }
 
     val searchVideoAgain: (String) -> Unit = { url ->
-        viewModel.onUrlChange(url)
-        viewModel.searchVideo()
+        searchViewModel.onUrlChange(url)
+        searchViewModel.searchVideo()
         navController.navigate(Screen.Search.route) {
             popUpTo(navController.graph.findStartDestination().id) {
                 saveState = true
@@ -239,7 +231,7 @@ fun MainScreen(
                 popExitTransition = { null }
             ) {
                 SearchScreen(
-                    viewModel = viewModel,
+                    viewModel = searchViewModel,
                     onSubtitleClick = { id ->
                         openReader(id, 0 to 0)
                     }
@@ -253,7 +245,7 @@ fun MainScreen(
                 popExitTransition = { null }
             ) {
                 LibraryScreen(
-                    viewModel = viewModel,
+                    viewModel = libraryViewModel,
                     onSubtitleClick = { id, scrollPosition ->
                         openReader(id, scrollPosition)
                     },
@@ -283,7 +275,7 @@ fun MainScreen(
                 popExitTransition = { null }
             ) {
                 CollectionsScreen(
-                    viewModel = viewModel,
+                    viewModel = collectionsViewModel,
                     onCollectionClick = { collectionId ->
                         navController.navigate("collection/$collectionId") {
                             launchSingleTop = true
@@ -327,7 +319,7 @@ fun MainScreen(
                 val collectionId = backStackEntry.arguments?.getString("collectionId") ?: return@composable
 
                 CollectionDetailScreen(
-                    viewModel = viewModel,
+                    viewModel = collectionsViewModel,
                     collectionId = collectionId,
                     onSubtitleClick = { id, scrollPosition ->
                         openReaderFromCollection(id, scrollPosition)

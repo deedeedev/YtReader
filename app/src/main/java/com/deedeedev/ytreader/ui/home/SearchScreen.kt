@@ -71,7 +71,7 @@ private fun isYouTubeUrl(text: String): Boolean {
 
 @Composable
 fun SearchScreen(
-    viewModel: HomeViewModel,
+    viewModel: SearchViewModel,
     onSubtitleClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {

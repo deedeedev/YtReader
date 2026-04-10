@@ -76,7 +76,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollectionsScreen(
-    viewModel: HomeViewModel,
+    viewModel: CollectionsViewModel,
     onCollectionClick: (String) -> Unit,
     subtitleDao: SubtitleDao,
     videoDao: VideoDao,
