@@ -114,6 +114,7 @@ internal fun ReaderScreenMainLayer(
     onUserDrag: () -> Unit,
     fullscreenProgressPercent: Int,
     fullscreenPageProgress: PageProgress,
+    showProgressIndicator: Boolean,
     showBrightnessIndicator: Boolean,
     brightnessIndicatorPercent: Int,
     snackbarHostState: SnackbarHostState
@@ -295,6 +296,7 @@ internal fun ReaderScreenMainLayer(
             onJumpBack = onJumpBack,
             fullscreenProgressPercent = fullscreenProgressPercent,
             fullscreenPageProgress = fullscreenPageProgress,
+            showProgressIndicator = showProgressIndicator,
             showBrightnessIndicator = showBrightnessIndicator,
             brightnessIndicatorPercent = brightnessIndicatorPercent,
             snackbarHostState = snackbarHostState

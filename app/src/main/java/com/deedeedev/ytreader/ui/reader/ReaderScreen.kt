@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -240,6 +241,8 @@ internal fun ReaderScreen(
     var brightnessIndicatorPercent by remember { mutableStateOf(100) }
     var brightnessHideJob by remember { mutableStateOf<Job?>(null) }
     var gestureBrightness by remember { mutableStateOf<Float?>(null) }
+    var showProgressIndicator by remember { mutableStateOf(false) }
+    var progressIndicatorHideJob by remember { mutableStateOf<Job?>(null) }
 
     val persistReadingProgress by rememberUpdatedState(newValue = {
         val scrollToSave = if (readerMode == ReaderMode.STUDY) {
@@ -261,7 +264,10 @@ internal fun ReaderScreen(
     }
 
     DisposableEffect(Unit) {
-        onDispose { brightnessHideJob?.cancel() }
+        onDispose {
+            brightnessHideJob?.cancel()
+            progressIndicatorHideJob?.cancel()
+        }
     }
 
     val hasUnsavedChanges = isEditing && editText != uiState.content
@@ -272,6 +278,32 @@ internal fun ReaderScreen(
     val originalFallbackText = uiState.originalParsedText.ifBlank { uiState.content }
     val originalModeText = remember(originalSegments, showTimestamps, originalFallbackText) {
         formatOriginalModeCopyText(context, originalSegments, showTimestamps, originalFallbackText)
+    }
+
+    fun showAndScheduleHideProgressIndicator() {
+        showProgressIndicator = true
+        progressIndicatorHideJob?.cancel()
+        progressIndicatorHideJob = coroutineScope.launch {
+            delay(PROGRESS_INDICATOR_HIDE_DELAY_MS)
+            showProgressIndicator = false
+        }
+    }
+
+    LaunchedEffect(readerMode, originalSegments) {
+        snapshotFlow {
+            when (readerMode) {
+                ReaderMode.STUDY -> studyScrollState.value
+                ReaderMode.ORIGINAL -> {
+                    if (originalSegments.isEmpty()) {
+                        originalFallbackScrollState.value
+                    } else {
+                        originalListState.firstVisibleItemIndex
+                    }
+                }
+            }
+        }.collect {
+            showAndScheduleHideProgressIndicator()
+        }
     }
 
     fun currentText(): String = currentReaderText(
@@ -1381,6 +1413,7 @@ internal fun ReaderScreen(
         onUserDrag = { clearJumpBackState() },
         fullscreenProgressPercent = fullscreenProgressPercent,
         fullscreenPageProgress = fullscreenPageProgress,
+        showProgressIndicator = showProgressIndicator,
         showBrightnessIndicator = showBrightnessIndicator,
         brightnessIndicatorPercent = brightnessIndicatorPercent,
         snackbarHostState = snackbarHostState

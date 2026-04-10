@@ -1,6 +1,8 @@
 package com.deedeedev.ytreader.ui.reader
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.BoxScope
@@ -43,6 +45,7 @@ internal fun BoxScope.ReaderOverlayHost(
     onJumpBack: () -> Unit,
     fullscreenProgressPercent: Int,
     fullscreenPageProgress: PageProgress,
+    showProgressIndicator: Boolean,
     showBrightnessIndicator: Boolean,
     brightnessIndicatorPercent: Int,
     snackbarHostState: SnackbarHostState
@@ -120,15 +123,21 @@ internal fun BoxScope.ReaderOverlayHost(
     }
 
     if (!isUiVisible && !isEditing) {
-        TinyProgressIndicator(
-            percent = fullscreenProgressPercent,
-            currentPage = fullscreenPageProgress.currentPage,
-            totalPages = fullscreenPageProgress.totalPages,
+        AnimatedVisibility(
+            visible = showProgressIndicator,
+            enter = fadeIn(),
+            exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .navigationBarsPadding()
                 .padding(end = 8.dp, bottom = 8.dp)
-        )
+        ) {
+            TinyProgressIndicator(
+                percent = fullscreenProgressPercent,
+                currentPage = fullscreenPageProgress.currentPage,
+                totalPages = fullscreenPageProgress.totalPages
+            )
+        }
     }
 
     AnimatedVisibility(
