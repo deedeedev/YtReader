@@ -2,46 +2,6 @@
 
 ## HIGH PRIORITY
 
-### 2. `runBlocking` on Main Thread (ANR Risk)
-
-**Location A — `AppContainer.kt:115-117`:**
-```kotlin
-override val collectionRepository: CollectionRepository by lazy {
-    CollectionRepository(collectionDao, userPreferencesRepository).also { repository ->
-        runBlocking {
-            repository.migrateLegacyCollectionsIfNeeded()
-        }
-    }
-}
-```
-Blocks the calling thread (likely main during `Application.onCreate()`) to run a database migration. If the migration is slow, this causes an ANR.
-
-**Fix:** Use `suspend` initialization or run in `lifecycleScope`/`CoroutineScope(Dispatchers.IO)`.
-
-**Location B — `ReaderWidgetProvider.kt:44`:**
-```kotlin
-val recentSubtitle = runBlocking { subtitleDao.getMostRecentlyOpened() }
-```
-Runs a synchronous database query during a widget update on the main thread.
-
-**Fix:** Use `suspendCancellableCoroutine` or a coroutine-aware widget update pattern.
-
----
-
-### 3. Annotation Data Loss Risk in `downloadSubtitleAgain()`
-
-**Location — `HomeViewModel.kt:392-393`:**
-```kotlin
-highlightNoteDao.deleteBySubtitleId(subtitle.id)
-bookmarkDao.deleteBySubtitleId(subtitle.id)
-```
-
-These run **after** the content is replaced but **before** confirming the overall operation succeeded. If the `try` block fails after these lines, the user's annotations are already deleted.
-
-**Fix:** Wrap in a Room `@Transaction` or defer deletion until full success is confirmed.
-
----
-
 ### 4. Release Builds Have No Minification
 
 **Location — `app/build.gradle.kts:27`:** `isMinifyEnabled = false`
