@@ -7,6 +7,10 @@ import com.deedeedev.ytreader.data.createAiCleaningNotificationChannel
 import com.deedeedev.ytreader.data.createAutoBackupNotificationChannel
 import com.deedeedev.ytreader.ui.AppLanguage
 import com.jakewharton.threetenabp.AndroidThreeTen
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class YtReaderApplication : Application() {
     lateinit var container: AppContainer
@@ -26,5 +30,10 @@ class YtReaderApplication : Application() {
         container = DefaultAppContainer(this)
         createAiCleaningNotificationChannel(this)
         createAutoBackupNotificationChannel(this)
+
+        val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        appScope.launch {
+            container.runMigrations()
+        }
     }
 }

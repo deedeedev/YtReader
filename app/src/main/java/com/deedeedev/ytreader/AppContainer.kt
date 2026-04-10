@@ -16,7 +16,6 @@ import com.deedeedev.ytreader.data.local.VideoDao
 import com.deedeedev.ytreader.data.remote.NewPipeDownloader
 import okhttp3.OkHttpClient
 import org.schabi.newpipe.extractor.NewPipe
-import kotlinx.coroutines.runBlocking
 import java.util.concurrent.TimeUnit
 
 interface AppContainer {
@@ -31,6 +30,7 @@ interface AppContainer {
     val userPreferencesRepository: UserPreferencesRepository
     val collectionRepository: CollectionRepository
     val aiCleaningRepository: AiCleaningRepository
+    suspend fun runMigrations()
     fun closeDatabase()
 }
 
@@ -111,15 +111,15 @@ class DefaultAppContainer(
     }
 
     override val collectionRepository: CollectionRepository by lazy {
-        CollectionRepository(collectionDao, userPreferencesRepository).also { repository ->
-            runBlocking {
-                repository.migrateLegacyCollectionsIfNeeded()
-            }
-        }
+        CollectionRepository(collectionDao, userPreferencesRepository)
     }
 
     override val aiCleaningRepository: AiCleaningRepository by lazy {
         AiCleaningRepository(context.applicationContext, aiOkHttpClient)
+    }
+
+    override suspend fun runMigrations() {
+        collectionRepository.migrateLegacyCollectionsIfNeeded()
     }
 
     override fun closeDatabase() {

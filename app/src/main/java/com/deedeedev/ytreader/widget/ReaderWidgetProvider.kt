@@ -10,7 +10,10 @@ import android.widget.RemoteViews
 import com.deedeedev.ytreader.MainActivity
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.YtReaderApplication
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 open class ReaderWidgetProvider : AppWidgetProvider() {
 
@@ -19,8 +22,15 @@ open class ReaderWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
-        for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId)
+        val result = goAsync()
+        Companion.widgetScope.launch {
+            try {
+                for (appWidgetId in appWidgetIds) {
+                    updateAppWidget(context, appWidgetManager, appWidgetId)
+                }
+            } finally {
+                result.finish()
+            }
         }
     }
 
@@ -33,7 +43,9 @@ open class ReaderWidgetProvider : AppWidgetProvider() {
     companion object {
         private const val TAG = "ReaderWidgetProvider"
 
-        fun updateAppWidget(
+        val widgetScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+        suspend fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
@@ -41,7 +53,7 @@ open class ReaderWidgetProvider : AppWidgetProvider() {
             val application = context.applicationContext as YtReaderApplication
             val subtitleDao = application.container.subtitleDao
 
-            val recentSubtitle = runBlocking { subtitleDao.getMostRecentlyOpened() }
+            val recentSubtitle = subtitleDao.getMostRecentlyOpened()
             val hasRecentSubtitle = recentSubtitle != null && recentSubtitle.lastOpenedAt > 0
 
             val layoutId = if (hasRecentSubtitle) R.layout.widget_reader else R.layout.widget_reader_icon
@@ -76,13 +88,15 @@ open class ReaderWidgetProvider : AppWidgetProvider() {
 
         fun notifyWidgetChanged(context: Context) {
             val widgetManager = AppWidgetManager.getInstance(context)
-            for (providerClass in listOf(
-                ReaderWidgetProvider::class.java,
-                ReaderWidgetProviderIcon::class.java
-            )) {
-                val ids = widgetManager.getAppWidgetIds(ComponentName(context, providerClass))
-                for (id in ids) {
-                    updateAppWidget(context, widgetManager, id)
+            widgetScope.launch {
+                for (providerClass in listOf(
+                    ReaderWidgetProvider::class.java,
+                    ReaderWidgetProviderIcon::class.java
+                )) {
+                    val ids = widgetManager.getAppWidgetIds(ComponentName(context, providerClass))
+                    for (id in ids) {
+                        updateAppWidget(context, widgetManager, id)
+                    }
                 }
             }
         }
