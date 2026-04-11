@@ -32,6 +32,7 @@ interface SubtitleDao {
                 SELECT s.videoUrl
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
+                  AND (:isCollection = 0 OR s.videoId IN (:videoIds))
                   AND (:channelName IS NULL OR s.channelName = :channelName)
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
@@ -40,6 +41,7 @@ interface SubtitleDao {
                 SELECT s.title
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
+                  AND (:isCollection = 0 OR s.videoId IN (:videoIds))
                   AND (:channelName IS NULL OR s.channelName = :channelName)
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
@@ -48,6 +50,7 @@ interface SubtitleDao {
                 SELECT s.channelName
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
+                  AND (:isCollection = 0 OR s.videoId IN (:videoIds))
                   AND (:channelName IS NULL OR s.channelName = :channelName)
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
@@ -56,6 +59,7 @@ interface SubtitleDao {
                 SELECT s.uploadDate
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
+                  AND (:isCollection = 0 OR s.videoId IN (:videoIds))
                   AND (:channelName IS NULL OR s.channelName = :channelName)
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
@@ -67,6 +71,7 @@ interface SubtitleDao {
                 SELECT s.readingProgressPercent
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
+                  AND (:isCollection = 0 OR s.videoId IN (:videoIds))
                   AND (:channelName IS NULL OR s.channelName = :channelName)
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
@@ -75,6 +80,7 @@ interface SubtitleDao {
                 SELECT s.currentPage
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
+                  AND (:isCollection = 0 OR s.videoId IN (:videoIds))
                   AND (:channelName IS NULL OR s.channelName = :channelName)
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
@@ -83,6 +89,7 @@ interface SubtitleDao {
                 SELECT s.totalPages
                 FROM subtitles s
                 WHERE s.videoId = agg.videoId
+                  AND (:isCollection = 0 OR s.videoId IN (:videoIds))
                   AND (:channelName IS NULL OR s.channelName = :channelName)
                 ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
                 LIMIT 1
@@ -95,7 +102,7 @@ interface SubtitleDao {
                 MAX(lastOpenedAt) AS lastOpenedAt,
                 MAX(isInLibrary) AS isInLibrary
             FROM subtitles
-            WHERE isInLibrary = 1
+            WHERE (:isCollection = 0 AND isInLibrary = 1 OR :isCollection = 1 AND videoId IN (:videoIds))
               AND (:channelName IS NULL OR channelName = :channelName)
             GROUP BY videoId
         ) agg
@@ -114,11 +121,38 @@ interface SubtitleDao {
             videoId ASC
         """
     )
-    fun observeLibraryVideoRows(
+    fun observeVideoRows(
+        isCollection: Boolean,
+        videoIds: List<String>,
         channelName: String?,
         sortOption: String,
         isAscending: Boolean
     ): Flow<List<LibraryVideoRow>>
+
+    fun observeLibraryVideoRows(
+        channelName: String?,
+        sortOption: String,
+        isAscending: Boolean
+    ): Flow<List<LibraryVideoRow>> = observeVideoRows(
+        isCollection = false,
+        videoIds = listOf(""),
+        channelName = channelName,
+        sortOption = sortOption,
+        isAscending = isAscending
+    )
+
+    fun observeCollectionVideoRows(
+        videoIds: List<String>,
+        channelName: String?,
+        sortOption: String,
+        isAscending: Boolean
+    ): Flow<List<LibraryVideoRow>> = observeVideoRows(
+        isCollection = true,
+        videoIds = videoIds,
+        channelName = channelName,
+        sortOption = sortOption,
+        isAscending = isAscending
+    )
 
     @Query(
         """
@@ -130,110 +164,6 @@ interface SubtitleDao {
         """
     )
     fun observeCollectionChannels(videoIds: List<String>): Flow<List<String>>
-
-    @Query(
-        """
-        SELECT
-            agg.videoId AS videoId,
-            COALESCE(v.videoUrl, (
-                SELECT s.videoUrl
-                FROM subtitles s
-                WHERE s.videoId = agg.videoId
-                  AND s.videoId IN (:videoIds)
-                  AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
-                LIMIT 1
-            ), '') AS videoUrl,
-            COALESCE(v.title, (
-                SELECT s.title
-                FROM subtitles s
-                WHERE s.videoId = agg.videoId
-                  AND s.videoId IN (:videoIds)
-                  AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
-                LIMIT 1
-            ), '') AS title,
-            COALESCE(v.channelName, (
-                SELECT s.channelName
-                FROM subtitles s
-                WHERE s.videoId = agg.videoId
-                  AND s.videoId IN (:videoIds)
-                  AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
-                LIMIT 1
-            ), '') AS channelName,
-            COALESCE(v.uploadDate, (
-                SELECT s.uploadDate
-                FROM subtitles s
-                WHERE s.videoId = agg.videoId
-                  AND s.videoId IN (:videoIds)
-                  AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
-                LIMIT 1
-            ), 0) AS uploadDate,
-            v.thumbnailLocalPath AS thumbnailLocalPath,
-            agg.lastDownloaded AS lastDownloaded,
-            agg.lastOpenedAt AS lastOpenedAt,
-            COALESCE((
-                SELECT s.readingProgressPercent
-                FROM subtitles s
-                WHERE s.videoId = agg.videoId
-                  AND s.videoId IN (:videoIds)
-                  AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
-                LIMIT 1
-            ), 0) AS readingProgressPercent,
-            COALESCE((
-                SELECT s.currentPage
-                FROM subtitles s
-                WHERE s.videoId = agg.videoId
-                  AND s.videoId IN (:videoIds)
-                  AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
-                LIMIT 1
-            ), 0) AS currentPage,
-            COALESCE((
-                SELECT s.totalPages
-                FROM subtitles s
-                WHERE s.videoId = agg.videoId
-                  AND s.videoId IN (:videoIds)
-                  AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
-                LIMIT 1
-            ), 0) AS totalPages,
-            agg.isInLibrary AS isInLibrary
-        FROM (
-            SELECT
-                videoId,
-                MAX(createdAt) AS lastDownloaded,
-                MAX(lastOpenedAt) AS lastOpenedAt,
-                MAX(isInLibrary) AS isInLibrary
-            FROM subtitles
-            WHERE videoId IN (:videoIds)
-              AND (:channelName IS NULL OR channelName = :channelName)
-            GROUP BY videoId
-        ) agg
-        LEFT JOIN videos v ON v.videoId = agg.videoId
-        ORDER BY
-            CASE WHEN :sortOption = 'TITLE' AND :isAscending = 1 THEN title END COLLATE NOCASE ASC,
-            CASE WHEN :sortOption = 'TITLE' AND :isAscending = 0 THEN title END COLLATE NOCASE DESC,
-            CASE WHEN :sortOption = 'CHANNEL_NAME' AND :isAscending = 1 THEN channelName END COLLATE NOCASE ASC,
-            CASE WHEN :sortOption = 'CHANNEL_NAME' AND :isAscending = 0 THEN channelName END COLLATE NOCASE DESC,
-            CASE WHEN :sortOption = 'DATE_PUBLISHED' AND :isAscending = 1 THEN uploadDate END ASC,
-            CASE WHEN :sortOption = 'DATE_PUBLISHED' AND :isAscending = 0 THEN uploadDate END DESC,
-            CASE WHEN :sortOption = 'DOWNLOADED' AND :isAscending = 1 THEN lastDownloaded END ASC,
-            CASE WHEN :sortOption = 'DOWNLOADED' AND :isAscending = 0 THEN lastDownloaded END DESC,
-            CASE WHEN :sortOption = 'LAST_OPENED' AND :isAscending = 1 THEN lastOpenedAt END ASC,
-            CASE WHEN :sortOption = 'LAST_OPENED' AND :isAscending = 0 THEN lastOpenedAt END DESC,
-            videoId ASC
-        """
-    )
-    fun observeCollectionVideoRows(
-        videoIds: List<String>,
-        channelName: String?,
-        sortOption: String,
-        isAscending: Boolean
-    ): Flow<List<LibraryVideoRow>>
 
     @Query(
         """

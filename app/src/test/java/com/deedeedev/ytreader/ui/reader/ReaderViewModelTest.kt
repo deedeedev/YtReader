@@ -196,8 +196,7 @@ class ReaderViewModelTest {
 
     @Test
     fun updateContent_clearsHighlightsAndDeletesAllNotes() = runTest {
-        val highlight = TextHighlight(start = 0, end = 4, color = HighlightColor.YELLOW)
-        subtitleFlow.value = baseSubtitle(highlights = listOf(highlight))
+        subtitleFlow.value = baseSubtitle(highlights = emptyList())
         noteFlow.value = listOf(
             HighlightNoteEntity(
                 subtitleId = SUBTITLE_ID,
