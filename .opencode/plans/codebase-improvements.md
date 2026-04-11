@@ -1,37 +1,5 @@
 # YtReader Codebase Analysis & Improvement Suggestions
 
-## HIGH PRIORITY
-
-### 4. Release Builds Have No Minification
-
-**Location — `app/build.gradle.kts:27`:** `isMinifyEnabled = false`
-
-Release APKs ship with full unoptimized bytecode, resulting in larger APK size and potentially slower runtime performance.
-
-**Fix:**
-- Enable `isMinifyEnabled = true` in the release build type
-- Add keep rules in `proguard-rules.pro` for:
-  - Room entities and DAOs
-  - Gson-serialized model classes (`@Keep` or `-keep` rules)
-  - NewPipe Extractor classes (reflection-heavy)
-  - Uncomment `-keepattributes SourceFile,LineNumberTable` for readable crash logs
-
----
-
-### 5. Duplicated Code (7 Instances)
-
-| Duplication | File A | File B | Fix |
-|---|---|---|---|
-| `lineTextAtOffset()` | `AnnotationsViewModel.kt:403` | `VideoNotesViewModel.kt:351` | Extract to shared utility |
-| `deleteAnnotation()` | `AnnotationsViewModel.kt:194-221` | `VideoNotesViewModel.kt:126-153` | Extract to shared `AnnotationOperations` utility |
-| `restoreAnnotation()` | `AnnotationsViewModel.kt:223-261` | `VideoNotesViewModel.kt:156-189` | Extract to shared `AnnotationOperations` utility |
-| ~100-line SQL query | `SubtitleDao.kt:17-121` (`observeLibraryVideoRows`) | `SubtitleDao.kt:123-236` (`observeCollectionVideoRows`) | Consolidate into parameterized query |
-| `canPostNotifications()` | `AiCleaningWorker.kt:261-269` | `AutoBackupWorker.kt:218-226` | Extract to shared extension |
-| Locale loading | `YtReaderApplication.kt:14-18` | `MainActivity.kt:28-34` | Extract to `LocaleHelper.init()` |
-| Navigation lambdas | `MainScreen.kt:129-139` | `MainScreen.kt:141-151` | Parameterize the scroll position setter |
-
----
-
 ## MEDIUM PRIORITY
 
 ### 6. DAOs Bypass Repository Layer
