@@ -2,14 +2,18 @@ package com.deedeedev.ytreader
 
 import android.content.Context
 import androidx.room.Room
-import com.deedeedev.ytreader.data.CollectionRepository
-import com.deedeedev.ytreader.data.UserPreferencesRepository
-import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.AiCleaningRepository
-import com.deedeedev.ytreader.data.local.HighlightNoteDao
+import com.deedeedev.ytreader.data.CollectionRepository
+import com.deedeedev.ytreader.data.NoteRepository
+import com.deedeedev.ytreader.data.SearchHistoryRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
+import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.data.VideoRepository
+import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.local.AppDatabase
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.CollectionDao
+import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.SearchHistoryDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.VideoDao
@@ -31,6 +35,10 @@ interface AppContainer {
     val userPreferencesRepository: UserPreferencesRepository
     val collectionRepository: CollectionRepository
     val aiCleaningRepository: AiCleaningRepository
+    val subtitleRepository: SubtitleRepository
+    val videoRepository: VideoRepository
+    val noteRepository: NoteRepository
+    val searchHistoryRepository: SearchHistoryRepository
     suspend fun runMigrations()
     fun closeDatabase()
 }
@@ -117,6 +125,22 @@ class DefaultAppContainer(
 
     override val aiCleaningRepository: AiCleaningRepository by lazy {
         AiCleaningRepository(context.applicationContext, aiOkHttpClient)
+    }
+
+    override val subtitleRepository: SubtitleRepository by lazy {
+        SubtitleRepository(subtitleDao)
+    }
+
+    override val videoRepository: VideoRepository by lazy {
+        VideoRepository(videoDao)
+    }
+
+    override val noteRepository: NoteRepository by lazy {
+        NoteRepository(highlightNoteDao, bookmarkDao)
+    }
+
+    override val searchHistoryRepository: SearchHistoryRepository by lazy {
+        SearchHistoryRepository(searchHistoryDao)
     }
 
     override suspend fun runMigrations() {

@@ -66,9 +66,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.R
-import com.deedeedev.ytreader.data.local.BookmarkDao
-import com.deedeedev.ytreader.data.local.HighlightNoteDao
-import com.deedeedev.ytreader.data.local.SubtitleDao
+import com.deedeedev.ytreader.data.NoteRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -76,9 +75,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun VideoNotesSheetRoute(
     videoId: String,
-    subtitleDao: SubtitleDao,
-    highlightNoteDao: HighlightNoteDao,
-    bookmarkDao: BookmarkDao,
+    subtitleRepository: SubtitleRepository,
+    noteRepository: NoteRepository,
     onOpenAnnotation: (ReaderAnnotationTarget) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -91,9 +89,8 @@ fun VideoNotesSheetRoute(
     ) {
         VideoNotesScreen(
             videoId = videoId,
-            subtitleDao = subtitleDao,
-            highlightNoteDao = highlightNoteDao,
-            bookmarkDao = bookmarkDao,
+            subtitleRepository = subtitleRepository,
+            noteRepository = noteRepository,
             onOpenAnnotation = onOpenAnnotation,
             onDismiss = onDismiss
         )
@@ -104,17 +101,15 @@ fun VideoNotesSheetRoute(
 @Composable
 private fun VideoNotesScreen(
     videoId: String,
-    subtitleDao: SubtitleDao,
-    highlightNoteDao: HighlightNoteDao,
-    bookmarkDao: BookmarkDao,
+    subtitleRepository: SubtitleRepository,
+    noteRepository: NoteRepository,
     onOpenAnnotation: (ReaderAnnotationTarget) -> Unit,
     onDismiss: () -> Unit,
     viewModel: VideoNotesViewModel = viewModel(
         key = "VideoNotes_$videoId",
         factory = VideoNotesViewModel.provideFactory(
-            subtitleDao = subtitleDao,
-            highlightNoteDao = highlightNoteDao,
-            bookmarkDao = bookmarkDao,
+            subtitleRepository = subtitleRepository,
+            noteRepository = noteRepository,
             videoId = videoId
         )
     )

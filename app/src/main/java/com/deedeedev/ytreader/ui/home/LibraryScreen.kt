@@ -45,24 +45,24 @@ import com.deedeedev.ytreader.data.VideoThumbnailStore
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import androidx.compose.material.icons.filled.IosShare
-import com.deedeedev.ytreader.data.local.BookmarkDao
-import com.deedeedev.ytreader.data.local.HighlightNoteDao
-import com.deedeedev.ytreader.data.local.SubtitleDao
-import com.deedeedev.ytreader.data.local.VideoDao
+import com.deedeedev.ytreader.data.NoteRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
+import com.deedeedev.ytreader.data.VideoRepository
 import com.deedeedev.ytreader.ui.components.EpubExportDialog
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
     onSubtitleClick: (Long, Pair<Int, Int>) -> Unit,
     onVideoClick: (String, Pair<Int, Int>) -> Unit,
     onVideoSearchAgain: (String) -> Unit,
-    subtitleDao: SubtitleDao,
-    videoDao: VideoDao,
-    highlightNoteDao: HighlightNoteDao,
-    bookmarkDao: BookmarkDao,
+    subtitleRepository: SubtitleRepository,
+    videoRepository: VideoRepository,
+    noteRepository: NoteRepository,
     modifier: Modifier = Modifier,
     initialScrollPosition: Pair<Int, Int>? = null
 ) {
@@ -270,10 +270,9 @@ fun LibraryScreen(
         EpubExportDialog(
             bookTitle = epubExportTitle,
             videoIds = epubExportVideoIds,
-            subtitleDao = subtitleDao,
-            videoDao = videoDao,
-            highlightNoteDao = highlightNoteDao,
-            bookmarkDao = bookmarkDao,
+            subtitleRepository = subtitleRepository,
+            videoRepository = videoRepository,
+            noteRepository = noteRepository,
             onDismiss = { showEpubExport = false }
         )
     }

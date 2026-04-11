@@ -7,12 +7,11 @@ import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.AiCleaningWorkScheduler
 import com.deedeedev.ytreader.widget.ReaderWidgetProvider
+import com.deedeedev.ytreader.data.NoteRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
-import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.BookmarkEntity
-import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.HighlightNoteEntity
-import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.domain.SubtitleParser
 import kotlinx.coroutines.Dispatchers
@@ -43,9 +42,8 @@ data class ReaderUiState(
 
 class ReaderViewModel(
     private val appContext: Context,
-    private val subtitleDao: SubtitleDao,
-    private val highlightNoteDao: HighlightNoteDao,
-    private val bookmarkDao: BookmarkDao,
+    private val subtitleRepository: SubtitleRepository,
+    private val noteRepository: NoteRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val subtitleId: Long,
     private val widgetUpdater: (Context) -> Unit = { context -> ReaderWidgetProvider.notifyWidgetChanged(context) }
@@ -62,7 +60,7 @@ class ReaderViewModel(
 
     private fun markSubtitleOpened() {
         viewModelScope.launch {
-            subtitleDao.updateLastOpenedAt(subtitleId, System.currentTimeMillis())
+            subtitleRepository.updateLastOpenedAt(subtitleId, System.currentTimeMillis())
             widgetUpdater(appContext)
         }
     }
@@ -77,11 +75,11 @@ class ReaderViewModel(
 
     private fun loadSubtitle() {
         viewModelScope.launch {
-            subtitleDao.observeById(subtitleId)
-                .combine(highlightNoteDao.observeBySubtitleId(subtitleId)) { subtitle, notes ->
+            subtitleRepository.observeById(subtitleId)
+                .combine(noteRepository.observeHighlightsBySubtitleId(subtitleId)) { subtitle, notes ->
                     subtitle to notes
                 }
-                .combine(bookmarkDao.observeBySubtitleId(subtitleId)) { (subtitle, notes), bookmarks ->
+                .combine(noteRepository.observeBookmarksBySubtitleId(subtitleId)) { (subtitle, notes), bookmarks ->
                     Triple(subtitle, notes, bookmarks)
                 }
                 .collectLatest { (subtitle, notes, bookmarks) ->
@@ -127,13 +125,13 @@ class ReaderViewModel(
 
     fun updateLastTimestamp(timestamp: Long) {
         viewModelScope.launch {
-            subtitleDao.updateLastTimestamp(subtitleId, timestamp)
+            subtitleRepository.updateLastTimestamp(subtitleId, timestamp)
         }
     }
 
     fun updateLastStudyScroll(scroll: Int) {
         viewModelScope.launch {
-            subtitleDao.updateLastStudyScroll(subtitleId, scroll.coerceAtLeast(0))
+            subtitleRepository.updateLastStudyScroll(subtitleId, scroll.coerceAtLeast(0))
         }
     }
 
@@ -143,7 +141,7 @@ class ReaderViewModel(
         if (percent < lastSavedPercent && percent < 100) return
         lastSavedPercent = percent.coerceIn(0, 100)
         viewModelScope.launch {
-            subtitleDao.updateReadingProgress(
+            subtitleRepository.updateReadingProgress(
                 subtitleId = subtitleId,
                 percent = percent.coerceIn(0, 100),
                 currentPage = currentPage.coerceAtLeast(0),
@@ -155,14 +153,14 @@ class ReaderViewModel(
     fun updateFontSize(fontSize: Float) {
         _uiState.update { it.copy(fontSize = fontSize) }
         viewModelScope.launch {
-            subtitleDao.updateFontSize(subtitleId, fontSize)
+            subtitleRepository.updateFontSize(subtitleId, fontSize)
         }
     }
 
     fun updateFontFamily(fontFamily: String) {
         _uiState.update { it.copy(fontFamily = fontFamily) }
         viewModelScope.launch {
-            subtitleDao.updateFontFamily(subtitleId, fontFamily)
+            subtitleRepository.updateFontFamily(subtitleId, fontFamily)
         }
     }
 
@@ -194,10 +192,10 @@ class ReaderViewModel(
             }
 
             viewModelScope.launch {
-                subtitleDao.updateStudyContent(subtitleId, content)
-                subtitleDao.updateHighlights(subtitleId = subtitleId, serializeHighlights(newHighlights))
-                highlightNoteDao.deleteBySubtitleId(subtitleId)
-                bookmarkDao.deleteBySubtitleId(subtitleId)
+                subtitleRepository.updateStudyContent(subtitleId, content)
+                subtitleRepository.updateHighlights(subtitleId = subtitleId, serializeHighlights(newHighlights))
+                noteRepository.deleteHighlightsBySubtitleId(subtitleId)
+                noteRepository.deleteBookmarksBySubtitleId(subtitleId)
             }
             return
         }
@@ -222,16 +220,16 @@ class ReaderViewModel(
                 )
             }
 
-            subtitleDao.updateStudyContent(subtitleId, content)
-            subtitleDao.updateHighlights(subtitleId = subtitleId, serializeHighlights(newHighlights))
+            subtitleRepository.updateStudyContent(subtitleId, content)
+            subtitleRepository.updateHighlights(subtitleId = subtitleId, serializeHighlights(newHighlights))
 
-            highlightNoteDao.deleteBySubtitleId(subtitleId)
-            bookmarkDao.deleteBySubtitleId(subtitleId)
+            noteRepository.deleteHighlightsBySubtitleId(subtitleId)
+            noteRepository.deleteBookmarksBySubtitleId(subtitleId)
 
             val timestamp = System.currentTimeMillis()
 
             remapResult.highlights.filter { it.note != null }.forEach { highlight ->
-                highlightNoteDao.upsert(
+                noteRepository.upsertHighlight(
                     HighlightNoteEntity(
                         subtitleId = subtitleId,
                         highlightStart = highlight.start,
@@ -244,7 +242,7 @@ class ReaderViewModel(
             }
 
             newBookmarks.forEach { bookmark ->
-                bookmarkDao.upsert(
+                noteRepository.upsertBookmark(
                     BookmarkEntity(
                         id = bookmark.id,
                         subtitleId = subtitleId,
@@ -285,7 +283,7 @@ class ReaderViewModel(
         }
 
         viewModelScope.launch {
-            bookmarkDao.upsert(updatedBookmark)
+            noteRepository.upsertBookmark(updatedBookmark)
         }
     }
 
@@ -301,7 +299,7 @@ class ReaderViewModel(
         _uiState.update { it.copy(bookmarks = updatedBookmarks) }
 
         viewModelScope.launch {
-            bookmarkDao.deleteByAnchor(subtitleId = subtitleId, anchorStart = boundedAnchor)
+            noteRepository.deleteBookmarkByAnchor(subtitleId = subtitleId, anchorStart = boundedAnchor)
         }
     }
 
@@ -352,7 +350,7 @@ class ReaderViewModel(
         _uiState.update { it.copy(highlights = updated) }
 
         viewModelScope.launch {
-            highlightNoteDao.deleteByRange(subtitleId, target.start, target.end)
+            noteRepository.deleteHighlightByRange(subtitleId, target.start, target.end)
         }
     }
 
@@ -389,7 +387,7 @@ class ReaderViewModel(
         }
 
         viewModelScope.launch {
-            subtitleDao.updateHighlights(subtitleId = subtitleId, highlights = serialized)
+            subtitleRepository.updateHighlights(subtitleId = subtitleId, highlights = serialized)
             persistMergedHighlightNotes(mergeResult)
         }
 
@@ -409,7 +407,7 @@ class ReaderViewModel(
         if (updated == state.highlights) return
         persistHighlights(updated)
         viewModelScope.launch {
-            highlightNoteDao.deleteByRange(subtitleId, target.start, target.end)
+            noteRepository.deleteHighlightByRange(subtitleId, target.start, target.end)
         }
     }
 
@@ -429,11 +427,11 @@ class ReaderViewModel(
         }
 
         return try {
-            subtitleDao.markAiCleaningQueued(subtitleId, inputText, System.currentTimeMillis())
+            subtitleRepository.markAiCleaningQueued(subtitleId, inputText, System.currentTimeMillis())
             AiCleaningWorkScheduler.enqueue(appContext, subtitleId)
             Result.success(Unit)
         } catch (error: Exception) {
-            subtitleDao.storeAiCleaningFailure(
+            subtitleRepository.storeAiCleaningFailure(
                 subtitleId = subtitleId,
                 summary = error.message?.takeIf { it.isNotBlank() }
                     ?: appContext.getString(R.string.ai_cleaning_start_failed),
@@ -453,14 +451,14 @@ class ReaderViewModel(
             )
         }
         viewModelScope.launch {
-            subtitleDao.updateHighlights(subtitleId = subtitleId, highlights = serialized)
+            subtitleRepository.updateHighlights(subtitleId = subtitleId, highlights = serialized)
         }
     }
 
     private suspend fun persistMergedHighlightNotes(result: HighlightMergeResult) {
         val timestamp = System.currentTimeMillis()
         result.replacedHighlights.forEach { highlight ->
-            highlightNoteDao.deleteByRange(subtitleId, highlight.start, highlight.end)
+            noteRepository.deleteHighlightByRange(subtitleId, highlight.start, highlight.end)
         }
         persistNoteForHighlight(result.mergedHighlight, timestamp)
     }
@@ -468,10 +466,10 @@ class ReaderViewModel(
     private suspend fun persistNoteForHighlight(highlight: TextHighlight, timestamp: Long) {
         val normalizedNote = normalizeHighlightNote(highlight.note)
         if (normalizedNote == null) {
-            highlightNoteDao.deleteByRange(subtitleId, highlight.start, highlight.end)
+            noteRepository.deleteHighlightByRange(subtitleId, highlight.start, highlight.end)
             return
         }
-        highlightNoteDao.upsert(
+        noteRepository.upsertHighlight(
             HighlightNoteEntity(
                 subtitleId = subtitleId,
                 highlightStart = highlight.start,
@@ -485,22 +483,21 @@ class ReaderViewModel(
 
     fun clearPendingAiCleaningResult() {
         viewModelScope.launch {
-            subtitleDao.clearAiCleaningResult(subtitleId)
+            subtitleRepository.clearAiCleaningResult(subtitleId)
         }
     }
 
     fun clearAiCleaningError() {
         viewModelScope.launch {
-            subtitleDao.clearAiCleaningError(subtitleId)
+            subtitleRepository.clearAiCleaningError(subtitleId)
         }
     }
 
     companion object {
         fun provideFactory(
             appContext: Context,
-            dao: SubtitleDao,
-            highlightNoteDao: HighlightNoteDao,
-            bookmarkDao: BookmarkDao,
+            subtitleRepository: SubtitleRepository,
+            noteRepository: NoteRepository,
             userPreferencesRepository: UserPreferencesRepository,
             subtitleId: Long
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
@@ -508,9 +505,8 @@ class ReaderViewModel(
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return ReaderViewModel(
                     appContext,
-                    dao,
-                    highlightNoteDao,
-                    bookmarkDao,
+                    subtitleRepository,
+                    noteRepository,
                     userPreferencesRepository,
                     subtitleId
                 ) as T

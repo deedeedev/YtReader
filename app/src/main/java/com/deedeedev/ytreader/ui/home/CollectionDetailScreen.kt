@@ -39,11 +39,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.R
-import com.deedeedev.ytreader.data.local.BookmarkDao
-import com.deedeedev.ytreader.data.local.HighlightNoteDao
-import com.deedeedev.ytreader.data.local.SubtitleDao
-import com.deedeedev.ytreader.data.local.VideoDao
+import com.deedeedev.ytreader.data.NoteRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
+import com.deedeedev.ytreader.data.VideoCollection
+import com.deedeedev.ytreader.data.VideoRepository
+import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.ui.components.EpubExportDialog
+import com.deedeedev.ytreader.ui.home.CollectionsUiState
+import com.deedeedev.ytreader.ui.home.CollectionsEvent
+import com.deedeedev.ytreader.ui.home.CollectionFilterState
+import com.deedeedev.ytreader.ui.home.LibraryItem
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -56,14 +61,13 @@ fun CollectionDetailScreen(
     onVideoClick: (String, Pair<Int, Int>) -> Unit,
     onVideoSearchAgain: (String) -> Unit,
     onBack: () -> Unit,
-    subtitleDao: SubtitleDao,
-    videoDao: VideoDao,
-    highlightNoteDao: HighlightNoteDao,
-    bookmarkDao: BookmarkDao,
+    subtitleRepository: SubtitleRepository,
+    videoRepository: VideoRepository,
+    noteRepository: NoteRepository,
     modifier: Modifier = Modifier,
     initialScrollPosition: Pair<Int, Int>? = null
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState: CollectionsUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -73,7 +77,7 @@ fun CollectionDetailScreen(
     var epubExportTitle by remember { mutableStateOf("") }
 
     LaunchedEffect(viewModel) {
-        viewModel.events.collectLatest { event ->
+        viewModel.events.collectLatest { event: CollectionsEvent ->
             when (event) {
                 is CollectionsEvent.ShowMessage -> snackbarHostState.showSnackbar(
                     message = event.message,
@@ -84,21 +88,24 @@ fun CollectionDetailScreen(
     }
 
     var addToCollectionTargetVideoId by remember { mutableStateOf<String?>(null) }
-    val filterState = uiState.collectionFilterStates[collectionId] ?: viewModel.getCollectionFilterState(collectionId)
+    val filterState: CollectionFilterState = uiState.collectionFilterStates[collectionId] ?: viewModel.getCollectionFilterState(collectionId)
 
-    val collection = remember(uiState.collections, collectionId) {
-        uiState.collections.firstOrNull { it.id == collectionId }
+    var targetCollection: VideoCollection? = null
+    for (c: VideoCollection in uiState.collections) {
+        if (c.id == collectionId) {
+            targetCollection = c
+            break
+        }
     }
+    val collection: VideoCollection? = targetCollection
 
-    val collectionVideoIds = remember(collection) {
-        collection?.videoIds.orEmpty()
-    }
+    val collectionVideoIds: List<String> = if (collection != null) collection.videoIds else emptyList()
 
-    val uniqueChannels by remember(collectionVideoIds) {
+    val uniqueChannels: List<String> by remember(collectionVideoIds) {
         viewModel.observeCollectionChannels(collectionVideoIds)
-    }.collectAsStateWithLifecycle(initialValue = emptyList())
+    }.collectAsStateWithLifecycle(initialValue = emptyList<String>())
 
-    val sortedItems by remember(
+    val sortedItems: List<LibraryItem> by remember(
         collectionVideoIds,
         filterState.selectedChannelFilter,
         filterState.readStatusFilter,
@@ -114,12 +121,14 @@ fun CollectionDetailScreen(
         )
     }.collectAsStateWithLifecycle(initialValue = emptyList())
 
-    val onlyInCollectionsCount = remember(collection, uiState.savedSubtitles) {
-        collection?.videoIds?.count { videoId ->
-            uiState.savedSubtitles.any { subtitle ->
-                subtitle.videoId == videoId && !subtitle.isInLibrary
-            }
-        } ?: 0
+    var onlyInCollectionsCount = 0
+    if (collection != null) {
+        val coll: VideoCollection = collection
+        val saved: List<SubtitleEntity> = uiState.savedSubtitles
+        onlyInCollectionsCount = coll.videoIds.count { vid: String ->
+            val hasNonLibrary = saved.any { sub: SubtitleEntity -> sub.videoId == vid && !sub.isInLibrary }
+            hasNonLibrary
+        }
     }
 
     LaunchedEffect(uniqueChannels, filterState.selectedChannelFilter, collectionId) {
@@ -350,10 +359,9 @@ fun CollectionDetailScreen(
         EpubExportDialog(
             bookTitle = epubExportTitle,
             videoIds = epubExportVideoIds,
-            subtitleDao = subtitleDao,
-            videoDao = videoDao,
-            highlightNoteDao = highlightNoteDao,
-            bookmarkDao = bookmarkDao,
+            subtitleRepository = subtitleRepository,
+            videoRepository = videoRepository,
+            noteRepository = noteRepository,
             onDismiss = { showEpubExport = false }
         )
     }

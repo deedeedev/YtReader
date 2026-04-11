@@ -2,12 +2,12 @@ package com.deedeedev.ytreader.ui.home
 
 import android.content.Context
 import com.deedeedev.ytreader.data.CollectionRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
+import com.deedeedev.ytreader.data.VideoRepository
 import com.deedeedev.ytreader.data.VideoThumbnailStore
 import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.local.LibraryVideoRow
-import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
-import com.deedeedev.ytreader.data.local.VideoDao
 import com.deedeedev.ytreader.data.local.VideoEntity
 import com.deedeedev.ytreader.data.preferredThumbnailUrl
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
@@ -17,24 +17,24 @@ import kotlinx.coroutines.flow.flowOf
 import org.schabi.newpipe.extractor.stream.StreamInfo
 
 internal suspend fun deleteVideoIfUnreferenced(
-    subtitleDao: SubtitleDao,
-    videoDao: VideoDao,
+    subtitleRepository: SubtitleRepository,
+    videoRepository: VideoRepository,
     collectionRepository: CollectionRepository,
     appContext: Context,
     videoId: String
 ) {
-    val hasLibraryEntry = subtitleDao.countLibraryEntriesByVideoId(videoId) > 0
+    val hasLibraryEntry = subtitleRepository.countLibraryEntriesByVideoId(videoId) > 0
     if (!hasLibraryEntry && !collectionRepository.isVideoInAnyCollection(videoId)) {
-        videoDao.getByVideoId(videoId)?.thumbnailLocalPath?.let { path ->
+        videoRepository.getByVideoId(videoId)?.thumbnailLocalPath?.let { path ->
             VideoThumbnailStore.delete(appContext, path)
         }
-        videoDao.deleteByVideoId(videoId)
-        subtitleDao.deleteByVideoId(videoId)
+        videoRepository.deleteByVideoId(videoId)
+        subtitleRepository.deleteByVideoId(videoId)
     }
 }
 
 internal suspend fun upsertVideoMetadata(
-    videoDao: VideoDao,
+    videoRepository: VideoRepository,
     youtubeRepository: YoutubeRepository,
     appContext: Context,
     videoId: String,
@@ -44,7 +44,7 @@ internal suspend fun upsertVideoMetadata(
     fallbackUploadDate: Long,
     info: StreamInfo
 ) {
-    val existingVideo = videoDao.getByVideoId(videoId)
+    val existingVideo = videoRepository.getByVideoId(videoId)
     val thumbnailSourceUrl = preferredThumbnailUrl(info.thumbnails)
     val localThumbnailPath = downloadThumbnail(youtubeRepository, appContext, videoId, thumbnailSourceUrl)
         ?: existingVideo?.thumbnailLocalPath
@@ -53,7 +53,7 @@ internal suspend fun upsertVideoMetadata(
         existingVideo?.thumbnailLocalPath?.let { VideoThumbnailStore.delete(appContext, it) }
     }
 
-    videoDao.upsert(
+    videoRepository.upsert(
         VideoEntity(
             videoId = videoId,
             videoUrl = fallbackVideoUrl,
@@ -111,7 +111,7 @@ internal fun resolveVideoLookupUrl(subtitle: SubtitleEntity): String {
 }
 
 internal fun observeLibraryItemsForRows(
-    subtitleDao: SubtitleDao,
+    subtitleRepository: SubtitleRepository,
     collectionRepository: CollectionRepository,
     rows: List<LibraryVideoRow>
 ): Flow<List<LibraryItem>> {
@@ -120,7 +120,7 @@ internal fun observeLibraryItemsForRows(
         return flowOf(emptyList())
     }
 
-    return subtitleDao.observeSubtitleTracksForVideos(videoIds)
+    return subtitleRepository.observeSubtitleTracksForVideos(videoIds)
         .combine(collectionRepository.collections) { tracks, collections ->
             val tracksByVideoId = tracks.groupBy { it.videoId }
             val collectionCounts = collectionCountsByVideoId(collections)

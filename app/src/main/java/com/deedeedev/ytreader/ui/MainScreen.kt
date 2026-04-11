@@ -103,9 +103,8 @@ fun MainScreen(
 ) {
     val annotationsViewModel: AnnotationsViewModel = viewModel(
         factory = AnnotationsViewModel.provideFactory(
-            appContainer.subtitleDao,
-            appContainer.highlightNoteDao,
-            appContainer.bookmarkDao
+            appContainer.subtitleRepository,
+            appContainer.noteRepository
         )
     )
     val navController = rememberNavController()
@@ -240,10 +239,9 @@ fun MainScreen(
                         openPreferredSubtitleForVideo(videoId, scrollPosition, false)
                     },
                     onVideoSearchAgain = searchVideoAgain,
-                    subtitleDao = appContainer.subtitleDao,
-                    videoDao = appContainer.videoDao,
-                    highlightNoteDao = appContainer.highlightNoteDao,
-                    bookmarkDao = appContainer.bookmarkDao,
+                    subtitleRepository = appContainer.subtitleRepository,
+                    videoRepository = appContainer.videoRepository,
+                    noteRepository = appContainer.noteRepository,
                     initialScrollPosition = libraryScrollPosition
                 )
             }
@@ -270,10 +268,9 @@ fun MainScreen(
                             launchSingleTop = true
                         }
                     },
-                    subtitleDao = appContainer.subtitleDao,
-                    videoDao = appContainer.videoDao,
-                    highlightNoteDao = appContainer.highlightNoteDao,
-                    bookmarkDao = appContainer.bookmarkDao
+                    subtitleRepository = appContainer.subtitleRepository,
+                    videoRepository = appContainer.videoRepository,
+                    noteRepository = appContainer.noteRepository
                 )
             }
             composable(
@@ -318,10 +315,9 @@ fun MainScreen(
                         openPreferredSubtitleForVideo(videoId, scrollPosition, true)
                     },
                     onVideoSearchAgain = searchVideoAgain,
-                    subtitleDao = appContainer.subtitleDao,
-                    videoDao = appContainer.videoDao,
-                    highlightNoteDao = appContainer.highlightNoteDao,
-                    bookmarkDao = appContainer.bookmarkDao,
+                    subtitleRepository = appContainer.subtitleRepository,
+                    videoRepository = appContainer.videoRepository,
+                    noteRepository = appContainer.noteRepository,
                     initialScrollPosition = collectionScrollPosition
                 )
             }
@@ -354,9 +350,8 @@ fun MainScreen(
                 
                 ReaderScreen(
                     subtitleId = subtitleId,
-                    subtitleDao = appContainer.subtitleDao,
-                    highlightNoteDao = appContainer.highlightNoteDao,
-                    bookmarkDao = appContainer.bookmarkDao,
+                    subtitleRepository = appContainer.subtitleRepository,
+                    noteRepository = appContainer.noteRepository,
                     userPreferencesRepository = appContainer.userPreferencesRepository,
                     initialReaderLocation = pendingReaderInitialLocation?.takeIf { it.subtitleId == subtitleId },
                     initialJumpBackState = pendingReaderJumpBackState.also {
@@ -407,9 +402,8 @@ fun MainScreen(
 
                 VideoNotesSheetRoute(
                     videoId = videoId,
-                    subtitleDao = appContainer.subtitleDao,
-                    highlightNoteDao = appContainer.highlightNoteDao,
-                    bookmarkDao = appContainer.bookmarkDao,
+                    subtitleRepository = appContainer.subtitleRepository,
+                    noteRepository = appContainer.noteRepository,
                     onOpenAnnotation = { target ->
                         navigatingFromVideoNotes = true
                         navController.navigate(

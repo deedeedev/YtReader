@@ -9,7 +9,7 @@ import com.deedeedev.ytreader.data.AutoBackupScheduler
 import com.deedeedev.ytreader.data.VideoThumbnailStore
 import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
-import com.deedeedev.ytreader.data.local.VideoDao
+import com.deedeedev.ytreader.data.VideoRepository
 import com.deedeedev.ytreader.data.preferredThumbnailUrl
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import com.deedeedev.ytreader.ui.AppLanguage
@@ -45,7 +45,7 @@ class SettingsViewModel(
     private val appContext: Context,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val youtubeRepository: YoutubeRepository,
-    private val videoDao: VideoDao
+    private val videoRepository: VideoRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -196,7 +196,7 @@ class SettingsViewModel(
         }
         _uiState.update { it.copy(isRunningThumbnailBulkAction = true) }
         return try {
-            val videos = videoDao.getAllMissingThumbnailPath()
+            val videos = videoRepository.getAllMissingThumbnailPath()
             if (videos.isEmpty()) {
                 return appContext.getString(R.string.settings_thumbnail_download_none_missing)
             }
@@ -221,7 +221,7 @@ class SettingsViewModel(
                             false
                         } else {
                             val localPath = VideoThumbnailStore.save(appContext, video.videoId, thumbnailUrl, bytes)
-                            videoDao.upsert(
+                            videoRepository.upsert(
                                 video.copy(
                                     videoUrl = if (video.videoUrl.isBlank()) streamUrl else video.videoUrl,
                                     title = info.name.ifBlank { video.title },
@@ -270,8 +270,8 @@ class SettingsViewModel(
         }
         _uiState.update { it.copy(isRunningThumbnailBulkAction = true) }
         return try {
-            val videos = videoDao.getAll()
-            val referencedPaths = videoDao.getAllReferencedThumbnailPaths().toSet()
+            val videos = videoRepository.getAll()
+            val referencedPaths = videoRepository.getAllReferencedThumbnailPaths().toSet()
             var removedFiles = 0
             VideoThumbnailStore.listFiles(appContext).forEach { file ->
                 if (file.name !in referencedPaths && file.delete()) {
@@ -283,7 +283,7 @@ class SettingsViewModel(
             videos.forEach { video ->
                 val path = video.thumbnailLocalPath ?: return@forEach
                 if (VideoThumbnailStore.resolve(appContext, path) == null) {
-                    videoDao.upsert(
+                    videoRepository.upsert(
                         video.copy(
                             thumbnailLocalPath = null,
                             updatedAt = System.currentTimeMillis()
@@ -312,7 +312,7 @@ class SettingsViewModel(
             appContext: Context,
             userPreferencesRepository: UserPreferencesRepository,
             youtubeRepository: YoutubeRepository,
-            videoDao: VideoDao
+            videoRepository: VideoRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -320,7 +320,7 @@ class SettingsViewModel(
                     appContext,
                     userPreferencesRepository,
                     youtubeRepository,
-                    videoDao
+                    videoRepository
                 ) as T
             }
         }

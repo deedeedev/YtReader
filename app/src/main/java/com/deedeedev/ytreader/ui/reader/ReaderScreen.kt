@@ -48,11 +48,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.ui.FontOption
+import com.deedeedev.ytreader.data.NoteRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.BookmarkEntity
-import com.deedeedev.ytreader.data.local.BookmarkDao
-import com.deedeedev.ytreader.data.local.HighlightNoteDao
-import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.domain.SubtitleParser
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
@@ -83,9 +82,8 @@ private val DEFAULT_NOTE_HIGHLIGHT_COLOR = HighlightColor.YELLOW
 @Composable
 internal fun ReaderScreen(
     subtitleId: Long,
-    subtitleDao: SubtitleDao,
-    highlightNoteDao: HighlightNoteDao,
-    bookmarkDao: BookmarkDao,
+    subtitleRepository: SubtitleRepository,
+    noteRepository: NoteRepository,
     userPreferencesRepository: UserPreferencesRepository,
     initialReaderLocation: ReaderLocation? = null,
     initialJumpBackState: JumpBackState? = null,
@@ -108,9 +106,8 @@ internal fun ReaderScreen(
         key = "Reader_$subtitleId",
         factory = ReaderViewModel.provideFactory(
             context.applicationContext,
-            subtitleDao,
-            highlightNoteDao,
-            bookmarkDao,
+            subtitleRepository,
+            noteRepository,
             userPreferencesRepository,
             subtitleId
         )

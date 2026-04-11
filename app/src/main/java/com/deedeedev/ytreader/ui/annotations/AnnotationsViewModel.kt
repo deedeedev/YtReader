@@ -5,11 +5,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.data.AnnotationOperations
 import com.deedeedev.ytreader.data.DeletableAnnotationAction
-import com.deedeedev.ytreader.data.local.BookmarkDao
+import com.deedeedev.ytreader.data.NoteRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.local.BookmarkEntity
-import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.HighlightNoteEntity
-import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.domain.SubtitleParser
 import com.deedeedev.ytreader.domain.lineTextAtOffset
@@ -91,9 +90,8 @@ sealed interface AnnotationAction {
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AnnotationsViewModel(
-    private val subtitleDao: SubtitleDao,
-    private val highlightNoteDao: HighlightNoteDao,
-    private val bookmarkDao: BookmarkDao
+    private val subtitleRepository: SubtitleRepository,
+    private val noteRepository: NoteRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AnnotationsUiState())
@@ -140,15 +138,15 @@ class AnnotationsViewModel(
 
     private fun loadAnnotations() {
         viewModelScope.launch {
-            subtitleDao.observeAllAccessibleSubtitles()
+            subtitleRepository.observeAllAccessibleSubtitles()
                 .flatMapLatest { subtitles ->
                     if (subtitles.isEmpty()) {
                         flowOf(AnnotationsPayload(emptyList(), emptyList(), emptyList()))
                     } else {
                         val subtitleIds = subtitles.map { it.id }
-                        highlightNoteDao.observeBySubtitleIds(subtitleIds)
+                        noteRepository.observeHighlightsBySubtitleIds(subtitleIds)
                             .flatMapLatest { notes ->
-                                bookmarkDao.observeBySubtitleIds(subtitleIds)
+                                noteRepository.observeBookmarksBySubtitleIds(subtitleIds)
                                     .map { bookmarks ->
                                         AnnotationsPayload(subtitles, notes, bookmarks)
                                     }
@@ -202,9 +200,8 @@ class AnnotationsViewModel(
             AnnotationOperations.delete(
                 action = item.action.toDeletableAction(),
                 subtitlesById = subtitlesById,
-                subtitleDao = subtitleDao,
-                highlightNoteDao = highlightNoteDao,
-                bookmarkDao = bookmarkDao
+                subtitleRepository = subtitleRepository,
+                noteRepository = noteRepository
             )
         }
     }
@@ -214,22 +211,20 @@ class AnnotationsViewModel(
             AnnotationOperations.restore(
                 action = item.action.toDeletableAction(),
                 subtitlesById = subtitlesById,
-                subtitleDao = subtitleDao,
-                highlightNoteDao = highlightNoteDao,
-                bookmarkDao = bookmarkDao
+                subtitleRepository = subtitleRepository,
+                noteRepository = noteRepository
             )
         }
     }
 
     companion object {
         fun provideFactory(
-            subtitleDao: SubtitleDao,
-            highlightNoteDao: HighlightNoteDao,
-            bookmarkDao: BookmarkDao
+            subtitleRepository: SubtitleRepository,
+            noteRepository: NoteRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return AnnotationsViewModel(subtitleDao, highlightNoteDao, bookmarkDao) as T
+                return AnnotationsViewModel(subtitleRepository, noteRepository) as T
             }
         }
     }

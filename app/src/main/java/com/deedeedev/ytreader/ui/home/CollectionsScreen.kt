@@ -64,12 +64,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.data.NoteRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.VideoCollection
-import com.deedeedev.ytreader.data.local.BookmarkDao
-import com.deedeedev.ytreader.data.local.HighlightNoteDao
-import com.deedeedev.ytreader.data.local.SubtitleDao
-import com.deedeedev.ytreader.data.local.VideoDao
+import com.deedeedev.ytreader.data.VideoRepository
 import com.deedeedev.ytreader.ui.components.EpubExportDialog
+import com.deedeedev.ytreader.ui.home.CollectionsUiState
+import com.deedeedev.ytreader.ui.home.CollectionsEvent
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -78,13 +79,12 @@ import kotlinx.coroutines.launch
 fun CollectionsScreen(
     viewModel: CollectionsViewModel,
     onCollectionClick: (String) -> Unit,
-    subtitleDao: SubtitleDao,
-    videoDao: VideoDao,
-    highlightNoteDao: HighlightNoteDao,
-    bookmarkDao: BookmarkDao,
+    subtitleRepository: SubtitleRepository,
+    videoRepository: VideoRepository,
+    noteRepository: NoteRepository,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val uiState: CollectionsUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -112,14 +112,14 @@ fun CollectionsScreen(
     )
 
     val videosOnlyInCollections = remember(uiState.savedSubtitles) {
-        uiState.savedSubtitles
-            .groupBy { it.videoId }
-            .mapValues { (_, subtitles) -> subtitles.any { !it.isInLibrary } }
+        val subs: List<com.deedeedev.ytreader.data.local.SubtitleEntity> = uiState.savedSubtitles
+        subs.groupBy { sub -> sub.videoId }
+            .mapValues { (_, subtitles) -> subtitles.any { sub -> !sub.isInLibrary } }
     }
     val readVideosById = remember(uiState.savedSubtitles) {
-        uiState.savedSubtitles
-            .groupBy { it.videoId }
-            .mapValues { (_, subtitles) -> subtitles.maxOfOrNull { it.readingProgressPercent } ?: 0 }
+        val subs: List<com.deedeedev.ytreader.data.local.SubtitleEntity> = uiState.savedSubtitles
+        subs.groupBy { sub -> sub.videoId }
+            .mapValues { (_, subtitles) -> subtitles.maxOfOrNull { sub -> sub.readingProgressPercent } ?: 0 }
     }
 
     Scaffold(
@@ -275,10 +275,9 @@ fun CollectionsScreen(
         EpubExportDialog(
             bookTitle = epubExportTitle,
             videoIds = epubExportVideoIds,
-            subtitleDao = subtitleDao,
-            videoDao = videoDao,
-            highlightNoteDao = highlightNoteDao,
-            bookmarkDao = bookmarkDao,
+            subtitleRepository = subtitleRepository,
+            videoRepository = videoRepository,
+            noteRepository = noteRepository,
             onDismiss = { showEpubExport = false }
         )
     }

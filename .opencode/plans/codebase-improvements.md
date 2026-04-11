@@ -2,25 +2,6 @@
 
 ## MEDIUM PRIORITY
 
-### 6. DAOs Bypass Repository Layer
-
-DAOs (`subtitleDao`, `highlightNoteDao`, `bookmarkDao`) are passed directly to Composable screens and ViewModels, bypassing the repository pattern used elsewhere.
-
-**Example in `MainScreen.kt`:**
-```kotlin
-LibraryScreen(
-    subtitleDao = appContainer.subtitleDao,
-    videoDao = appContainer.videoDao,
-    highlightNoteDao = appContainer.highlightNoteDao,
-    bookmarkDao = appContainer.bookmarkDao,
-    ...
-)
-```
-
-**Fix:** Introduce `SubtitleRepository` and `VideoRepository` to centralize business logic, caching, and error handling.
-
----
-
 ### 7. Oversized Files Need Decomposition
 
 | File | Lines | Suggestion |

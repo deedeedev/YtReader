@@ -32,28 +32,27 @@ enum class EpubExportMode {
 
 suspend fun exportEpub(
     context: Context,
-    subtitleDao: SubtitleDao,
-    videoDao: VideoDao,
-    highlightNoteDao: HighlightNoteDao,
-    bookmarkDao: BookmarkDao,
+    subtitleRepository: SubtitleRepository,
+    videoRepository: VideoRepository,
+    noteRepository: NoteRepository,
     videoIds: List<String>,
     mode: EpubExportMode,
     bookTitle: String
 ): File {
-    val subtitles = subtitleDao.observeSubtitleTracksForVideos(videoIds).first()
+    val subtitles = subtitleRepository.observeSubtitleTracksForVideos(videoIds).first()
     val subtitleIds = subtitles.map { it.id }
     val highlightsBySubtitle = if (mode == EpubExportMode.ANNOTATED) {
-        highlightNoteDao.observeBySubtitleIds(subtitleIds).first().groupBy { it.subtitleId }
+        noteRepository.observeHighlightsBySubtitleIds(subtitleIds).first().groupBy { it.subtitleId }
     } else {
         emptyMap()
     }
     val bookmarksBySubtitle = if (mode == EpubExportMode.ANNOTATED) {
-        bookmarkDao.observeBySubtitleIds(subtitleIds).first().groupBy { it.subtitleId }
+        noteRepository.observeBookmarksBySubtitleIds(subtitleIds).first().groupBy { it.subtitleId }
     } else {
         emptyMap()
     }
     val videosByVideoId = videoIds.mapNotNull { id ->
-        videoDao.getByVideoId(id)?.let { id to it }
+        videoRepository.getByVideoId(id)?.let { id to it }
     }.toMap()
 
     val subtitlesByVideo = subtitles.groupBy { it.videoId }

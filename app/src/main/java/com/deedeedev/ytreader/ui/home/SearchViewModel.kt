@@ -5,13 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.data.SearchHistoryRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.data.VideoRepository
 import com.deedeedev.ytreader.data.YoutubeRepository
-import com.deedeedev.ytreader.data.local.SearchHistoryDao
 import com.deedeedev.ytreader.data.local.SearchHistoryEntity
-import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
-import com.deedeedev.ytreader.data.local.VideoDao
 import com.deedeedev.ytreader.domain.SubtitleIdentity
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -42,10 +42,10 @@ sealed interface SearchEvent {
 class SearchViewModel(
     private val appContext: Context,
     private val youtubeRepository: YoutubeRepository,
-    private val subtitleDao: SubtitleDao,
-    private val videoDao: VideoDao,
+    private val subtitleRepository: SubtitleRepository,
+    private val videoRepository: VideoRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
-    private val searchHistoryDao: SearchHistoryDao
+    private val searchHistoryRepository: SearchHistoryRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -61,7 +61,7 @@ class SearchViewModel(
 
     private fun loadSavedSubtitles() {
         viewModelScope.launch {
-            subtitleDao.getAll().collect { subtitles ->
+            subtitleRepository.observeAll().collect { subtitles ->
                 _uiState.update { it.copy(savedSubtitles = subtitles) }
             }
         }
@@ -81,7 +81,7 @@ class SearchViewModel(
 
     private fun loadSearchHistory() {
         viewModelScope.launch {
-            searchHistoryDao.getAll().collect { history ->
+            searchHistoryRepository.observeAll().collect { history ->
                 _uiState.update { it.copy(searchHistory = history) }
             }
         }
@@ -126,7 +126,7 @@ class SearchViewModel(
 
     fun deleteHistoryEntry(id: Long) {
         viewModelScope.launch {
-            searchHistoryDao.delete(id)
+            searchHistoryRepository.delete(id)
         }
     }
 
@@ -136,7 +136,7 @@ class SearchViewModel(
     }
 
     private suspend fun saveToSearchHistory(url: String, videoTitle: String, channelName: String) {
-        searchHistoryDao.upsert(
+        searchHistoryRepository.upsert(
             SearchHistoryEntity(
                 url = url,
                 videoTitle = videoTitle,
@@ -144,9 +144,9 @@ class SearchViewModel(
                 searchedAt = System.currentTimeMillis()
             )
         )
-        val count = searchHistoryDao.getCount()
+        val count = searchHistoryRepository.getCount()
         if (count > 100) {
-            searchHistoryDao.deleteOldest(count - 100)
+            searchHistoryRepository.deleteOldest(count - 100)
         }
     }
 
@@ -182,9 +182,8 @@ class SearchViewModel(
                     fontFamily = userPreferencesRepository.fontFamily.value,
                     uploadDate = info.uploadDate?.instant?.toEpochMilli() ?: 0L
                 )
-                subtitleDao.upsertByIdentity(entity)
-                upsertVideoMetadata(
-                    videoDao = videoDao,
+                subtitleRepository.upsertByIdentity(entity)
+                videoRepository.upsertVideoMetadata(
                     youtubeRepository = youtubeRepository,
                     appContext = appContext,
                     videoId = canonicalVideoRef.videoId,
@@ -211,20 +210,20 @@ class SearchViewModel(
         fun provideFactory(
             appContext: Context,
             youtubeRepository: YoutubeRepository,
-            subtitleDao: SubtitleDao,
-            videoDao: VideoDao,
+            subtitleRepository: SubtitleRepository,
+            videoRepository: VideoRepository,
             userPreferencesRepository: UserPreferencesRepository,
-            searchHistoryDao: SearchHistoryDao
+            searchHistoryRepository: SearchHistoryRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return SearchViewModel(
                     appContext,
                     youtubeRepository,
-                    subtitleDao,
-                    videoDao,
+                    subtitleRepository,
+                    videoRepository,
                     userPreferencesRepository,
-                    searchHistoryDao
+                    searchHistoryRepository
                 ) as T
             }
         }

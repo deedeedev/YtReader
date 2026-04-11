@@ -65,21 +65,19 @@ class MainActivity : ComponentActivity() {
                     factory = SearchViewModel.provideFactory(
                         appContainer.appContext,
                         appContainer.youtubeRepository,
-                        appContainer.subtitleDao,
-                        appContainer.videoDao,
+                        appContainer.subtitleRepository,
+                        appContainer.videoRepository,
                         appContainer.userPreferencesRepository,
-                        appContainer.searchHistoryDao
+                        appContainer.searchHistoryRepository
                     )
                 )
                 val libraryViewModel: LibraryViewModel = viewModel(
                     factory = LibraryViewModel.provideFactory(
                         appContainer.appContext,
                         appContainer.youtubeRepository,
-                        appContainer.database,
-                        appContainer.subtitleDao,
-                        appContainer.videoDao,
-                        appContainer.highlightNoteDao,
-                        appContainer.bookmarkDao,
+                        appContainer.subtitleRepository,
+                        appContainer.videoRepository,
+                        appContainer.noteRepository,
                         appContainer.userPreferencesRepository,
                         appContainer.collectionRepository
                     )
@@ -88,11 +86,9 @@ class MainActivity : ComponentActivity() {
                     factory = CollectionsViewModel.provideFactory(
                         appContainer.appContext,
                         appContainer.youtubeRepository,
-                        appContainer.database,
-                        appContainer.subtitleDao,
-                        appContainer.videoDao,
-                        appContainer.highlightNoteDao,
-                        appContainer.bookmarkDao,
+                        appContainer.subtitleRepository,
+                        appContainer.videoRepository,
+                        appContainer.noteRepository,
                         appContainer.userPreferencesRepository,
                         appContainer.collectionRepository
                     )

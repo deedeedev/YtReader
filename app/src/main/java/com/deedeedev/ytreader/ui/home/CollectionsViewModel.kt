@@ -4,22 +4,18 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.room.withTransaction
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.CollectionRepository
-import com.deedeedev.ytreader.data.PersistedCollectionFilters
+import com.deedeedev.ytreader.data.NoteRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
-import com.deedeedev.ytreader.data.VideoCollection
+import com.deedeedev.ytreader.data.PersistedCollectionFilters
+import com.deedeedev.ytreader.data.VideoRepository
 import com.deedeedev.ytreader.data.YoutubeRepository
+import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.local.AppDatabase
-import com.deedeedev.ytreader.data.local.HighlightNoteDao
-import com.deedeedev.ytreader.data.local.BookmarkDao
-import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
-import com.deedeedev.ytreader.data.local.VideoDao
-import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +26,8 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.Flow
+import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 
 data class CollectionsUiState(
     val collections: List<VideoCollection> = emptyList(),
@@ -48,11 +46,9 @@ sealed interface CollectionsEvent {
 class CollectionsViewModel(
     private val appContext: Context,
     private val youtubeRepository: YoutubeRepository,
-    private val database: AppDatabase,
-    private val subtitleDao: SubtitleDao,
-    private val videoDao: VideoDao,
-    private val highlightNoteDao: HighlightNoteDao,
-    private val bookmarkDao: BookmarkDao,
+    private val subtitleRepository: SubtitleRepository,
+    private val videoRepository: VideoRepository,
+    private val noteRepository: NoteRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val collectionRepository: CollectionRepository
 ) : ViewModel() {
@@ -77,7 +73,7 @@ class CollectionsViewModel(
 
     private fun loadSavedSubtitles() {
         viewModelScope.launch {
-            subtitleDao.getAll().collect { subtitles ->
+            subtitleRepository.observeAll().collect { subtitles ->
                 _uiState.update { it.copy(savedSubtitles = subtitles) }
             }
         }
@@ -175,7 +171,7 @@ class CollectionsViewModel(
     fun removeVideoFromCollection(collectionId: String, videoId: String) {
         viewModelScope.launch {
             collectionRepository.removeVideoFromCollection(collectionId, videoId)
-            deleteVideoIfUnreferenced(subtitleDao, videoDao, collectionRepository, appContext, videoId)
+            deleteVideoIfUnreferenced(subtitleRepository, videoRepository, collectionRepository, appContext, videoId)
         }
     }
 
@@ -184,7 +180,7 @@ class CollectionsViewModel(
         if (normalizedIds.isEmpty()) {
             return flowOf(emptyList())
         }
-        return subtitleDao.observeCollectionChannels(normalizedIds)
+        return subtitleRepository.observeCollectionChannels(normalizedIds)
     }
 
     fun observeCollectionItems(
@@ -199,13 +195,13 @@ class CollectionsViewModel(
             return flowOf(emptyList())
         }
 
-        return subtitleDao.observeCollectionVideoRows(
+        return subtitleRepository.observeCollectionVideoRows(
             videoIds = normalizedIds,
             channelName = channelName,
             sortOption = sortOption.name,
             isAscending = isAscending
         ).flatMapLatest { rows ->
-            observeLibraryItemsForRows(subtitleDao, collectionRepository, rows)
+            observeLibraryItemsForRows(subtitleRepository, collectionRepository, rows)
                 .map { items -> items.filterByReadStatus(readStatusFilter) }
         }
     }
@@ -215,7 +211,7 @@ class CollectionsViewModel(
         if (normalizedIds.isEmpty()) {
             return flowOf(0)
         }
-        return subtitleDao.observeCollectionVideoCount(normalizedIds)
+        return subtitleRepository.observeCollectionVideoCount(normalizedIds)
     }
 
     fun downloadSubtitleAgain(subtitle: SubtitleEntity) {
@@ -241,17 +237,16 @@ class CollectionsViewModel(
                     subtitleContent
                 }
 
-                database.withTransaction {
-                    subtitleDao.replaceContentForRedownload(
+                subtitleRepository.replaceContentForRedownload(
                         id = subtitle.id,
                         content = rawContent,
                         createdAt = System.currentTimeMillis()
                     )
-                    highlightNoteDao.deleteBySubtitleId(subtitle.id)
-                    bookmarkDao.deleteBySubtitleId(subtitle.id)
-                }
+                    noteRepository.deleteHighlightsBySubtitleId(subtitle.id)
+                    noteRepository.deleteBookmarksBySubtitleId(subtitle.id)
+
                 upsertVideoMetadata(
-                    videoDao = videoDao,
+                    videoRepository = videoRepository,
                     youtubeRepository = youtubeRepository,
                     appContext = appContext,
                     videoId = subtitle.videoId,
@@ -290,7 +285,7 @@ class CollectionsViewModel(
             try {
                 val info = youtubeRepository.getStreamInfo(displayUrlFor(videoId, videoUrl))
                 upsertVideoMetadata(
-                    videoDao = videoDao,
+                    videoRepository = videoRepository,
                     youtubeRepository = youtubeRepository,
                     appContext = appContext,
                     videoId = videoId,
@@ -318,23 +313,23 @@ class CollectionsViewModel(
 
     fun markVideoAsRead(videoId: String) {
         viewModelScope.launch {
-            subtitleDao.markVideoAsRead(videoId)
+            subtitleRepository.markVideoAsRead(videoId)
         }
     }
 
     fun resetVideoProgress(videoId: String) {
         viewModelScope.launch {
-            subtitleDao.resetReadingProgressForVideo(videoId)
+            subtitleRepository.resetReadingProgressForVideo(videoId)
         }
     }
 
     fun deleteSubtitle(subtitle: SubtitleEntity) {
         viewModelScope.launch {
-            val subtitleCountForVideo = subtitleDao.countByVideoId(subtitle.videoId)
+            val subtitleCountForVideo = subtitleRepository.countByVideoId(subtitle.videoId)
             if (subtitleCountForVideo <= 1) {
                 collectionRepository.removeVideoFromAllCollections(subtitle.videoId)
             }
-            subtitleDao.delete(subtitle)
+            subtitleRepository.delete(subtitle)
         }
     }
 
@@ -342,9 +337,9 @@ class CollectionsViewModel(
         viewModelScope.launch {
             val videoId = subtitles.firstOrNull()?.videoId ?: return@launch
             subtitles.forEach { subtitle ->
-                subtitleDao.upsertByIdentity(subtitle.copy(isInLibrary = true))
+                subtitleRepository.upsertByIdentity(subtitle.copy(isInLibrary = true))
             }
-            subtitleDao.updateLibraryVisibility(videoId, true)
+            subtitleRepository.updateLibraryVisibility(videoId, true)
         }
     }
 
@@ -393,11 +388,9 @@ class CollectionsViewModel(
         fun provideFactory(
             appContext: Context,
             youtubeRepository: YoutubeRepository,
-            database: AppDatabase,
-            subtitleDao: SubtitleDao,
-            videoDao: VideoDao,
-            highlightNoteDao: HighlightNoteDao,
-            bookmarkDao: BookmarkDao,
+            subtitleRepository: SubtitleRepository,
+            videoRepository: VideoRepository,
+            noteRepository: NoteRepository,
             userPreferencesRepository: UserPreferencesRepository,
             collectionRepository: CollectionRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
@@ -406,11 +399,9 @@ class CollectionsViewModel(
                 return CollectionsViewModel(
                     appContext,
                     youtubeRepository,
-                    database,
-                    subtitleDao,
-                    videoDao,
-                    highlightNoteDao,
-                    bookmarkDao,
+                    subtitleRepository,
+                    videoRepository,
+                    noteRepository,
                     userPreferencesRepository,
                     collectionRepository
                 ) as T

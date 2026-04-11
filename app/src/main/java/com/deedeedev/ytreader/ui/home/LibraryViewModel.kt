@@ -4,19 +4,17 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.room.withTransaction
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.CollectionRepository
-import com.deedeedev.ytreader.data.PersistedLibraryFilters
+import com.deedeedev.ytreader.data.NoteRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
-import com.deedeedev.ytreader.data.VideoCollection
+import com.deedeedev.ytreader.data.PersistedLibraryFilters
+import com.deedeedev.ytreader.data.VideoRepository
 import com.deedeedev.ytreader.data.YoutubeRepository
+import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.local.AppDatabase
-import com.deedeedev.ytreader.data.local.HighlightNoteDao
-import com.deedeedev.ytreader.data.local.BookmarkDao
-import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
-import com.deedeedev.ytreader.data.local.VideoDao
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -53,11 +51,9 @@ sealed interface LibraryEvent {
 class LibraryViewModel(
     private val appContext: Context,
     private val youtubeRepository: YoutubeRepository,
-    private val database: AppDatabase,
-    private val subtitleDao: SubtitleDao,
-    private val videoDao: VideoDao,
-    private val highlightNoteDao: HighlightNoteDao,
-    private val bookmarkDao: BookmarkDao,
+    private val subtitleRepository: SubtitleRepository,
+    private val videoRepository: VideoRepository,
+    private val noteRepository: NoteRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val collectionRepository: CollectionRepository
 ) : ViewModel() {
@@ -67,7 +63,7 @@ class LibraryViewModel(
     private val _events = MutableSharedFlow<LibraryEvent>(extraBufferCapacity = 1)
     val events = _events.asSharedFlow()
 
-    val libraryChannels: StateFlow<List<String>> = subtitleDao.observeLibraryChannels()
+    val libraryChannels: StateFlow<List<String>> = subtitleRepository.observeLibraryChannels()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val libraryItems: StateFlow<List<LibraryItem>> = uiState
@@ -82,12 +78,12 @@ class LibraryViewModel(
         }
         .distinctUntilChanged()
         .flatMapLatest { params ->
-            subtitleDao.observeLibraryVideoRows(
+            subtitleRepository.observeLibraryVideoRows(
                 channelName = params.channelName,
                 sortOption = params.sortOption.name,
                 isAscending = params.isAscending
             ).flatMapLatest { rows ->
-                observeLibraryItemsForRows(subtitleDao, collectionRepository, rows)
+                observeLibraryItemsForRows(subtitleRepository, collectionRepository, rows)
                     .map { items ->
                         items.filterByVisibility(params.visibilityFilter)
                             .filterByReadStatus(params.readStatusFilter)
@@ -139,7 +135,7 @@ class LibraryViewModel(
     }
 
     suspend fun getPreferredSubtitleIdForVideo(videoId: String): Long? {
-        return subtitleDao.getPreferredSubtitleForVideo(videoId)?.id
+        return subtitleRepository.getPreferredSubtitleForVideo(videoId)?.id
     }
 
     fun downloadSubtitleAgain(subtitle: SubtitleEntity) {
@@ -165,17 +161,15 @@ class LibraryViewModel(
                     subtitleContent
                 }
 
-                database.withTransaction {
-                    subtitleDao.replaceContentForRedownload(
-                        id = subtitle.id,
-                        content = rawContent,
-                        createdAt = System.currentTimeMillis()
-                    )
-                    highlightNoteDao.deleteBySubtitleId(subtitle.id)
-                    bookmarkDao.deleteBySubtitleId(subtitle.id)
-                }
+                subtitleRepository.replaceContentForRedownload(
+                    id = subtitle.id,
+                    content = rawContent,
+                    createdAt = System.currentTimeMillis()
+                )
+                noteRepository.deleteHighlightsBySubtitleId(subtitle.id)
+                noteRepository.deleteBookmarksBySubtitleId(subtitle.id)
                 upsertVideoMetadata(
-                    videoDao = videoDao,
+                    videoRepository = videoRepository,
                     youtubeRepository = youtubeRepository,
                     appContext = appContext,
                     videoId = subtitle.videoId,
@@ -214,7 +208,7 @@ class LibraryViewModel(
             try {
                 val info = youtubeRepository.getStreamInfo(displayUrlFor(videoId, videoUrl))
                 upsertVideoMetadata(
-                    videoDao = videoDao,
+                    videoRepository = videoRepository,
                     youtubeRepository = youtubeRepository,
                     appContext = appContext,
                     videoId = videoId,
@@ -243,8 +237,8 @@ class LibraryViewModel(
     fun removeLibraryItem(subtitles: List<SubtitleEntity>) {
         viewModelScope.launch {
             val videoId = subtitles.firstOrNull()?.videoId ?: return@launch
-            subtitleDao.updateLibraryVisibility(videoId, false)
-            deleteVideoIfUnreferenced(subtitleDao, videoDao, collectionRepository, appContext, videoId)
+            subtitleRepository.updateLibraryVisibility(videoId, false)
+            deleteVideoIfUnreferenced(subtitleRepository, videoRepository, collectionRepository, appContext, videoId)
         }
     }
 
@@ -252,38 +246,38 @@ class LibraryViewModel(
         viewModelScope.launch {
             val videoId = subtitles.firstOrNull()?.videoId ?: return@launch
             subtitles.forEach { subtitle ->
-                subtitleDao.upsertByIdentity(subtitle.copy(isInLibrary = true))
+                subtitleRepository.upsertByIdentity(subtitle.copy(isInLibrary = true))
             }
-            subtitleDao.updateLibraryVisibility(videoId, true)
+            subtitleRepository.updateLibraryVisibility(videoId, true)
         }
     }
 
     fun resetVideoProgress(videoId: String) {
         viewModelScope.launch {
-            subtitleDao.resetReadingProgressForVideo(videoId)
+            subtitleRepository.resetReadingProgressForVideo(videoId)
         }
     }
 
     fun markVideoAsRead(videoId: String) {
         viewModelScope.launch {
-            subtitleDao.markVideoAsRead(videoId)
+            subtitleRepository.markVideoAsRead(videoId)
         }
     }
 
     fun deleteVideoPermanently(videoId: String) {
         viewModelScope.launch {
             collectionRepository.removeVideoFromAllCollections(videoId)
-            subtitleDao.deleteByVideoId(videoId)
+            subtitleRepository.deleteByVideoId(videoId)
         }
     }
 
     fun deleteSubtitle(subtitle: SubtitleEntity) {
         viewModelScope.launch {
-            val subtitleCountForVideo = subtitleDao.countByVideoId(subtitle.videoId)
+            val subtitleCountForVideo = subtitleRepository.countByVideoId(subtitle.videoId)
             if (subtitleCountForVideo <= 1) {
                 collectionRepository.removeVideoFromAllCollections(subtitle.videoId)
             }
-            subtitleDao.delete(subtitle)
+            subtitleRepository.delete(subtitle)
         }
     }
 
@@ -302,7 +296,7 @@ class LibraryViewModel(
     }
 
     fun addVideoToCollection(collectionId: String, videoId: String): Boolean {
-        val collection = _uiState.value.collections.firstOrNull { it.id == collectionId } ?: return false
+        val collection = _uiState.value.collections.firstOrNull { c -> c.id == collectionId } ?: return false
         val normalizedVideoId = YouTubeVideoIdNormalizer.extractVideoId(videoId.trim()) ?: videoId.trim()
         if (normalizedVideoId.isBlank()) {
             return false
@@ -323,10 +317,9 @@ class LibraryViewModel(
     ): File {
         return com.deedeedev.ytreader.data.exportEpub(
             context = appContext,
-            subtitleDao = subtitleDao,
-            videoDao = videoDao,
-            highlightNoteDao = highlightNoteDao,
-            bookmarkDao = bookmarkDao,
+            subtitleRepository = subtitleRepository,
+            videoRepository = videoRepository,
+            noteRepository = noteRepository,
             videoIds = videoIds,
             mode = mode,
             bookTitle = bookTitle
@@ -334,7 +327,7 @@ class LibraryViewModel(
     }
 
     suspend fun getAllLibraryVideoIds(): List<String> {
-        return subtitleDao.getLibraryVideoIds()
+        return subtitleRepository.getLibraryVideoIds()
     }
 
     private fun createInitialUiState(): LibraryUiState {
@@ -372,11 +365,9 @@ class LibraryViewModel(
         fun provideFactory(
             appContext: Context,
             youtubeRepository: YoutubeRepository,
-            database: AppDatabase,
-            subtitleDao: SubtitleDao,
-            videoDao: VideoDao,
-            highlightNoteDao: HighlightNoteDao,
-            bookmarkDao: BookmarkDao,
+            subtitleRepository: SubtitleRepository,
+            videoRepository: VideoRepository,
+            noteRepository: NoteRepository,
             userPreferencesRepository: UserPreferencesRepository,
             collectionRepository: CollectionRepository
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
@@ -385,11 +376,9 @@ class LibraryViewModel(
                 return LibraryViewModel(
                     appContext,
                     youtubeRepository,
-                    database,
-                    subtitleDao,
-                    videoDao,
-                    highlightNoteDao,
-                    bookmarkDao,
+                    subtitleRepository,
+                    videoRepository,
+                    noteRepository,
                     userPreferencesRepository,
                     collectionRepository
                 ) as T

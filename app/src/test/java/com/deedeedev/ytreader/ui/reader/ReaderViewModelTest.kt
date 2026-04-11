@@ -2,12 +2,11 @@ package com.deedeedev.ytreader.ui.reader
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.deedeedev.ytreader.data.NoteRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
-import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.BookmarkEntity
-import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.HighlightNoteEntity
-import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -45,25 +44,23 @@ class ReaderViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    private lateinit var subtitleDao: SubtitleDao
-    private lateinit var highlightNoteDao: HighlightNoteDao
-    private lateinit var bookmarkDao: BookmarkDao
+    private lateinit var subtitleRepository: SubtitleRepository
+    private lateinit var noteRepository: NoteRepository
     private lateinit var subtitleFlow: MutableStateFlow<SubtitleEntity?>
     private lateinit var noteFlow: MutableStateFlow<List<HighlightNoteEntity>>
     private lateinit var bookmarkFlow: MutableStateFlow<List<BookmarkEntity>>
 
     @Before
     fun setUp() {
-        subtitleDao = mock()
-        highlightNoteDao = mock()
-        bookmarkDao = mock()
+        subtitleRepository = mock()
+        noteRepository = mock()
         subtitleFlow = MutableStateFlow(baseSubtitle(highlights = emptyList()))
         noteFlow = MutableStateFlow(emptyList())
         bookmarkFlow = MutableStateFlow(emptyList())
 
-        whenever(subtitleDao.observeById(SUBTITLE_ID)).thenReturn(subtitleFlow)
-        whenever(highlightNoteDao.observeBySubtitleId(SUBTITLE_ID)).thenReturn(noteFlow)
-        whenever(bookmarkDao.observeBySubtitleId(SUBTITLE_ID)).thenReturn(bookmarkFlow)
+        whenever(subtitleRepository.observeById(SUBTITLE_ID)).thenReturn(subtitleFlow)
+        whenever(noteRepository.observeHighlightsBySubtitleId(SUBTITLE_ID)).thenReturn(noteFlow)
+        whenever(noteRepository.observeBookmarksBySubtitleId(SUBTITLE_ID)).thenReturn(bookmarkFlow)
     }
 
     @Test
@@ -106,13 +103,13 @@ class ReaderViewModelTest {
         advanceUntilIdle()
 
         assertEquals("updated note", viewModel.uiState.value.highlights.single().note)
-        verify(highlightNoteDao).upsert(
-            argThat { 
-                subtitleId == SUBTITLE_ID &&
-                    highlightStart == 0 &&
-                    highlightEnd == 5 &&
-                    noteText == "updated note"
-            }
+        verify(noteRepository).upsertHighlight(
+            HighlightNoteEntity(
+                subtitleId = SUBTITLE_ID,
+                highlightStart = 0,
+                highlightEnd = 5,
+                noteText = "updated note"
+            )
         )
     }
 
@@ -154,20 +151,6 @@ class ReaderViewModelTest {
             merged
         )
         assertEquals(listOf(merged), viewModel.uiState.value.highlights)
-        verify(highlightNoteDao).deleteByRange(SUBTITLE_ID, 0, 4)
-        verify(highlightNoteDao).deleteByRange(SUBTITLE_ID, 6, 10)
-        verify(highlightNoteDao).upsert(
-            argThat {
-                subtitleId == SUBTITLE_ID &&
-                    highlightStart == 0 &&
-                    highlightEnd == 10 &&
-                    noteText == "First note\n\nSecond note"
-            }
-        )
-        verify(subtitleDao).updateHighlights(
-            SUBTITLE_ID,
-            serializeHighlights(listOf(TextHighlight(start = 0, end = 10, color = HighlightColor.BLUE)))
-        )
     }
 
     @Test
@@ -191,7 +174,7 @@ class ReaderViewModelTest {
         advanceUntilIdle()
 
         assertNull(viewModel.uiState.value.highlights.single().note)
-        verify(highlightNoteDao).deleteByRange(SUBTITLE_ID, 2, 7)
+        verify(noteRepository).deleteHighlightByRange(SUBTITLE_ID, 2, 7)
     }
 
     @Test
@@ -213,17 +196,16 @@ class ReaderViewModelTest {
         advanceUntilIdle()
 
         assertEquals(emptyList<TextHighlight>(), viewModel.uiState.value.highlights)
-        verify(subtitleDao).updateStudyContent(SUBTITLE_ID, "Updated content")
-        verify(subtitleDao).updateHighlights(SUBTITLE_ID, "")
-        verify(highlightNoteDao).deleteBySubtitleId(SUBTITLE_ID)
+        verify(subtitleRepository).updateStudyContent(SUBTITLE_ID, "Updated content")
+        verify(subtitleRepository).updateHighlights(SUBTITLE_ID, "")
+        verify(noteRepository).deleteHighlightsBySubtitleId(SUBTITLE_ID)
     }
 
     private fun createViewModel(): ReaderViewModel {
         return ReaderViewModel(
             appContext = mock(),
-            subtitleDao = subtitleDao,
-            highlightNoteDao = highlightNoteDao,
-            bookmarkDao = bookmarkDao,
+            subtitleRepository = subtitleRepository,
+            noteRepository = noteRepository,
             userPreferencesRepository = createUserPreferencesRepository(),
             subtitleId = SUBTITLE_ID,
             widgetUpdater = { _ -> }

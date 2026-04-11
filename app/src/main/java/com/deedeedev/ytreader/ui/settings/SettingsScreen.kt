@@ -47,7 +47,7 @@ fun SettingsScreen(
             appContainer.appContext,
             appContainer.userPreferencesRepository,
             appContainer.youtubeRepository,
-            appContainer.videoDao
+            appContainer.videoRepository
         )
     )
 ) {

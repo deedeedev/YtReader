@@ -2,13 +2,13 @@ package com.deedeedev.ytreader.ui.home
 
 import android.content.Context
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.data.SearchHistoryRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
+import com.deedeedev.ytreader.data.VideoRepository
 import com.deedeedev.ytreader.data.YoutubeRepository
-import com.deedeedev.ytreader.data.local.SearchHistoryDao
 import com.deedeedev.ytreader.data.local.SearchHistoryEntity
-import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
-import com.deedeedev.ytreader.data.local.VideoDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -40,10 +41,10 @@ class SearchViewModelTest {
 
     private lateinit var appContext: Context
     private lateinit var youtubeRepository: YoutubeRepository
-    private lateinit var subtitleDao: SubtitleDao
-    private lateinit var videoDao: VideoDao
+    private lateinit var subtitleRepository: SubtitleRepository
+    private lateinit var videoRepository: VideoRepository
     private lateinit var userPreferencesRepository: UserPreferencesRepository
-    private lateinit var searchHistoryDao: SearchHistoryDao
+    private lateinit var searchHistoryRepository: SearchHistoryRepository
     private lateinit var favoriteLanguagesFlow: MutableStateFlow<Set<String>>
     private lateinit var searchHistoryFlow: MutableStateFlow<List<SearchHistoryEntity>>
     private lateinit var savedSubtitlesFlow: MutableStateFlow<List<SubtitleEntity>>
@@ -52,24 +53,27 @@ class SearchViewModelTest {
     fun setUp() {
         appContext = mock()
         youtubeRepository = mock()
-        subtitleDao = mock()
-        videoDao = mock()
+        subtitleRepository = mock()
+        videoRepository = mock()
         userPreferencesRepository = mock()
-        searchHistoryDao = mock()
+        searchHistoryRepository = mock()
 
         favoriteLanguagesFlow = MutableStateFlow(emptySet())
         searchHistoryFlow = MutableStateFlow(emptyList())
         savedSubtitlesFlow = MutableStateFlow(emptyList())
 
         whenever(userPreferencesRepository.favoriteLanguages).thenReturn(favoriteLanguagesFlow)
-        whenever(searchHistoryDao.getAll()).thenReturn(searchHistoryFlow)
-        whenever(subtitleDao.getAll()).thenReturn(savedSubtitlesFlow)
+        whenever(subtitleRepository.observeAll()).thenReturn(savedSubtitlesFlow)
+        whenever(searchHistoryRepository.observeAll()).thenReturn(searchHistoryFlow)
         whenever(userPreferencesRepository.defaultFontSize).thenReturn(MutableStateFlow(16f))
         whenever(userPreferencesRepository.fontFamily).thenReturn(MutableStateFlow("Default"))
         whenever(appContext.getString(R.string.channel_unknown)).thenReturn("Unknown")
         whenever(appContext.getString(R.string.unknown_error)).thenReturn("Unknown error")
         whenever(appContext.getString(R.string.download_failed)).thenReturn("Download failed")
         whenever(appContext.getString(R.string.library_unknown_code)).thenReturn("und")
+        whenever(appContext.getString(R.string.matching_subtitle_not_found)).thenReturn("Not found")
+        whenever(appContext.getString(R.string.library_thumbnail_downloaded)).thenReturn("Downloaded")
+        whenever(appContext.getString(R.string.library_thumbnail_download_failed)).thenReturn("Failed")
     }
 
     private fun createStreamInfo(
@@ -91,10 +95,10 @@ class SearchViewModelTest {
         return SearchViewModel(
             appContext,
             youtubeRepository,
-            subtitleDao,
-            videoDao,
+            subtitleRepository,
+            videoRepository,
             userPreferencesRepository,
-            searchHistoryDao
+            searchHistoryRepository
         )
     }
 
@@ -145,7 +149,7 @@ class SearchViewModelTest {
         val viewModel = createViewModel()
         val streamInfo = createStreamInfo()
         whenever(youtubeRepository.getStreamInfo("https://youtube.com/watch?v=test")).thenReturn(streamInfo)
-        whenever(searchHistoryDao.getCount()).thenReturn(0)
+        whenever(searchHistoryRepository.getCount()).thenReturn(0)
 
         viewModel.onUrlChange("https://youtube.com/watch?v=test")
         viewModel.searchVideo()
@@ -185,7 +189,7 @@ class SearchViewModelTest {
         val viewModel = createViewModel()
         viewModel.deleteHistoryEntry(42L)
         advanceUntilIdle()
-        verify(searchHistoryDao).delete(42L)
+        verify(searchHistoryRepository).delete(42L)
     }
 
     @Test
@@ -193,7 +197,7 @@ class SearchViewModelTest {
         val viewModel = createViewModel()
         val streamInfo = createStreamInfo()
         whenever(youtubeRepository.getStreamInfo("https://youtube.com/watch?v=test")).thenReturn(streamInfo)
-        whenever(searchHistoryDao.getCount()).thenReturn(0)
+        whenever(searchHistoryRepository.getCount()).thenReturn(0)
 
         viewModel.searchFromHistory("https://youtube.com/watch?v=test")
         advanceUntilIdle()
@@ -204,7 +208,7 @@ class SearchViewModelTest {
     @Test
     fun saveToSearchHistory_capsAt100() = runTest {
         val viewModel = createViewModel()
-        whenever(searchHistoryDao.getCount()).thenReturn(105)
+        whenever(searchHistoryRepository.getCount()).thenReturn(105)
 
         val streamInfo = createStreamInfo()
         whenever(youtubeRepository.getStreamInfo(any())).thenReturn(streamInfo)
@@ -213,7 +217,7 @@ class SearchViewModelTest {
         viewModel.searchVideo()
         advanceUntilIdle()
 
-        verify(searchHistoryDao).deleteOldest(5)
+        verify(searchHistoryRepository).deleteOldest(5)
     }
 
     @Test

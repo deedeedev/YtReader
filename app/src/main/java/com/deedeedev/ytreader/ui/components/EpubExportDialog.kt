@@ -27,11 +27,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.EpubExportMode
+import com.deedeedev.ytreader.data.NoteRepository
+import com.deedeedev.ytreader.data.SubtitleRepository
+import com.deedeedev.ytreader.data.VideoRepository
 import com.deedeedev.ytreader.data.exportEpub
-import com.deedeedev.ytreader.data.local.BookmarkDao
-import com.deedeedev.ytreader.data.local.HighlightNoteDao
-import com.deedeedev.ytreader.data.local.SubtitleDao
-import com.deedeedev.ytreader.data.local.VideoDao
 import com.deedeedev.ytreader.data.shareEpub
 import kotlinx.coroutines.launch
 import java.io.File
@@ -40,10 +39,9 @@ import java.io.File
 fun EpubExportDialog(
     bookTitle: String,
     videoIds: List<String>,
-    subtitleDao: SubtitleDao,
-    videoDao: VideoDao,
-    highlightNoteDao: HighlightNoteDao,
-    bookmarkDao: BookmarkDao,
+    subtitleRepository: SubtitleRepository,
+    videoRepository: VideoRepository,
+    noteRepository: NoteRepository,
     onDismiss: () -> Unit
 ) {
     var isExporting by remember { mutableStateOf(false) }
@@ -84,10 +82,9 @@ fun EpubExportDialog(
                                 try {
                                     val file = exportEpub(
                                         context = context,
-                                        subtitleDao = subtitleDao,
-                                        videoDao = videoDao,
-                                        highlightNoteDao = highlightNoteDao,
-                                        bookmarkDao = bookmarkDao,
+                                        subtitleRepository = subtitleRepository,
+                                        videoRepository = videoRepository,
+                                        noteRepository = noteRepository,
                                         videoIds = videoIds,
                                         mode = EpubExportMode.CLEAN,
                                         bookTitle = bookTitle
@@ -130,10 +127,9 @@ fun EpubExportDialog(
                                 try {
                                     val file = exportEpub(
                                         context = context,
-                                        subtitleDao = subtitleDao,
-                                        videoDao = videoDao,
-                                        highlightNoteDao = highlightNoteDao,
-                                        bookmarkDao = bookmarkDao,
+                                        subtitleRepository = subtitleRepository,
+                                        videoRepository = videoRepository,
+                                        noteRepository = noteRepository,
                                         videoIds = videoIds,
                                         mode = EpubExportMode.ANNOTATED,
                                         bookTitle = bookTitle
