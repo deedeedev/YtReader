@@ -1,16 +1,13 @@
 package com.deedeedev.ytreader.data
 
-import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ContentResolver
 import android.content.Context
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.DocumentsContract
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.deedeedev.ytreader.R
@@ -213,16 +210,6 @@ class AutoBackupWorker(
             manager.notify(AUTO_BACKUP_NOTIFICATION_ID, notification)
         } catch (_: SecurityException) {
         }
-    }
-
-    private fun canPostNotifications(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            return true
-        }
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) == PackageManager.PERMISSION_GRANTED
     }
 
     private data class BackupFileEntry(

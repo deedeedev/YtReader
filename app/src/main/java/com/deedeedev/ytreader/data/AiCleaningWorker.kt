@@ -1,6 +1,5 @@
 package com.deedeedev.ytreader.data
 
-import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -8,9 +7,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.content.ContextCompat
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
@@ -259,15 +256,8 @@ private fun postCompletionNotification(
     }
 }
 
-private fun canPostCompletionNotifications(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-        return true
-    }
-    return ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.POST_NOTIFICATIONS
-    ) == PackageManager.PERMISSION_GRANTED
-}
+private fun canPostCompletionNotifications(context: Context): Boolean =
+    canPostNotifications(context)
 
 private fun createReaderPendingIntent(context: Context, subtitleId: Long): PendingIntent {
     val intent = Intent(context, MainActivity::class.java).apply {
