@@ -3,6 +3,8 @@ package com.deedeedev.ytreader.ui.annotations
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.deedeedev.ytreader.data.AnnotationOperations
+import com.deedeedev.ytreader.data.DeletableAnnotationAction
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
@@ -10,13 +12,11 @@ import com.deedeedev.ytreader.data.local.HighlightNoteEntity
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.domain.SubtitleParser
+import com.deedeedev.ytreader.domain.lineTextAtOffset
 import com.deedeedev.ytreader.ui.reader.HighlightColor
 import com.deedeedev.ytreader.ui.reader.ReaderAnnotationTarget
 import com.deedeedev.ytreader.ui.reader.TextHighlight
-import com.deedeedev.ytreader.ui.reader.deleteHighlightFromList
-import com.deedeedev.ytreader.ui.reader.normalizeHighlightNote
 import com.deedeedev.ytreader.ui.reader.parseHighlights
-import com.deedeedev.ytreader.ui.reader.serializeHighlights
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -75,12 +75,18 @@ data class AnnotationsUiState(
 )
 
 sealed interface AnnotationAction {
-    data class Bookmark(val bookmark: BookmarkEntity) : AnnotationAction
+    fun toDeletableAction(): DeletableAnnotationAction
+
+    data class Bookmark(val bookmark: BookmarkEntity) : AnnotationAction {
+        override fun toDeletableAction() = DeletableAnnotationAction.Bookmark(bookmark)
+    }
 
     data class Highlight(
         val subtitleId: Long,
         val highlight: TextHighlight
-    ) : AnnotationAction
+    ) : AnnotationAction {
+        override fun toDeletableAction() = DeletableAnnotationAction.Highlight(subtitleId, highlight)
+    }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -193,70 +199,25 @@ class AnnotationsViewModel(
 
     fun deleteAnnotation(item: AnnotationItem) {
         viewModelScope.launch {
-            when (val action = item.action) {
-                is AnnotationAction.Bookmark -> {
-                    bookmarkDao.deleteByAnchor(
-                        subtitleId = action.bookmark.subtitleId,
-                        anchorStart = action.bookmark.anchorStart
-                    )
-                }
-                is AnnotationAction.Highlight -> {
-                    val subtitle = subtitlesById[action.subtitleId] ?: return@launch
-                    val updatedHighlights = deleteHighlightFromList(
-                        highlights = parseHighlights(subtitle.highlights),
-                        target = action.highlight.copy(note = null)
-                    )
-                    subtitleDao.updateHighlights(
-                        subtitleId = action.subtitleId,
-                        highlights = serializeHighlights(updatedHighlights)
-                    )
-                    highlightNoteDao.deleteByRange(
-                        subtitleId = action.subtitleId,
-                        highlightStart = action.highlight.start,
-                        highlightEnd = action.highlight.end
-                    )
-                }
-            }
+            AnnotationOperations.delete(
+                action = item.action.toDeletableAction(),
+                subtitlesById = subtitlesById,
+                subtitleDao = subtitleDao,
+                highlightNoteDao = highlightNoteDao,
+                bookmarkDao = bookmarkDao
+            )
         }
     }
 
     fun restoreAnnotation(item: AnnotationItem) {
         viewModelScope.launch {
-            when (val action = item.action) {
-                is AnnotationAction.Bookmark -> {
-                    bookmarkDao.upsert(action.bookmark)
-                }
-                is AnnotationAction.Highlight -> {
-                    val subtitle = subtitlesById[action.subtitleId] ?: return@launch
-                    val current = parseHighlights(subtitle.highlights)
-                    val restored = if (current.any { h ->
-                            h.start == action.highlight.start &&
-                                h.end == action.highlight.end &&
-                                h.color == action.highlight.color
-                        }) {
-                        current
-                    } else {
-                        (current + action.highlight.copy(note = null)).sortedBy { it.start }
-                    }
-                    subtitleDao.updateHighlights(
-                        subtitleId = action.subtitleId,
-                        highlights = serializeHighlights(restored)
-                    )
-                    normalizeHighlightNote(action.highlight.note)?.let { noteText ->
-                        val timestamp = System.currentTimeMillis()
-                        highlightNoteDao.upsert(
-                            HighlightNoteEntity(
-                                subtitleId = action.subtitleId,
-                                highlightStart = action.highlight.start,
-                                highlightEnd = action.highlight.end,
-                                noteText = noteText,
-                                createdAt = timestamp,
-                                updatedAt = timestamp
-                            )
-                        )
-                    }
-                }
-            }
+            AnnotationOperations.restore(
+                action = item.action.toDeletableAction(),
+                subtitlesById = subtitlesById,
+                subtitleDao = subtitleDao,
+                highlightNoteDao = highlightNoteDao,
+                bookmarkDao = bookmarkDao
+            )
         }
     }
 
@@ -399,18 +360,6 @@ private data class SubtitleInfo(
     val videoTitle: String,
     val channelName: String
 )
-
-private fun lineTextAtOffset(text: String, offset: Int): String {
-    if (text.isEmpty()) return ""
-    val safeOffset = offset.coerceIn(0, text.lastIndex)
-    val lineStart = text.lastIndexOf('\n', startIndex = safeOffset)
-        .let { if (it == -1) 0 else it + 1 }
-    val lineEnd = text.indexOf('\n', startIndex = safeOffset)
-        .let { if (it == -1) text.length else it }
-    return text.substring(lineStart, lineEnd)
-        .replace(Regex("\\s+"), " ")
-        .trim()
-}
 
 private fun applyFilters(
     items: List<AnnotationItem>,

@@ -3,6 +3,8 @@ package com.deedeedev.ytreader.ui.reader
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.deedeedev.ytreader.data.AnnotationOperations
+import com.deedeedev.ytreader.data.DeletableAnnotationAction
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
@@ -10,6 +12,7 @@ import com.deedeedev.ytreader.data.local.HighlightNoteEntity
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.domain.SubtitleParser
+import com.deedeedev.ytreader.domain.lineTextAtOffset
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,14 +55,20 @@ data class VideoAnnotationItem(
 )
 
 sealed interface VideoAnnotationAction {
+    fun toDeletableAction(): DeletableAnnotationAction
+
     data class Bookmark(
         val bookmark: BookmarkEntity
-    ) : VideoAnnotationAction
+    ) : VideoAnnotationAction {
+        override fun toDeletableAction() = DeletableAnnotationAction.Bookmark(bookmark)
+    }
 
     data class Highlight(
         val subtitleId: Long,
         val highlight: TextHighlight
-    ) : VideoAnnotationAction
+    ) : VideoAnnotationAction {
+        override fun toDeletableAction() = DeletableAnnotationAction.Highlight(subtitleId, highlight)
+    }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -125,66 +134,25 @@ class VideoNotesViewModel(
 
     fun deleteAnnotation(item: VideoAnnotationItem) {
         viewModelScope.launch {
-            when (val action = item.action) {
-                is VideoAnnotationAction.Bookmark -> {
-                    bookmarkDao.deleteByAnchor(
-                        subtitleId = action.bookmark.subtitleId,
-                        anchorStart = action.bookmark.anchorStart
-                    )
-                }
-
-                is VideoAnnotationAction.Highlight -> {
-                    val subtitle = subtitlesById[action.subtitleId] ?: return@launch
-                    val updatedHighlights = deleteHighlightFromList(
-                        highlights = parseHighlights(subtitle.highlights),
-                        target = action.highlight.copy(note = null)
-                    )
-                    subtitleDao.updateHighlights(
-                        subtitleId = action.subtitleId,
-                        highlights = serializeHighlights(updatedHighlights)
-                    )
-                    highlightNoteDao.deleteByRange(
-                        subtitleId = action.subtitleId,
-                        highlightStart = action.highlight.start,
-                        highlightEnd = action.highlight.end
-                    )
-                }
-            }
+            AnnotationOperations.delete(
+                action = item.action.toDeletableAction(),
+                subtitlesById = subtitlesById,
+                subtitleDao = subtitleDao,
+                highlightNoteDao = highlightNoteDao,
+                bookmarkDao = bookmarkDao
+            )
         }
     }
 
     fun restoreAnnotation(item: VideoAnnotationItem) {
         viewModelScope.launch {
-            when (val action = item.action) {
-                is VideoAnnotationAction.Bookmark -> {
-                    bookmarkDao.upsert(action.bookmark)
-                }
-
-                is VideoAnnotationAction.Highlight -> {
-                    val subtitle = subtitlesById[action.subtitleId] ?: return@launch
-                    val restoredHighlights = restoreHighlight(
-                        current = parseHighlights(subtitle.highlights),
-                        target = action.highlight.copy(note = null)
-                    )
-                    subtitleDao.updateHighlights(
-                        subtitleId = action.subtitleId,
-                        highlights = serializeHighlights(restoredHighlights)
-                    )
-                    normalizeHighlightNote(action.highlight.note)?.let { noteText ->
-                        val timestamp = System.currentTimeMillis()
-                        highlightNoteDao.upsert(
-                            HighlightNoteEntity(
-                                subtitleId = action.subtitleId,
-                                highlightStart = action.highlight.start,
-                                highlightEnd = action.highlight.end,
-                                noteText = noteText,
-                                createdAt = timestamp,
-                                updatedAt = timestamp
-                            )
-                        )
-                    }
-                }
-            }
+            AnnotationOperations.restore(
+                action = item.action.toDeletableAction(),
+                subtitlesById = subtitlesById,
+                subtitleDao = subtitleDao,
+                highlightNoteDao = highlightNoteDao,
+                bookmarkDao = bookmarkDao
+            )
         }
     }
 
@@ -347,28 +315,3 @@ private data class SortableVideoAnnotationItem(
     val endOffset: Int,
     val updatedAt: Long
 )
-
-private fun lineTextAtOffset(text: String, offset: Int): String {
-    if (text.isEmpty()) return ""
-    val safeOffset = offset.coerceIn(0, text.lastIndex)
-    val lineStart = text.lastIndexOf('\n', startIndex = safeOffset)
-        .let { if (it == -1) 0 else it + 1 }
-    val lineEnd = text.indexOf('\n', startIndex = safeOffset)
-        .let { if (it == -1) text.length else it }
-    return text.substring(lineStart, lineEnd)
-        .replace(Regex("\\s+"), " ")
-        .trim()
-}
-
-private fun restoreHighlight(current: List<TextHighlight>, target: TextHighlight): List<TextHighlight> {
-    return if (current.any { highlight ->
-            highlight.start == target.start &&
-                highlight.end == target.end &&
-                highlight.color == target.color
-        }
-    ) {
-        current
-    } else {
-        (current + target.copy(note = null)).sortedBy { highlight -> highlight.start }
-    }
-}
