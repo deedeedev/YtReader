@@ -8,6 +8,17 @@ import java.util.Locale
 
 object LocaleHelper {
 
+    fun init(context: Context): Pair<Context, AppLanguage> {
+        val prefs = context.getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
+        val languageValue = prefs.getString(
+            "app_language",
+            AppLanguage.SYSTEM.storageValue
+        ) ?: AppLanguage.SYSTEM.storageValue
+        val appLanguage = AppLanguage.fromStorageValue(languageValue)
+        val wrappedContext = applyLocale(context, appLanguage)
+        return wrappedContext to appLanguage
+    }
+
     fun applyLocale(context: Context, appLanguage: AppLanguage): Context {
         val locale = when (appLanguage) {
             AppLanguage.SYSTEM -> Locale.getDefault()

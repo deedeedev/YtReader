@@ -28,11 +28,8 @@ class MainActivity : ComponentActivity() {
     private var currentLanguage by mutableStateOf<AppLanguage>(AppLanguage.SYSTEM)
 
     override fun attachBaseContext(base: Context) {
-        val prefs = base.getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
-        val languageValue = prefs.getString("app_language", AppLanguage.SYSTEM.storageValue) ?: AppLanguage.SYSTEM.storageValue
-        val appLanguage = AppLanguage.fromStorageValue(languageValue)
-        currentLanguage = appLanguage
-        val wrappedContext = LocaleHelper.wrap(base, appLanguage)
+        val (wrappedContext, language) = LocaleHelper.init(base)
+        currentLanguage = language
         super.attachBaseContext(wrappedContext)
     }
 
