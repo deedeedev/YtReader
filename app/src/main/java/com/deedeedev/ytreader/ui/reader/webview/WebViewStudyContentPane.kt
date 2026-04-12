@@ -134,6 +134,7 @@ internal fun WebViewStudyContentPane(
                 bottom = bottomContentPadding
             ),
         bridge = bridge,
+        initialBackgroundColor = readerBackgroundColor,
         onViewCreated = { wv ->
             webView = wv
             isWebViewReady = true

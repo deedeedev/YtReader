@@ -21,6 +21,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 internal fun WebViewReaderPane(
     modifier: Modifier = Modifier,
     bridge: WebViewReaderBridge,
+    initialBackgroundColor: Int,
     onViewCreated: (WebView) -> Unit,
     onWebViewDestroyed: () -> Unit
 ) {
@@ -43,7 +44,7 @@ internal fun WebViewReaderPane(
                 isVerticalScrollBarEnabled = false
                 isHorizontalScrollBarEnabled = false
                 overScrollMode = WebView.OVER_SCROLL_NEVER
-                setBackgroundColor(0xFFFFFFFF.toInt())
+                setBackgroundColor(initialBackgroundColor)
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
