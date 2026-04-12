@@ -20,11 +20,9 @@ import com.deedeedev.ytreader.MainActivity
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.YtReaderApplication
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
@@ -304,7 +302,7 @@ class AiCleaningCancelReceiver : BroadcastReceiver() {
 
         val pendingResult = goAsync()
         val appContext = context.applicationContext
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+        runBlocking(Dispatchers.IO) {
             try {
                 cancelAiCleaningWorkAndState(appContext, request)
             } catch (_: Throwable) {

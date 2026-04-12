@@ -1,20 +1,5 @@
 # YtReader Codebase Analysis & Improvement Suggestions
 
-## MEDIUM PRIORITY
-
-### 14. Uncancelled CoroutineScope in `AiCleaningCancelReceiver`
-
-**Location — `AiCleaningWorker.kt:314`:**
-```kotlin
-CoroutineScope(SupervisorJob() + Dispatchers.IO).launch { ... }
-```
-
-A new `CoroutineScope` is created on every broadcast receive. If the coroutine hangs, it will leak.
-
-**Fix:** Store the scope and cancel it appropriately, or use `pendingResult` lifecycle properly.
-
----
-
 ## LOW PRIORITY
 
 ### 15. Extractor Module Issues
