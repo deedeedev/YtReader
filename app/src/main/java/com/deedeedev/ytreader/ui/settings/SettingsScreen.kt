@@ -325,29 +325,6 @@ fun SettingsScreen(
             }
 
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.settings_webview_reader_title),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Text(
-                            text = stringResource(R.string.settings_webview_reader_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = uiState.useWebViewReader,
-                        onCheckedChange = { viewModel.setUseWebViewReader(it) }
-                    )
-                }
-            }
-
-            item {
                 OutlinedTextField(
                     value = uiState.aiEndpoint,
                     onValueChange = { viewModel.setAiEndpoint(it) },

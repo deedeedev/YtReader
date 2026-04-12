@@ -38,8 +38,7 @@ data class SettingsUiState(
     val autoBackupEnabled: Boolean = false,
     val autoBackupDirectoryUri: String? = null,
     val autoBackupTime: String = "02:00",
-    val autoBackupIncludeSettings: Boolean = false,
-    val useWebViewReader: Boolean = false
+    val autoBackupIncludeSettings: Boolean = false
 )
 
 class SettingsViewModel(
@@ -118,11 +117,6 @@ class SettingsViewModel(
                 _uiState.update { it.copy(autoBackupIncludeSettings = include) }
             }
         }
-        viewModelScope.launch {
-            userPreferencesRepository.useWebViewReader.collect { enabled ->
-                _uiState.update { it.copy(useWebViewReader = enabled) }
-            }
-        }
     }
 
     fun setDefaultFontSize(size: Float) {
@@ -194,10 +188,6 @@ class SettingsViewModel(
 
     fun setAutoBackupIncludeSettings(include: Boolean) {
         userPreferencesRepository.setAutoBackupIncludeSettings(include)
-    }
-
-    fun setUseWebViewReader(enabled: Boolean) {
-        userPreferencesRepository.setUseWebViewReader(enabled)
     }
 
     suspend fun downloadMissingThumbnails(): String {

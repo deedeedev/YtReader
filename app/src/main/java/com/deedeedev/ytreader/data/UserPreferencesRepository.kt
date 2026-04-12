@@ -45,8 +45,7 @@ data class PreferencesBackup(
     val aiEndpoint: String = "",
     val aiApiKey: String = "",
     val aiModel: String = DEFAULT_AI_MODEL,
-    val aiPrompt: String = DEFAULT_AI_CLEANING_PROMPT,
-    val useWebViewReader: Boolean = false
+    val aiPrompt: String = DEFAULT_AI_CLEANING_PROMPT
 )
 
 class UserPreferencesRepository(context: Context) {
@@ -96,9 +95,6 @@ class UserPreferencesRepository(context: Context) {
 
     private val _autoBackupIncludeSettings = MutableStateFlow(false)
     val autoBackupIncludeSettings: StateFlow<Boolean> = _autoBackupIncludeSettings.asStateFlow()
-
-    private val _useWebViewReader = MutableStateFlow(false)
-    val useWebViewReader: StateFlow<Boolean> = _useWebViewReader.asStateFlow()
 
     init {
         loadFavorites()
@@ -212,11 +208,6 @@ class UserPreferencesRepository(context: Context) {
         _autoBackupIncludeSettings.value = include
     }
 
-    fun setUseWebViewReader(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_USE_WEBVIEW_READER, enabled).apply()
-        _useWebViewReader.value = enabled
-    }
-
     fun getAutoBackupEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_BACKUP_ENABLED, false)
     fun getAutoBackupDirectoryUri(): String? = prefs.getString(KEY_AUTO_BACKUP_DIRECTORY_URI, null)
     fun getAutoBackupTime(): String = prefs.getString(KEY_AUTO_BACKUP_TIME, "02:00") ?: "02:00"
@@ -227,7 +218,6 @@ class UserPreferencesRepository(context: Context) {
         _autoBackupDirectoryUri.value = prefs.getString(KEY_AUTO_BACKUP_DIRECTORY_URI, null)
         _autoBackupTime.value = prefs.getString(KEY_AUTO_BACKUP_TIME, "02:00") ?: "02:00"
         _autoBackupIncludeSettings.value = prefs.getBoolean(KEY_AUTO_BACKUP_INCLUDE_SETTINGS, false)
-        _useWebViewReader.value = prefs.getBoolean(KEY_USE_WEBVIEW_READER, false)
     }
 
     fun getAiEndpoint(): String = prefs.getString(KEY_AI_ENDPOINT, "") ?: ""
@@ -251,8 +241,7 @@ class UserPreferencesRepository(context: Context) {
             aiEndpoint = _aiEndpoint.value,
             aiApiKey = _aiApiKey.value,
             aiModel = _aiModel.value,
-            aiPrompt = _aiPrompt.value,
-            useWebViewReader = _useWebViewReader.value
+            aiPrompt = _aiPrompt.value
         )
         return gson.toJson(backup)
     }
@@ -276,11 +265,7 @@ class UserPreferencesRepository(context: Context) {
             .putString(KEY_AI_API_KEY, backup.aiApiKey)
             .putString(KEY_AI_MODEL, backup.aiModel)
             .putString(KEY_AI_PROMPT, backup.aiPrompt)
-            .putBoolean(KEY_USE_WEBVIEW_READER, backup.useWebViewReader)
             .apply()
-
-        loadFavorites()
-        loadDisplaySettings()
         return true
     }
 
@@ -360,7 +345,6 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_AUTO_BACKUP_DIRECTORY_URI = "auto_backup_directory_uri"
         private const val KEY_AUTO_BACKUP_TIME = "auto_backup_time"
         private const val KEY_AUTO_BACKUP_INCLUDE_SETTINGS = "auto_backup_include_settings"
-        private const val KEY_USE_WEBVIEW_READER = "use_webview_reader"
 
         const val BRIGHTNESS_FOLLOW_SYSTEM = -1f
 

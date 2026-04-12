@@ -133,54 +133,28 @@ internal fun ReaderScreenMainLayer(
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         if (readerMode == ReaderMode.ORIGINAL) {
-            if (useWebView) {
-                WebViewOriginalContentPane(
-                    originalSegments = originalSegments,
-                    originalFallbackText = originalFallbackText,
-                    showTimestamps = showTimestamps,
-                    topContentPadding = topContentPadding,
-                    bottomContentPadding = bottomContentPadding,
-                    fontSize = fontSize,
-                    lineHeightMultiplier = lineHeightMultiplier,
-                    fontFamilyName = fontFamilyName,
-                    readerTextColor = readerTextColor,
-                    readerBackgroundColor = readerBackgroundColor,
-                    onReaderTap = onReaderTap,
-                    onOriginalTimestampTap = onOriginalTimestampTap,
-                    onScrollProgress = { scrollY, totalHeight, viewportHeight ->
-                        onWebViewScrollProgress?.invoke(scrollY, totalHeight, viewportHeight)
-                    },
-                    onWebViewReady = { onWebViewOriginalReady?.invoke(it) },
-                    onWebViewDestroyed = { onWebViewOriginalDestroyed?.invoke() }
-                )
-            } else {
-                ReaderOriginalPane(
-                    originalSegments = originalSegments,
-                    originalFallbackText = originalFallbackText,
-                    showTimestamps = showTimestamps,
-                    originalListState = originalListState,
-                    originalFallbackScrollState = originalFallbackScrollState,
-                    topContentPadding = topContentPadding,
-                    bottomContentPadding = bottomContentPadding,
-                    fontSize = fontSize,
-                    lineHeightMultiplier = lineHeightMultiplier,
-                    fontFamilyName = fontFamilyName,
-                    fontFamily = fontFamily,
-                    readerTextColor = readerTextColor,
-                    readerBackgroundColor = readerBackgroundColor,
-                    activeOriginalFallbackSearchRange = activeOriginalFallbackSearchRange,
-                    activeOriginalSegmentSearchResult = activeOriginalSegmentSearchResult,
-                    originalSelectionCoordinator = originalSelectionCoordinator,
-                    onReaderTap = onReaderTap,
-                    onOriginalFallbackViewportChanged = onOriginalFallbackViewportChanged,
-                    onOriginalTimestampTap = onOriginalTimestampTap,
-                    onUserDrag = onUserDrag
-                )
-            }
+            WebViewOriginalContentPane(
+                originalSegments = originalSegments,
+                originalFallbackText = originalFallbackText,
+                showTimestamps = showTimestamps,
+                topContentPadding = topContentPadding,
+                bottomContentPadding = bottomContentPadding,
+                fontSize = fontSize,
+                lineHeightMultiplier = lineHeightMultiplier,
+                fontFamilyName = fontFamilyName,
+                readerTextColor = readerTextColor,
+                readerBackgroundColor = readerBackgroundColor,
+                onReaderTap = onReaderTap,
+                onOriginalTimestampTap = onOriginalTimestampTap,
+                onScrollProgress = { scrollY, totalHeight, viewportHeight ->
+                    onWebViewScrollProgress?.invoke(scrollY, totalHeight, viewportHeight)
+                },
+                onWebViewReady = { onWebViewOriginalReady?.invoke(it) },
+                onWebViewDestroyed = { onWebViewOriginalDestroyed?.invoke() }
+            )
         } else {
-            if (useWebView) {
-                val wv = webViewStudyRef
-                WebViewStudyContentPane(
+            val wv = webViewStudyRef
+            WebViewStudyContentPane(
                     readOnlyContent = studyContent,
                     highlights = highlights,
                     bookmarks = bookmarks,
@@ -243,38 +217,6 @@ internal fun ReaderScreenMainLayer(
                         { with(WebViewReaderJs) { wv.clearFindHighlights() } }
                     } else null
                 )
-            } else {
-                ReaderStudyPane(
-                    isEditing = isEditing,
-                    editText = editText,
-                    onEditTextChange = onEditTextChange,
-                    readOnlyContent = studyContent,
-                    highlights = highlights,
-                    bookmarks = bookmarks,
-                    activeStudySearchRange = activeStudySearchRange,
-                    topContentPadding = topContentPadding,
-                    bottomContentPadding = bottomContentPadding,
-                    fontSize = fontSize,
-                    lineHeightMultiplier = lineHeightMultiplier,
-                    lineHeightSp = lineHeightSp,
-                    fontFamilyName = fontFamilyName,
-                    fontFamily = fontFamily,
-                    readerTextColor = readerTextColor,
-                    readerBackgroundColor = readerBackgroundColor,
-                    editTextFieldTag = READER_EDIT_TEXT_FIELD_TAG,
-                    studyScrollState = studyScrollState,
-                    onStudyViewportChanged = onStudyViewportChanged,
-                    onReaderTap = onReaderTap,
-                    onStudyTextViewReady = onStudyTextViewReady,
-                    onSelectionRangeChanged = onSelectionRangeChanged,
-                    onHighlightTapped = onHighlightTapped,
-                    onBookmarkTapped = onBookmarkTapped,
-                    hasActiveHighlight = hasActiveHighlight,
-                    onClearActiveHighlight = onClearActiveHighlight,
-                    clearSelectionNow = clearSelectionNow,
-                    onUserDrag = onUserDrag
-                )
-            }
         }
 
         var activeBrightness by remember { mutableStateOf(0f) }
