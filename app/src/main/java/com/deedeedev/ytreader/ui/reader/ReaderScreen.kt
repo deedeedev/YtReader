@@ -1500,7 +1500,8 @@ internal fun ReaderScreen(
             webViewStudyRef?.let { wv ->
                 with(WebViewReaderJs) { wv.clearSelection() }
             }
-        }
+        },
+        webViewStudyRef = webViewStudyRef
     )
 
     ReaderDialogHost(

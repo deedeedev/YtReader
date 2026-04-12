@@ -120,6 +120,89 @@ internal object WebViewReaderJs {
         evaluateJavascript("setOriginalSegments('$escaped')", null)
     }
 
+    fun WebView.setEditMode(enabled: Boolean) {
+        evaluateJavascript("setEditMode($enabled)", null)
+    }
+
+    fun WebView.getAllText(callback: (String) -> Unit) {
+        evaluateJavascript("getAllText()") { result ->
+            callback(result ?: "")
+        }
+    }
+
+    fun WebView.getSelectedText(callback: (String) -> Unit) {
+        evaluateJavascript("getSelectedText()") { result ->
+            callback(result ?: "")
+        }
+    }
+
+    fun WebView.removeEmptyLines() {
+        evaluateJavascript("removeEmptyLines()", null)
+    }
+
+    fun WebView.trimWhitespace() {
+        evaluateJavascript("trimWhitespace()", null)
+    }
+
+    fun WebView.normalizeSpacing() {
+        evaluateJavascript("normalizeSpacing()", null)
+    }
+
+    fun WebView.capitalizeFirstLetter() {
+        evaluateJavascript("capitalizeFirstLetter()", null)
+    }
+
+    fun WebView.replaceWithText(text: String, replaceAll: Boolean) {
+        val escaped = text.escapeForJs()
+        evaluateJavascript("replaceWithText('$escaped', $replaceAll)", null)
+    }
+
+    fun WebView.findNext(searchText: String, caseSensitive: Boolean, callback: (Int) -> Unit) {
+        val escaped = searchText.escapeForJs()
+        evaluateJavascript("findNext('$escaped', $caseSensitive)") { result ->
+            val count = result?.toIntOrNull() ?: 0
+            callback(count)
+        }
+    }
+
+    fun WebView.findPrevious(searchText: String, caseSensitive: Boolean, callback: (Int) -> Unit) {
+        val escaped = searchText.escapeForJs()
+        evaluateJavascript("findPrevious('$escaped', $caseSensitive)") { result ->
+            val count = result?.toIntOrNull() ?: 0
+            callback(count)
+        }
+    }
+
+    fun WebView.replaceSingle(searchText: String, replaceText: String, caseSensitive: Boolean, callback: (Int) -> Unit) {
+        val escapedSearch = searchText.escapeForJs()
+        val escapedReplace = replaceText.escapeForJs()
+        evaluateJavascript("replaceSingle('$escapedSearch', '$escapedReplace', $caseSensitive)") { result ->
+            val count = result?.toIntOrNull() ?: 0
+            callback(count)
+        }
+    }
+
+    fun WebView.replaceAll(searchText: String, replaceText: String, caseSensitive: Boolean, callback: (Int) -> Unit) {
+        val escapedSearch = searchText.escapeForJs()
+        val escapedReplace = replaceText.escapeForJs()
+        evaluateJavascript("replaceAll('$escapedSearch', '$escapedReplace', $caseSensitive)") { result ->
+            val count = result?.toIntOrNull() ?: 0
+            callback(count)
+        }
+    }
+
+    fun WebView.getMatchCount(searchText: String, caseSensitive: Boolean, callback: (Int) -> Unit) {
+        val escaped = searchText.escapeForJs()
+        evaluateJavascript("getMatchCount('$escaped', $caseSensitive)") { result ->
+            val count = result?.toIntOrNull() ?: 0
+            callback(count)
+        }
+    }
+
+    fun WebView.clearFindHighlights() {
+        evaluateJavascript("clearFindHighlights()", null)
+    }
+
     private fun WebView.evaluateJavascript(script: String, callback: ((String?) -> Unit)? = null) {
         evaluateJavascript(script) { result ->
             callback?.invoke(result)

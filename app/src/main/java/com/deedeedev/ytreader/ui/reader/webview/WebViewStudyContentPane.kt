@@ -34,13 +34,28 @@ internal fun WebViewStudyContentPane(
     readerTextColor: Int,
     readerBackgroundColor: Int,
     initialScrollPercent: Int = 0,
+    isEditMode: Boolean = false,
     onReaderTap: (ReaderTapPosition) -> Unit,
     onSelectionRangeChanged: (Int, Int) -> Unit,
     onHighlightTapped: (TextHighlight?) -> Unit,
     onBookmarkTapped: (BookmarkEntity) -> Unit,
     onScrollProgress: (scrollY: Int, totalHeight: Int, viewportHeight: Int) -> Unit,
     onWebViewReady: (WebView) -> Unit,
-    onWebViewDestroyed: () -> Unit
+    onWebViewDestroyed: () -> Unit,
+    onEditTextChanged: (String) -> Unit = {},
+    onRemoveEmptyLines: (() -> Unit)? = null,
+    onTrimWhitespace: (() -> Unit)? = null,
+    onNormalizeSpacing: (() -> Unit)? = null,
+    onCapitalizeFirstLetter: (() -> Unit)? = null,
+    onReplaceWithText: ((String, Boolean) -> Unit)? = null,
+    onGetAllText: (() -> String)? = null,
+    onGetSelectedText: (() -> String)? = null,
+    onFindNext: ((String, Boolean, (Int) -> Unit) -> Unit)? = null,
+    onFindPrevious: ((String, Boolean, (Int) -> Unit) -> Unit)? = null,
+    onReplaceSingle: ((String, String, Boolean, (Int) -> Unit) -> Unit)? = null,
+    onReplaceAll: ((String, String, Boolean, (Int) -> Unit) -> Unit)? = null,
+    onGetMatchCount: ((String, Boolean, (Int) -> Unit) -> Unit)? = null,
+    onClearFindHighlights: (() -> Unit)? = null
 ) {
     val bridge = remember { WebViewReaderBridge() }
     var webView by remember { mutableStateOf<WebView?>(null) }
@@ -58,6 +73,7 @@ internal fun WebViewStudyContentPane(
     val memoizedOnBookmarkTapped by rememberUpdatedState(onBookmarkTapped)
     val memoizedOnScrollProgress by rememberUpdatedState(onScrollProgress)
     val memoizedOnWebViewReady by rememberUpdatedState(onWebViewReady)
+    val memoizedOnEditTextChanged by rememberUpdatedState(onEditTextChanged)
 
     DisposableEffect(bridge) {
         bridge.onSelectionChanged = { start, end ->
@@ -92,6 +108,10 @@ internal fun WebViewStudyContentPane(
 
         bridge.onContentHeightChanged = { _ -> }
 
+        bridge.onContentTextChanged = { text ->
+            memoizedOnEditTextChanged(text)
+        }
+
         onDispose {
             bridge.onSelectionChanged = null
             bridge.onHighlightTapped = null
@@ -99,6 +119,7 @@ internal fun WebViewStudyContentPane(
             bridge.onTap = null
             bridge.onScrollProgress = null
             bridge.onContentHeightChanged = null
+            bridge.onContentTextChanged = null
         }
     }
 
@@ -193,5 +214,13 @@ internal fun WebViewStudyContentPane(
             }
         }
         hasAppliedInitialScroll = true
+    }
+
+    LaunchedEffect(isWebViewReady, isEditMode) {
+        val wv = webView ?: return@LaunchedEffect
+        if (!isWebViewReady) return@LaunchedEffect
+        with(WebViewReaderJs) {
+            wv.setEditMode(isEditMode)
+        }
     }
 }

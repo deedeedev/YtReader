@@ -14,6 +14,7 @@ internal class WebViewReaderBridge {
     var onScrollProgress: ((scrollY: Int, totalHeight: Int, viewportHeight: Int) -> Unit)? = null
     var onContentHeightChanged: ((height: Int) -> Unit)? = null
     var onOriginalTimestampTap: ((startTimeMs: Long) -> Unit)? = null
+    var onContentTextChanged: ((text: String) -> Unit)? = null
 
     @JavascriptInterface
     fun onSelectionChanged(start: Int, end: Int) {
@@ -61,6 +62,13 @@ internal class WebViewReaderBridge {
     fun onOriginalTimestampTap(startTimeMs: Long) {
         mainHandler.post {
             onOriginalTimestampTap?.invoke(startTimeMs)
+        }
+    }
+
+    @JavascriptInterface
+    fun onContentTextChanged(text: String) {
+        mainHandler.post {
+            onContentTextChanged?.invoke(text)
         }
     }
 }

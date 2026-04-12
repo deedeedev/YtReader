@@ -195,13 +195,8 @@ internal fun ReaderBottomBar(
                     } else {
                         IconButton(
                             onClick = {
-                                if (useWebView) {
-                                    onEditUnavailable?.invoke()
-                                } else {
-                                    onEditSaveTap()
-                                }
-                            },
-                            enabled = !useWebView
+                                onEditSaveTap()
+                            }
                         ) {
                             Icon(
                                 imageVector = if (isEditing) Icons.Filled.Save else Icons.Filled.Edit,
@@ -294,7 +289,7 @@ internal fun ReaderBottomBar(
                                     }
                                 )
                             }
-                            if (!isOriginalMode && !useWebView) {
+                            if (!isOriginalMode) {
                                 DropdownMenuItem(
                                     text = { Text(findAndReplaceLabel) },
                                     onClick = {
@@ -310,7 +305,7 @@ internal fun ReaderBottomBar(
                                     }
                                 )
                             }
-                            if (!isOriginalMode && !useWebView) {
+                            if (!isOriginalMode) {
                                 DropdownMenuItem(
                                     text = {
                                         Text(if (isAiCleaning) aiCleaningRunningLabel else aiCleaningLabel)

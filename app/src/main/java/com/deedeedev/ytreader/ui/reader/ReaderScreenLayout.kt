@@ -22,6 +22,7 @@ import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.domain.SubtitleSegment
 import com.deedeedev.ytreader.ui.reader.webview.WebViewStudyContentPane
 import com.deedeedev.ytreader.ui.reader.webview.WebViewOriginalContentPane
+import com.deedeedev.ytreader.ui.reader.webview.WebViewReaderJs
 import android.webkit.WebView
 
 @Composable
@@ -127,7 +128,8 @@ internal fun ReaderScreenMainLayer(
     onWebViewOriginalReady: ((WebView) -> Unit)? = null,
     onWebViewOriginalDestroyed: (() -> Unit)? = null,
     onWebViewScrollProgress: ((scrollY: Int, totalHeight: Int, viewportHeight: Int) -> Unit)? = null,
-    onWebViewClearSelection: (() -> Unit)? = null
+    onWebViewClearSelection: (() -> Unit)? = null,
+    webViewStudyRef: WebView? = null
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         if (readerMode == ReaderMode.ORIGINAL) {
@@ -176,7 +178,8 @@ internal fun ReaderScreenMainLayer(
                 )
             }
         } else {
-            if (useWebView && !isEditing) {
+            if (useWebView) {
+                val wv = webViewStudyRef
                 WebViewStudyContentPane(
                     readOnlyContent = studyContent,
                     highlights = highlights,
@@ -189,6 +192,7 @@ internal fun ReaderScreenMainLayer(
                     fontFamilyName = fontFamilyName,
                     readerTextColor = readerTextColor,
                     readerBackgroundColor = readerBackgroundColor,
+                    isEditMode = isEditing,
                     onReaderTap = onReaderTap,
                     onSelectionRangeChanged = onSelectionRangeChanged,
                     onHighlightTapped = onHighlightTapped,
@@ -197,7 +201,47 @@ internal fun ReaderScreenMainLayer(
                         onWebViewScrollProgress?.invoke(scrollY, totalHeight, viewportHeight)
                     },
                     onWebViewReady = { onWebViewStudyReady?.invoke(it) },
-                    onWebViewDestroyed = { onWebViewStudyDestroyed?.invoke() }
+                    onWebViewDestroyed = { onWebViewStudyDestroyed?.invoke() },
+                    onEditTextChanged = { text -> onEditTextChange(text) },
+                    onRemoveEmptyLines = if (isEditing && wv != null) {
+                        { with(WebViewReaderJs) { wv.removeEmptyLines() } }
+                    } else null,
+                    onTrimWhitespace = if (isEditing && wv != null) {
+                        { with(WebViewReaderJs) { wv.trimWhitespace() } }
+                    } else null,
+                    onNormalizeSpacing = if (isEditing && wv != null) {
+                        { with(WebViewReaderJs) { wv.normalizeSpacing() } }
+                    } else null,
+                    onCapitalizeFirstLetter = if (isEditing && wv != null) {
+                        { with(WebViewReaderJs) { wv.capitalizeFirstLetter() } }
+                    } else null,
+                    onReplaceWithText = if (isEditing && wv != null) { text, replaceAll ->
+                        with(WebViewReaderJs) { wv.replaceWithText(text, replaceAll) }
+                    } else null,
+                    onGetAllText = if (wv != null) {
+                        { with(WebViewReaderJs) { wv.getAllText { } }; "" }
+                    } else null,
+                    onGetSelectedText = if (wv != null) {
+                        { with(WebViewReaderJs) { wv.getSelectedText { } }; "" }
+                    } else null,
+                    onFindNext = if (wv != null) { query, caseSensitive, callback ->
+                        with(WebViewReaderJs) { wv.findNext(query, caseSensitive, callback) }
+                    } else null,
+                    onFindPrevious = if (wv != null) { query, caseSensitive, callback ->
+                        with(WebViewReaderJs) { wv.findPrevious(query, caseSensitive, callback) }
+                    } else null,
+                    onReplaceSingle = if (wv != null) { searchText, replaceText, caseSensitive, callback ->
+                        with(WebViewReaderJs) { wv.replaceSingle(searchText, replaceText, caseSensitive, callback) }
+                    } else null,
+                    onReplaceAll = if (wv != null) { searchText, replaceText, caseSensitive, callback ->
+                        with(WebViewReaderJs) { wv.replaceAll(searchText, replaceText, caseSensitive, callback) }
+                    } else null,
+                    onGetMatchCount = if (wv != null) { query, caseSensitive, callback ->
+                        with(WebViewReaderJs) { wv.getMatchCount(query, caseSensitive, callback) }
+                    } else null,
+                    onClearFindHighlights = if (wv != null) {
+                        { with(WebViewReaderJs) { wv.clearFindHighlights() } }
+                    } else null
                 )
             } else {
                 ReaderStudyPane(

@@ -7,6 +7,11 @@ let offsetMap = [];
 let selectionChangeTimeout = null;
 let scrollThrottleTimeout = null;
 
+// Edit mode state
+let findSearchText = "";
+let findMatchRanges = [];
+let findCurrentMatchIndex = -1;
+
 function buildOffsetMap() {
   offsetMap = [];
   const container = document.getElementById("content");
@@ -341,4 +346,261 @@ if (typeof ResizeObserver !== "undefined") {
   new ResizeObserver(function() {
     Bridge.onContentHeightChanged(document.body.scrollHeight);
   }).observe(document.body);
+}
+
+// ============================================
+// Edit Mode Functions
+// ============================================
+
+function setEditMode(enabled) {
+  var content = document.getElementById("content");
+  if (enabled) {
+    content.setAttribute("contenteditable", "true");
+    content.classList.add("edit-mode");
+    content.addEventListener("input", handleEditInput);
+  } else {
+    content.removeAttribute("contenteditable");
+    content.classList.remove("edit-mode");
+    content.removeEventListener("input", handleEditInput);
+  }
+}
+
+function handleEditInput() {
+  var content = document.getElementById("content");
+  Bridge.onContentTextChanged(content.innerText);
+}
+
+function getAllText() {
+  var content = document.getElementById("content");
+  return content.innerText;
+}
+
+function getSelectedText() {
+  var sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    return sel.toString();
+  }
+  return "";
+}
+
+function removeEmptyLines() {
+  var content = document.getElementById("content");
+  var text = content.innerText;
+  var lines = text.split(/\n/);
+  var filtered = lines.filter(function(line) {
+    return !/^\s*$/.test(line);
+  });
+  content.innerText = filtered.join("\n");
+  buildOffsetMap();
+  Bridge.onContentHeightChanged(document.body.scrollHeight);
+}
+
+function trimWhitespace() {
+  var content = document.getElementById("content");
+  var text = content.innerText;
+  var lines = text.split(/\n/);
+  var trimmed = lines.map(function(line) {
+    return line.trim();
+  });
+  content.innerText = trimmed.join("\n");
+  buildOffsetMap();
+  Bridge.onContentHeightChanged(document.body.scrollHeight);
+}
+
+function normalizeSpacing() {
+  var content = document.getElementById("content");
+  var text = content.innerText;
+  var lines = text.split(/\n/);
+  var normalized = lines.map(function(line) {
+    return line.replace(/\s+/g, " ").trim();
+  });
+  content.innerText = normalized.join("\n");
+  buildOffsetMap();
+  Bridge.onContentHeightChanged(document.body.scrollHeight);
+}
+
+function capitalizeFirstLetter() {
+  var content = document.getElementById("content");
+  var text = content.innerText;
+  var lines = text.split(/\n/);
+  var capitalized = lines.map(function(line) {
+    return line.replace(/(^\s*|[.!?]\s+)([a-z])/g, function(match, p1, p2) {
+      return p1 + p2.toUpperCase();
+    });
+  });
+  content.innerText = capitalized.join("\n");
+  buildOffsetMap();
+  Bridge.onContentHeightChanged(document.body.scrollHeight);
+}
+
+function replaceWithText(text, replaceAllFlag) {
+  var content = document.getElementById("content");
+  var sel = window.getSelection();
+  if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+    var range = sel.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(document.createTextNode(text));
+    sel.removeAllRanges();
+  } else if (replaceAllFlag) {
+    content.innerText = text;
+  }
+  buildOffsetMap();
+  Bridge.onContentHeightChanged(document.body.scrollHeight);
+}
+
+// ============================================
+// Find and Replace Functions
+// ============================================
+
+function findNext(searchText, caseSensitive) {
+  findSearchText = searchText;
+  var content = document.getElementById("content");
+  var flags = caseSensitive ? "g" : "gi";
+  var regex = new RegExp(escapeRegex(searchText), flags);
+  var text = content.innerText;
+  findMatchRanges = [];
+  
+  var match;
+  while ((match = regex.exec(text)) !== null) {
+    findMatchRanges.push({ start: match.index, end: match.index + match[0].length });
+    if (match[0].length === 0) break;
+  }
+  
+  if (findMatchRanges.length === 0) {
+    return 0;
+  }
+  
+  findCurrentMatchIndex = 0;
+  highlightFindMatch(0);
+  return findMatchRanges.length;
+}
+
+function findPrevious(searchText, caseSensitive) {
+  findSearchText = searchText;
+  var content = document.getElementById("content");
+  var flags = caseSensitive ? "g" : "gi";
+  var regex = new RegExp(escapeRegex(searchText), flags);
+  var text = content.innerText;
+  findMatchRanges = [];
+  
+  var match;
+  while ((match = regex.exec(text)) !== null) {
+    findMatchRanges.push({ start: match.index, end: match.index + match[0].length });
+    if (match[0].length === 0) break;
+  }
+  
+  if (findMatchRanges.length === 0) {
+    return 0;
+  }
+  
+  findCurrentMatchIndex = findMatchRanges.length - 1;
+  highlightFindMatch(findCurrentMatchIndex);
+  return findMatchRanges.length;
+}
+
+function replaceSingle(searchText, replaceText, caseSensitive) {
+  if (findCurrentMatchIndex < 0 || findCurrentMatchIndex >= findMatchRanges.length) {
+    return false;
+  }
+  
+  var content = document.getElementById("content");
+  var text = content.innerText;
+  var range = findMatchRanges[findCurrentMatchIndex];
+  var before = text.substring(0, range.start);
+  var after = text.substring(range.end);
+  content.innerText = before + replaceText + after;
+  
+  buildOffsetMap();
+  Bridge.onContentHeightChanged(document.body.scrollHeight);
+  
+  if (findSearchText === searchText) {
+    var flags = caseSensitive ? "g" : "gi";
+    var regex = new RegExp(escapeRegex(findSearchText), flags);
+    var newText = content.innerText;
+    findMatchRanges = [];
+    var match;
+    while ((match = regex.exec(newText)) !== null) {
+      findMatchRanges.push({ start: match.index, end: match.index + match[0].length });
+      if (match[0].length === 0) break;
+    }
+    findCurrentMatchIndex = Math.min(findCurrentMatchIndex, findMatchRanges.length - 1);
+    if (findMatchRanges.length > 0) {
+      highlightFindMatch(findCurrentMatchIndex);
+    }
+  }
+  
+  return findMatchRanges.length;
+}
+
+function replaceAll(searchText, replaceText, caseSensitive) {
+  var content = document.getElementById("content");
+  var flags = caseSensitive ? "g" : "gi";
+  var regex = new RegExp(escapeRegex(searchText), flags);
+  content.innerText = content.innerText.replace(regex, replaceText);
+  
+  buildOffsetMap();
+  Bridge.onContentHeightChanged(document.body.scrollHeight);
+  
+  findMatchRanges = [];
+  findCurrentMatchIndex = -1;
+  
+  return 0;
+}
+
+function getMatchCount(searchText, caseSensitive) {
+  var content = document.getElementById("content");
+  var flags = caseSensitive ? "g" : "gi";
+  var regex = new RegExp(escapeRegex(searchText), flags);
+  var text = content.innerText;
+  var matches = text.match(regex);
+  return matches ? matches.length : 0;
+}
+
+function clearFindHighlights() {
+  var content = document.getElementById("content");
+  var existing = content.querySelectorAll(".find-match");
+  for (var i = 0; i < existing.length; i++) {
+    var parent = existing[i].parentNode;
+    while (existing[i].firstChild) {
+      parent.insertBefore(existing[i].firstChild, existing[i]);
+    }
+    parent.removeChild(existing[i]);
+  }
+  if (content.normalize) content.normalize();
+  findMatchRanges = [];
+  findCurrentMatchIndex = -1;
+}
+
+function highlightFindMatch(index) {
+  clearFindHighlights();
+  
+  if (index < 0 || index >= findMatchRanges.length) return;
+  
+  var content = document.getElementById("content");
+  buildOffsetMap();
+  
+  var range = findMatchRanges[index];
+  var startEntry = findOffsetEntry(range.start);
+  var endEntry = findOffsetEntry(range.end);
+  if (!startEntry || !endEntry) return;
+  
+  try {
+    var domRange = document.createRange();
+    domRange.setStart(startEntry.node, startEntry.localOffset);
+    domRange.setEnd(endEntry.node, endEntry.localOffset);
+    var span = document.createElement("span");
+    span.className = "find-match";
+    domRange.surroundContents(span);
+    
+    var rect = span.getBoundingClientRect();
+    var targetY = window.scrollY + rect.top - window.innerHeight / 3;
+    window.scrollTo(0, Math.max(0, targetY));
+  } catch (e) {
+    // Skip
+  }
+  buildOffsetMap();
+}
+
+function escapeRegex(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
