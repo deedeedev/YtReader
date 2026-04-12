@@ -104,12 +104,14 @@ class ReaderViewModelTest {
 
         assertEquals("updated note", viewModel.uiState.value.highlights.single().note)
         verify(noteRepository).upsertHighlight(
-            HighlightNoteEntity(
-                subtitleId = SUBTITLE_ID,
-                highlightStart = 0,
-                highlightEnd = 5,
-                noteText = "updated note"
-            )
+            argThat { entity ->
+                entity.subtitleId == SUBTITLE_ID &&
+                    entity.highlightStart == 0 &&
+                    entity.highlightEnd == 5 &&
+                    entity.noteText == "updated note" &&
+                    entity.createdAt > 0 &&
+                    entity.updatedAt > 0
+            }
         )
     }
 
