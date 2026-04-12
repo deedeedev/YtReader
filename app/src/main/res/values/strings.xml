@@ -311,20 +311,20 @@
     <string name="ai_cleaning_missing_response_text">AI response does not contain cleaned text.</string>
     <string name="ai_cleaning_timed_out">AI cleaning timed out. Try shorter text or check endpoint/model.</string>
     <string name="ai_cleaning_no_additional_details">No additional error details.</string>
-    <string name="ai_cleaning_log_endpoint">Endpoint: %1$s</string>
-    <string name="ai_cleaning_log_model">Model: %1$s</string>
-    <string name="ai_cleaning_log_http_status">HTTP status: %1$d</string>
-    <string name="ai_cleaning_log_response_body">Response body:</string>
-    <string name="ai_cleaning_log_error_type">Error type: %1$s</string>
-    <string name="ai_cleaning_log_message">Message: %1$s</string>
-    <string name="ai_cleaning_log_stack_trace">Stack trace:</string>
-    <string name="ai_cleaning_log_cause">Cause %1$d: %2$s: %3$s</string>
-    <string name="ai_cleaning_log_no_message">&lt;no message&gt;</string>
-    <string name="ai_cleaning_log_truncated">... [truncated]</string>
-    <string name="ai_cleaning_log_empty">&lt;empty&gt;</string>
-    <string name="ai_cleaning_log_redacted">&lt;redacted&gt;</string>
-    <string name="ai_cleaning_log_missing_snapshot">Subtitle %1$d does not have a stored AI cleaning source snapshot.</string>
-    <string name="ai_cleaning_log_missing_settings">AI cleaning could not start because endpoint, API key, or model was blank.</string>
+    <string name="ai_cleaning_log_endpoint" translatable="false">Endpoint: %1$s</string>
+    <string name="ai_cleaning_log_model" translatable="false">Model: %1$s</string>
+    <string name="ai_cleaning_log_http_status" translatable="false">HTTP status: %1$d</string>
+    <string name="ai_cleaning_log_response_body" translatable="false">Response body:</string>
+    <string name="ai_cleaning_log_error_type" translatable="false">Error type: %1$s</string>
+    <string name="ai_cleaning_log_message" translatable="false">Message: %1$s</string>
+    <string name="ai_cleaning_log_stack_trace" translatable="false">Stack trace:</string>
+    <string name="ai_cleaning_log_cause" translatable="false">Cause %1$d: %2$s: %3$s</string>
+    <string name="ai_cleaning_log_no_message" translatable="false">&lt;no message&gt;</string>
+    <string name="ai_cleaning_log_truncated" translatable="false">... [truncated]</string>
+    <string name="ai_cleaning_log_empty" translatable="false">&lt;empty&gt;</string>
+    <string name="ai_cleaning_log_redacted" translatable="false">&lt;redacted&gt;</string>
+    <string name="ai_cleaning_log_missing_snapshot" translatable="false">Subtitle %1$d does not have a stored AI cleaning source snapshot.</string>
+    <string name="ai_cleaning_log_missing_settings" translatable="false">AI cleaning could not start because endpoint, API key, or model was blank.</string>
     <string name="video_notes_close">Close</string>
     <string name="video_notes_default_title">Highlights &amp; notes</string>
     <string name="video_notes_empty_filtered_message">No annotations match this filter.</string>

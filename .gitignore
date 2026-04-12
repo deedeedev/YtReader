@@ -14,3 +14,9 @@ build/
 .cxx
 local.properties
 .kotlin
+*.apk
+*.aab
+*.hprof
+*.keystore
+*.jks
+.env
