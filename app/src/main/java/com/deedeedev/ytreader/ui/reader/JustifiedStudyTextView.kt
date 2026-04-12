@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.Typeface
 import android.text.Layout
@@ -57,26 +56,19 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     private var backgroundColorInt: Int = Color.TRANSPARENT
     private var lineSpacingMultiplier: Float = 1f
     private var layout: StaticLayout? = null
-    private val rangePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-    }
     private val visibleRect = Rect()
-    private val bookmarkPath = Path()
-    private var cachedBookmarkBounds: List<BookmarkMarkerBounds>? = null
-    private var cachedBookmarkBoundsKey: String = ""
     private var cachedLayoutWidth = -1
     private var layoutDirty = true
-    private var selectionRange: TextRange? = null
     private var searchResultRange: TextRange? = null
-    private var selectionAnchor: TextRange? = null
-    private var isSelecting = false
-    private var activeHandle: SelectionHandle? = null
-    private var hadActiveSelectionOnDown = false
     private val selectionColor = Color.argb(90, 51, 181, 229)
     private val handleRadius = dpToPx(8f)
     private val handleStemWidth = dpToPx(2f)
     private val handleStemHeight = dpToPx(14f)
     private val handleHitRadius = dpToPx(22f)
+
+    private val selectionController = StudyTextSelectionController()
+    private val renderer = StudyTextRenderer(textPaint)
+    private val bookmarkRenderer = StudyTextBookmarkRenderer()
 
     private val gestureDetector = GestureDetector(
         context,
@@ -108,7 +100,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
             cachedLayoutWidth = availableWidth
             layoutDirty = false
         }
-        val contentHeight = (layout?.height ?: 0) + paddingTop + paddingBottom + extraHandleBottomInset()
+        val contentHeight = (layout?.height ?: 0) + paddingTop + paddingBottom + selectionController.extraHandleBottomInset(handleStemHeight, handleRadius)
         val resolvedHeight = resolveSize(contentHeight.toInt(), heightMeasureSpec)
         setMeasuredDimension(resolvedWidth, resolvedHeight)
     }
@@ -125,43 +117,49 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         canvas.save()
         canvas.translate(paddingLeft.toFloat(), paddingTop.toFloat())
 
-        drawHighlightBackgrounds(canvas, textLayout, visTop, visBottom)
-        drawSearchResultBackground(canvas, textLayout, visTop, visBottom)
-        drawSelectionBackground(canvas, textLayout, visTop, visBottom)
+        renderer.drawHighlightBackgrounds(canvas, textLayout, content, highlights, redColor, blueColor, greenColor, yellowColor, visTop, visBottom)
+        renderer.drawSearchResultBackground(canvas, textLayout, content, searchResultRange, searchResultColor, visTop, visBottom)
+        renderer.drawSelectionBackground(canvas, textLayout, content, selectionController.selectionRange, selectionColor, visTop, visBottom)
 
         textLayout.draw(canvas)
 
-        drawBookmarkIndicators(canvas, textLayout, visTop, visBottom)
-        drawHighlightNoteIndicators(canvas, textLayout, visTop, visBottom)
-        selectionHandleVisuals(textLayout).forEach { handle ->
-            drawHandle(canvas, handle)
+        bookmarkRenderer.drawBookmarkIndicators(canvas, textLayout, content, bookmarks, noteIndicatorPaint, noteIndicatorStrokePaint, visTop, visBottom) { dpToPx(it) }
+        renderer.drawHighlightNoteIndicators(canvas, textLayout, content, highlights, noteIndicatorPaint, noteIndicatorStrokePaint, visTop, visBottom) { dpToPx(it) }
+        selectionController.selectionHandleVisuals(textLayout, content, handleStemHeight, handleRadius).forEach { handle ->
+            renderer.drawHandle(canvas, handle, handlePaint, handleStemWidth, handleStemHeight, handleRadius)
         }
         canvas.restore()
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-            hadActiveSelectionOnDown = hasActiveSelection()
-            hitHandleAt(event)?.let { handle ->
-                activeHandle = handle
-                parent?.requestDisallowInterceptTouchEvent(true)
-                return true
+            selectionController.hadActiveSelectionOnDown = hasActiveSelection()
+            val localX = event.x - paddingLeft
+            val localY = event.y - paddingTop
+            val textLayout = layout
+            if (textLayout != null) {
+                val hit = selectionController.hitHandleAt(localX, localY, textLayout, content, handleHitRadius, handleStemHeight, handleRadius) { dpToPx(it) }
+                if (hit != null) {
+                    selectionController.activeHandle = hit
+                    parent?.requestDisallowInterceptTouchEvent(true)
+                    return true
+                }
             }
         }
 
-        if (activeHandle == null) {
+        if (selectionController.activeHandle == null) {
             gestureDetector.onTouchEvent(event)
         }
 
         when (event.actionMasked) {
             MotionEvent.ACTION_MOVE -> {
                 when {
-                    activeHandle != null -> {
-                        updateSelectionFromHandle(event)
+                    selectionController.activeHandle != null -> {
+                        handleSelectionFromTouch(event)
                         parent?.requestDisallowInterceptTouchEvent(true)
                     }
-                    isSelecting -> {
-                        updateSelection(event)
+                    selectionController.isSelecting -> {
+                        handleSelectionMoveFromTouch(event)
                         parent?.requestDisallowInterceptTouchEvent(true)
                     }
                 }
@@ -169,23 +167,23 @@ class JustifiedStudyTextView @JvmOverloads constructor(
 
             MotionEvent.ACTION_UP -> {
                 when {
-                    activeHandle != null -> {
-                        updateSelectionFromHandle(event)
-                        finishHandleDrag()
+                    selectionController.activeHandle != null -> {
+                        handleSelectionFromTouch(event)
+                        selectionController.finishHandleDrag { parent?.requestDisallowInterceptTouchEvent(it) }
                     }
-                    isSelecting -> {
-                        updateSelection(event)
-                        finishSelection()
+                    selectionController.isSelecting -> {
+                        handleSelectionMoveFromTouch(event)
+                        selectionController.finishSelection { parent?.requestDisallowInterceptTouchEvent(it) }
                     }
                 }
             }
 
             MotionEvent.ACTION_CANCEL -> {
-                if (activeHandle != null) {
-                    finishHandleDrag()
+                if (selectionController.activeHandle != null) {
+                    selectionController.finishHandleDrag { parent?.requestDisallowInterceptTouchEvent(it) }
                 }
-                if (isSelecting) {
-                    finishSelection()
+                if (selectionController.isSelecting) {
+                    selectionController.finishSelection { parent?.requestDisallowInterceptTouchEvent(it) }
                 }
             }
         }
@@ -239,12 +237,8 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         this.yellowColor = yellowColor
         this.searchResultColor = searchResultColor
         this.searchResultRange = newSearchResultRange
-        selectionRange = selectionRange?.let { range ->
-            val start = range.start.coerceIn(0, content.length)
-            val end = range.end.coerceIn(0, content.length)
-            if (end > start) TextRange(start, end) else null
-        }
-        invalidateBookmarkBoundsCache()
+        selectionController.adjustForContentChange(content)
+        bookmarkRenderer.invalidateBookmarkBoundsCache()
         if (contentChanged) {
             layoutDirty = true
             requestLayout()
@@ -255,29 +249,16 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     }
 
     fun clearSelection() {
-        selectionRange = null
-        selectionAnchor = null
-        activeHandle = null
-        invalidate()
-        onSelectionChangedListener?.invoke(0, 0)
+        selectionController.clearSelection { start, end ->
+            invalidate()
+            onSelectionChangedListener?.invoke(start, end)
+        }
     }
 
     fun setSelectionRange(start: Int, end: Int) {
-        if (content.isEmpty()) {
-            clearSelection()
-            return
+        selectionController.setSelectionRange(start, end, content) { _, _ ->
+            invalidate()
         }
-        val boundedStart = start.coerceIn(0, content.length)
-        val boundedEnd = end.coerceIn(0, content.length)
-        val normalizedStart = minOf(boundedStart, boundedEnd)
-        val normalizedEnd = maxOf(boundedStart, boundedEnd)
-        if (normalizedEnd <= normalizedStart) {
-            clearSelection()
-            return
-        }
-        selectionAnchor = null
-        activeHandle = null
-        updateSelectionRange(TextRange(start = normalizedStart, end = normalizedEnd))
     }
 
     fun verticalOffsetForSelection(start: Int): Int {
@@ -312,9 +293,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     }
 
     fun selectedText(): String? {
-        val range = selectionRange ?: return null
-        if (range.end <= range.start) return null
-        return content.substring(range.start, range.end)
+        return selectionController.selectedText(content)
     }
 
     fun applyTypeface(fontFamilyName: String) {
@@ -362,50 +341,38 @@ class JustifiedStudyTextView @JvmOverloads constructor(
     }
 
     fun hasActiveSelection(): Boolean {
-        val range = selectionRange
-        return range != null && range.end > range.start
+        return selectionController.hasActiveSelection()
     }
 
     private fun beginSelection(event: MotionEvent) {
         val offset = offsetAt(event) ?: return
-        val anchorRange = findTokenRangeAtOffset(content, offset) ?: return
-        isSelecting = true
-        activeHandle = null
-        selectionAnchor = anchorRange
-        updateSelectionRange(anchorRange)
-        parent?.requestDisallowInterceptTouchEvent(true)
+        selectionController.beginSelection(content, offset, { parent?.requestDisallowInterceptTouchEvent(it) }, { start, end ->
+            invalidate()
+            onSelectionChangedListener?.invoke(start, end)
+        })
     }
 
-    private fun updateSelection(event: MotionEvent) {
-        val anchor = selectionAnchor ?: return
+    private fun handleSelectionMoveFromTouch(event: MotionEvent) {
         val offset = offsetAt(event) ?: return
-        val targetRange = findTokenRangeAtOffset(content, offset) ?: return
-        updateSelectionRange(mergeSelectionRange(anchor, targetRange))
+        selectionController.updateSelection(content, offset, { parent?.requestDisallowInterceptTouchEvent(it) }, { start, end ->
+            invalidate()
+            onSelectionChangedListener?.invoke(start, end)
+        })
     }
 
-    private fun updateSelectionFromHandle(event: MotionEvent) {
-        val handle = activeHandle ?: return
-        val currentRange = selectionRange ?: return
+    private fun handleSelectionFromTouch(event: MotionEvent) {
         val offset = offsetAt(event) ?: return
-        val targetRange = findTokenRangeAtOffset(content, offset) ?: return
-        val updated = updateSelectionForHandleDrag(currentRange, targetRange, handle)
-        activeHandle = updated.activeHandle
-        updateSelectionRange(updated.range)
-    }
-
-    private fun finishSelection() {
-        isSelecting = false
-        selectionAnchor = null
-        parent?.requestDisallowInterceptTouchEvent(false)
-    }
-
-    private fun finishHandleDrag() {
-        activeHandle = null
-        parent?.requestDisallowInterceptTouchEvent(false)
+        selectionController.updateSelectionFromHandle(content, offset) { start, end ->
+            invalidate()
+            onSelectionChangedListener?.invoke(start, end)
+        }
     }
 
     private fun dispatchTap(event: MotionEvent) {
-        val tappedBookmark = findBookmarkAt(event)
+        val textLayout = layout ?: return
+        val localX = event.x - paddingLeft
+        val localY = event.y - paddingTop
+        val tappedBookmark = bookmarkRenderer.findBookmarkAt(localX, localY, textLayout, content, bookmarks) { dpToPx(it) }
         if (tappedBookmark != null) {
             onBookmarkTappedListener?.invoke(tappedBookmark)
             return
@@ -420,7 +387,7 @@ class JustifiedStudyTextView @JvmOverloads constructor(
 
         val tapPosition = tapPosition(event)
 
-        val tapOutcome = if (hadActiveSelectionOnDown && hasActiveSelection()) {
+        val tapOutcome = if (selectionController.hadActiveSelectionOnDown && hasActiveSelection()) {
             clearSelection()
             TextTapOutcome.DISMISSED_SELECTION
         } else {
@@ -452,16 +419,6 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         )
     }
 
-    private fun updateSelectionRange(range: TextRange) {
-        if (range.end <= range.start) {
-            clearSelection()
-            return
-        }
-        selectionRange = range
-        invalidate()
-        onSelectionChangedListener?.invoke(range.start, range.end)
-    }
-
     private fun rebuildLayout(layoutWidth: Int = (measuredWidth - paddingLeft - paddingRight).coerceAtLeast(0)) {
         val width = layoutWidth.coerceAtLeast(1)
         layout = StaticLayout.Builder
@@ -475,245 +432,6 @@ class JustifiedStudyTextView @JvmOverloads constructor(
             .build()
     }
 
-    private fun drawRangeBackground(
-        canvas: Canvas,
-        textLayout: StaticLayout,
-        startOffset: Int,
-        endOffset: Int,
-        color: Int
-    ) {
-        if (startOffset >= endOffset || content.isEmpty()) return
-        rangePaint.color = color
-        val startLine = textLayout.getLineForOffset(startOffset)
-        val endCharOffset = (endOffset - 1).coerceIn(0, content.length - 1)
-        val endLine = textLayout.getLineForOffset(endCharOffset)
-        for (line in startLine..endLine) {
-            val left = if (line == startLine) {
-                textLayout.getPrimaryHorizontal(startOffset)
-            } else {
-                textLayout.getLineLeft(line)
-            }
-            val right = if (line == endLine) {
-                if (endOffset >= content.length) textLayout.getLineRight(line)
-                else textLayout.getPrimaryHorizontal(endOffset)
-            } else {
-                textLayout.getLineRight(line)
-            }
-            val top = textLayout.getLineTop(line).toFloat()
-            val bottom = textLayout.getLineBottom(line).toFloat()
-            if (right > left) {
-                canvas.drawRect(left, top, right, bottom, rangePaint)
-            }
-        }
-    }
-
-    private fun drawHighlightBackgrounds(canvas: Canvas, textLayout: StaticLayout, visTop: Int, visBottom: Int) {
-        if (highlights.isEmpty() || content.isEmpty()) return
-        val visLineStart = textLayout.getLineForVertical(visTop.coerceAtLeast(0))
-        val visLineEnd = textLayout.getLineForVertical(visBottom.coerceAtLeast(0))
-        highlights.forEach { highlight ->
-            val color = when (highlight.color) {
-                HighlightColor.RED -> redColor
-                HighlightColor.BLUE -> blueColor
-                HighlightColor.GREEN -> greenColor
-                HighlightColor.YELLOW -> yellowColor
-            }
-            val hlStartLine = textLayout.getLineForOffset(highlight.start)
-            if (hlStartLine > visLineEnd) return@forEach
-            val hlEndCharOffset = (highlight.end - 1).coerceIn(0, content.length - 1)
-            val hlEndLine = textLayout.getLineForOffset(hlEndCharOffset)
-            if (hlEndLine < visLineStart) return@forEach
-            drawRangeBackground(canvas, textLayout, highlight.start, highlight.end, color)
-        }
-    }
-
-    private fun drawSearchResultBackground(canvas: Canvas, textLayout: StaticLayout, visTop: Int, visBottom: Int) {
-        searchResultRange?.let { range ->
-            val visLineStart = textLayout.getLineForVertical(visTop.coerceAtLeast(0))
-            val visLineEnd = textLayout.getLineForVertical(visBottom.coerceAtLeast(0))
-            val startLine = textLayout.getLineForOffset(range.start)
-            if (startLine > visLineEnd) return
-            val endCharOffset = (range.end - 1).coerceIn(0, content.length - 1)
-            val endLine = textLayout.getLineForOffset(endCharOffset)
-            if (endLine < visLineStart) return
-            drawRangeBackground(canvas, textLayout, range.start, range.end, searchResultColor)
-        }
-    }
-
-    private fun drawSelectionBackground(canvas: Canvas, textLayout: StaticLayout, visTop: Int, visBottom: Int) {
-        selectionRange?.let { range ->
-            val visLineStart = textLayout.getLineForVertical(visTop.coerceAtLeast(0))
-            val visLineEnd = textLayout.getLineForVertical(visBottom.coerceAtLeast(0))
-            val startLine = textLayout.getLineForOffset(range.start)
-            if (startLine > visLineEnd) return
-            val endCharOffset = (range.end - 1).coerceIn(0, content.length - 1)
-            val endLine = textLayout.getLineForOffset(endCharOffset)
-            if (endLine < visLineStart) return
-            drawRangeBackground(canvas, textLayout, range.start, range.end, selectionColor)
-        }
-    }
-
-    private fun drawHandle(canvas: Canvas, handle: SelectionHandleVisual) {
-        canvas.drawRect(
-            handle.centerX - (handleStemWidth / 2f),
-            handle.anchorY,
-            handle.centerX + (handleStemWidth / 2f),
-            handle.anchorY + handleStemHeight,
-            handlePaint
-        )
-        canvas.drawCircle(
-            handle.centerX,
-            handle.anchorY + handleStemHeight + handleRadius,
-            handleRadius,
-            handlePaint
-        )
-    }
-
-    private fun drawHighlightNoteIndicators(canvas: Canvas, textLayout: StaticLayout, visTop: Int, visBottom: Int) {
-        if (content.isEmpty() || highlights.isEmpty()) return
-        val radius = dpToPx(4.5f)
-        val horizontalGap = dpToPx(5f)
-        val topInset = dpToPx(4f)
-        val visLineStart = textLayout.getLineForVertical(visTop.coerceAtLeast(0))
-        val visLineEnd = textLayout.getLineForVertical(visBottom.coerceAtLeast(0))
-        highlights.forEach { highlight ->
-            if (highlight.note.isNullOrBlank()) return@forEach
-            val startOffset = highlight.start.coerceIn(0, content.lastIndex)
-            val line = textLayout.getLineForOffset(startOffset)
-            if (line > visLineEnd || line < visLineStart) return@forEach
-            val lineRight = textLayout.getLineRight(line)
-            val lineLeft = textLayout.getLineLeft(line)
-            val rangeStartX = textLayout.getPrimaryHorizontal(startOffset)
-            val x = (rangeStartX - horizontalGap)
-                .coerceAtLeast(lineLeft + radius)
-                .coerceAtMost(lineRight - radius)
-            val y = (textLayout.getLineTop(line) + topInset + radius)
-                .coerceAtMost(textLayout.getLineBottom(line) - radius)
-            canvas.drawCircle(x, y, radius, noteIndicatorPaint)
-            canvas.drawCircle(x, y, radius, noteIndicatorStrokePaint)
-        }
-    }
-
-    private fun drawBookmarkIndicators(canvas: Canvas, textLayout: StaticLayout, visTop: Int, visBottom: Int) {
-        if (content.isEmpty() || bookmarks.isEmpty()) return
-        val visLineStart = textLayout.getLineForVertical(visTop.coerceAtLeast(0))
-        val visLineEnd = textLayout.getLineForVertical(visBottom.coerceAtLeast(0))
-        bookmarkMarkerBounds(textLayout).forEach { marker ->
-            val line = textLayout.getLineForOffset(marker.bookmark.anchorStart.coerceIn(0, content.lastIndex))
-            if (line > visLineEnd || line < visLineStart) return@forEach
-            val centerX = marker.left + (bookmarkMarkerWidthPx() / 2f)
-            bookmarkPath.reset()
-            bookmarkPath.moveTo(marker.left, marker.top)
-            bookmarkPath.lineTo(marker.right, marker.top)
-            bookmarkPath.lineTo(marker.right, marker.bottom)
-            bookmarkPath.lineTo(centerX, marker.bottom - bookmarkMarkerNotchDepthPx())
-            bookmarkPath.lineTo(marker.left, marker.bottom)
-            bookmarkPath.close()
-            canvas.drawPath(bookmarkPath, noteIndicatorPaint)
-            canvas.drawPath(bookmarkPath, noteIndicatorStrokePaint)
-        }
-    }
-
-    private fun findBookmarkAt(event: MotionEvent): BookmarkEntity? {
-        val textLayout = layout ?: return null
-        if (content.isEmpty() || bookmarks.isEmpty()) return null
-        val localX = event.x - paddingLeft
-        val localY = event.y - paddingTop
-        return bookmarkMarkerBounds(textLayout)
-            .lastOrNull { marker ->
-                localX in marker.left..marker.right && localY in marker.top..marker.bottom
-            }
-            ?.bookmark
-    }
-
-    private fun bookmarkMarkerBounds(textLayout: StaticLayout): List<BookmarkMarkerBounds> {
-        if (content.isEmpty() || bookmarks.isEmpty()) return emptyList()
-        val key = "${bookmarks.size}_${bookmarks.hashCode()}_${textLayout.width}"
-        if (cachedBookmarkBounds != null && cachedBookmarkBoundsKey == key) {
-            return cachedBookmarkBounds!!
-        }
-        val markerWidth = bookmarkMarkerWidthPx()
-        val markerHeight = bookmarkMarkerHeightPx()
-        val topInset = bookmarkMarkerTopInsetPx()
-        val endInset = bookmarkMarkerEndInsetPx()
-        val result = bookmarks.map { bookmark ->
-            val line = textLayout.getLineForOffset(bookmark.anchorStart.coerceIn(0, content.lastIndex))
-            val top = (textLayout.getLineTop(line) + topInset)
-                .coerceAtMost(textLayout.getLineBottom(line) - markerHeight)
-            val left = (textLayout.width - markerWidth - endInset).coerceAtLeast(0f)
-            BookmarkMarkerBounds(
-                bookmark = bookmark,
-                left = left,
-                top = top,
-                right = left + markerWidth,
-                bottom = top + markerHeight
-            )
-        }
-        cachedBookmarkBounds = result
-        cachedBookmarkBoundsKey = key
-        return result
-    }
-
-    private fun invalidateBookmarkBoundsCache() {
-        cachedBookmarkBounds = null
-        cachedBookmarkBoundsKey = ""
-    }
-
-    private fun bookmarkMarkerWidthPx(): Float = dpToPx(10f)
-
-    private fun bookmarkMarkerHeightPx(): Float = dpToPx(14f)
-
-    private fun bookmarkMarkerTopInsetPx(): Float = dpToPx(2f)
-
-    private fun bookmarkMarkerEndInsetPx(): Float = dpToPx(2f)
-
-    private fun bookmarkMarkerNotchDepthPx(): Float = dpToPx(4f)
-
-    private fun hitHandleAt(event: MotionEvent): SelectionHandle? {
-        val textLayout = layout ?: return null
-        val localX = event.x - paddingLeft
-        val localY = event.y - paddingTop
-        return selectionHandleVisuals(textLayout)
-            .firstOrNull { handle ->
-                val circleCenterY = handle.anchorY + handleStemHeight + handleRadius
-                val dx = localX - handle.centerX
-                val dy = localY - circleCenterY
-                val stemHit = localX in (handle.centerX - handleHitRadius)..(handle.centerX + handleHitRadius) &&
-                    localY in handle.anchorY..(circleCenterY + handleHitRadius)
-                stemHit || (dx * dx + dy * dy) <= (handleHitRadius * handleHitRadius)
-            }
-            ?.handle
-    }
-
-    private fun selectionHandleVisuals(textLayout: StaticLayout): List<SelectionHandleVisual> {
-        val range = selectionRange ?: return emptyList()
-        if (content.isEmpty()) return emptyList()
-        return listOfNotNull(
-            handleVisualForOffset(range.start, SelectionHandle.START, isRangeEnd = false, textLayout = textLayout),
-            handleVisualForOffset(range.end, SelectionHandle.END, isRangeEnd = true, textLayout = textLayout)
-        )
-    }
-
-    private fun handleVisualForOffset(
-        offset: Int,
-        handle: SelectionHandle,
-        isRangeEnd: Boolean,
-        textLayout: StaticLayout
-    ): SelectionHandleVisual? {
-        if (content.isEmpty()) return null
-        val lineIndex = when {
-            content.length == 1 -> 0
-            isRangeEnd && offset >= content.length -> textLayout.getLineForOffset(content.length - 1)
-            else -> textLayout.getLineForOffset(offset.coerceIn(0, content.length - 1))
-        }
-        val horizontal = textLayout.getPrimaryHorizontal(offset.coerceIn(0, content.length))
-        return SelectionHandleVisual(
-            handle = handle,
-            centerX = horizontal,
-            anchorY = textLayout.getLineBottom(lineIndex).toFloat()
-        )
-    }
-
     private fun offsetAt(event: MotionEvent): Int? {
         val textLayout = layout ?: return null
         if (content.isEmpty()) return null
@@ -724,10 +442,6 @@ class JustifiedStudyTextView @JvmOverloads constructor(
         val line = textLayout.getLineForVertical(localY.toInt())
         return textLayout.getOffsetForHorizontal(line, localX)
             .coerceIn(0, content.length - 1)
-    }
-
-    private fun extraHandleBottomInset(): Float {
-        return if (selectionRange == null) 0f else handleStemHeight + (handleRadius * 2f)
     }
 
     private fun dpToPx(value: Float): Float {
@@ -745,18 +459,4 @@ class JustifiedStudyTextView @JvmOverloads constructor(
             resources.displayMetrics
         )
     }
-
-    private data class SelectionHandleVisual(
-        val handle: SelectionHandle,
-        val centerX: Float,
-        val anchorY: Float
-    )
-
-    private data class BookmarkMarkerBounds(
-        val bookmark: BookmarkEntity,
-        val left: Float,
-        val top: Float,
-        val right: Float,
-        val bottom: Float
-    )
 }

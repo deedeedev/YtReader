@@ -4,7 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
@@ -13,22 +12,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.AppContainer
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.ui.FontOption
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberTimePickerState
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import java.text.DateFormat
-import java.util.Date
 
-private enum class SettingsImportTarget {
+internal enum class SettingsImportTarget {
     PREFERENCES,
     DATA
 }
@@ -270,7 +264,7 @@ fun SettingsScreen(
                     value = uiState.defaultFontSize,
                     onValueChange = { viewModel.setDefaultFontSize(it) },
                     valueRange = 12f..42f,
-                    steps = 14 // (42-12)/2 - 1 = 14 steps of size 2
+                    steps = 14
                 )
             }
 
@@ -319,7 +313,7 @@ fun SettingsScreen(
                     value = uiState.lineHeightMultiplier,
                     onValueChange = { viewModel.setLineHeightMultiplier(it) },
                     valueRange = 0.5f..2.5f,
-                    steps = 19 // (2.5-0.5)/0.1 - 1 = 19 steps of size 0.1
+                    steps = 19
                 )
             }
 
@@ -454,57 +448,23 @@ fun SettingsScreen(
     }
 
     if (showTimePicker) {
-        val timeParts = uiState.autoBackupTime.split(":")
-        val initialHour = timeParts.getOrNull(0)?.toIntOrNull() ?: 2
-        val initialMinute = timeParts.getOrNull(1)?.toIntOrNull() ?: 0
-        val timePickerState = rememberTimePickerState(
-            initialHour = initialHour,
-            initialMinute = initialMinute,
-            is24Hour = true
-        )
-        AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            title = { Text(stringResource(R.string.auto_backup_time_picker_title)) },
-            text = {
-                TimePicker(state = timePickerState)
+        SettingsTimePickerDialog(
+            autoBackupTime = uiState.autoBackupTime,
+            onTimeSet = { timeString ->
+                viewModel.setAutoBackupTime(timeString)
+                showTimePicker = false
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    val hour = timePickerState.hour
-                    val minute = timePickerState.minute
-                    val timeString = String.format("%02d:%02d", hour, minute)
-                    viewModel.setAutoBackupTime(timeString)
-                    showTimePicker = false
-                }) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            onDismiss = { showTimePicker = false }
         )
     }
 
     if (pendingDirectoryChange) {
-        AlertDialog(
-            onDismissRequest = { pendingDirectoryChange = false },
-            title = { Text(stringResource(R.string.auto_backup_confirm_title)) },
-            text = { Text(stringResource(R.string.auto_backup_confirm_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    pendingDirectoryChange = false
-                    autoBackupDirectoryLauncher.launch(null)
-                }) {
-                    Text(stringResource(android.R.string.ok))
-                }
+        SettingsDirectoryConfirmDialog(
+            onConfirm = {
+                pendingDirectoryChange = false
+                autoBackupDirectoryLauncher.launch(null)
             },
-            dismissButton = {
-                TextButton(onClick = { pendingDirectoryChange = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            onDismiss = { pendingDirectoryChange = false }
         )
     }
 
@@ -517,442 +477,60 @@ fun SettingsScreen(
             ThumbnailBulkAction.DOWNLOAD_MISSING -> R.string.settings_thumbnail_download_confirm_message
             ThumbnailBulkAction.CLEAN_ORPHANS -> R.string.settings_thumbnail_cleanup_confirm_message
         }
-        AlertDialog(
-            onDismissRequest = {
-                if (!isBusy && !uiState.isRunningThumbnailBulkAction) {
-                    pendingThumbnailAction = null
-                }
-            },
-            properties = DialogProperties(
-                dismissOnBackPress = !isBusy && !uiState.isRunningThumbnailBulkAction,
-                dismissOnClickOutside = !isBusy && !uiState.isRunningThumbnailBulkAction
-            ),
-            title = { Text(stringResource(titleRes)) },
-            text = { Text(stringResource(messageRes)) },
-            confirmButton = {
-                TextButton(
-                    enabled = !isBusy && !uiState.isRunningThumbnailBulkAction,
-                    onClick = {
-                        val selectedAction = action
-                        pendingThumbnailAction = null
-                        launchTask {
-                            when (selectedAction) {
-                                ThumbnailBulkAction.DOWNLOAD_MISSING -> viewModel.downloadMissingThumbnails()
-                                ThumbnailBulkAction.CLEAN_ORPHANS -> viewModel.cleanOrphanThumbnails()
-                            }
-                        }
+        SettingsThumbnailActionDialog(
+            titleRes = titleRes,
+            messageRes = messageRes,
+            isBusy = isBusy || uiState.isRunningThumbnailBulkAction,
+            onConfirm = {
+                val selectedAction = action
+                pendingThumbnailAction = null
+                launchTask {
+                    when (selectedAction) {
+                        ThumbnailBulkAction.DOWNLOAD_MISSING -> viewModel.downloadMissingThumbnails()
+                        ThumbnailBulkAction.CLEAN_ORPHANS -> viewModel.cleanOrphanThumbnails()
                     }
-                ) {
-                    Text(stringResource(android.R.string.ok))
                 }
             },
-            dismissButton = {
-                TextButton(
-                    enabled = !isBusy && !uiState.isRunningThumbnailBulkAction,
-                    onClick = { pendingThumbnailAction = null }
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
-            }
+            onDismiss = { pendingThumbnailAction = null }
         )
     }
 
     if (pendingImportTarget != null && pendingImportUri != null) {
         val target = pendingImportTarget!!
-        AlertDialog(
-            onDismissRequest = {
-                if (!isBusy) {
-                    pendingImportTarget = null
-                    pendingImportUri = null
-                    pendingDataImportPreview = null
-                    pendingForceImport = false
-                }
-            },
-            properties = DialogProperties(dismissOnBackPress = !isBusy, dismissOnClickOutside = !isBusy),
-            title = {
-                Text(
-                    if (target == SettingsImportTarget.PREFERENCES) {
-                        stringResource(R.string.settings_preferences_import_confirm)
-                    } else {
-                        stringResource(R.string.settings_data_backup_preview)
-                    }
-                )
-            },
-            text = {
-                if (target == SettingsImportTarget.PREFERENCES) {
-                    Text(stringResource(R.string.settings_preferences_import_message))
-                } else {
-                    val preview = pendingDataImportPreview
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.settings_data_import_message))
-                        if (preview != null) {
-                            preview.createdAtEpochMillis?.let { createdAt ->
-                                Text(
-                                    stringResource(
-                                        R.string.settings_data_backup_preview_created,
-                                        DateFormat.getDateTimeInstance().format(Date(createdAt))
-                                    )
-                                )
-                            }
-                            preview.appVersionName?.takeIf { it.isNotBlank() }?.let { appVersion ->
-                                Text(
-                                    stringResource(
-                                        R.string.settings_data_backup_preview_app_version,
-                                        appVersion
-                                    )
-                                )
-                            }
-                            Text(
-                                stringResource(
-                                    R.string.settings_data_backup_preview_schema,
-                                    preview.schemaVersion
-                                )
-                            )
-                            Text(
-                                stringResource(
-                                    R.string.settings_data_backup_preview_subtitles,
-                                    preview.subtitleCount
-                                )
-                            )
-                            Text(
-                                stringResource(
-                                    R.string.settings_data_backup_preview_collections,
-                                    preview.collectionCount
-                                )
-                            )
-                            Text(
-                                stringResource(
-                                    R.string.settings_data_backup_preview_bookmarks,
-                                    preview.bookmarkCount
-                                )
-                            )
-                            Text(
-                                stringResource(
-                                    R.string.settings_data_backup_preview_notes,
-                                    preview.highlightNoteCount
-                                )
-                            )
-                            Text(
-                                stringResource(
-                                    R.string.settings_data_backup_preview_manifest,
-                                    stringResource(
-                                        if (preview.hasManifest) {
-                                            R.string.settings_data_backup_preview_manifest_present
-                                        } else {
-                                            R.string.settings_data_backup_preview_manifest_missing
-                                        }
-                                    )
-                                )
-                            )
-                            Text(
-                                text = if (preview.isCompatible) {
-                                    stringResource(R.string.settings_data_backup_preview_ready)
-                                } else {
-                                    preview.incompatibilityReason?.let { issue ->
-                                        when (issue) {
-                                            BackupCompatibilityIssue.SCHEMA_VERSION_MISMATCH -> {
-                                                stringResource(R.string.settings_backup_error_schema_mismatch)
-                                            }
-
-                                            BackupCompatibilityIssue.ROOM_IDENTITY_MISMATCH -> {
-                                                stringResource(R.string.settings_backup_error_identity_mismatch)
-                                            }
-                                        }
-                                    } ?: stringResource(R.string.settings_data_backup_preview_incompatible)
-                                },
-                                color = if (preview.isCompatible) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.error
-                                }
-                            )
-                            if (!preview.isCompatible) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.clickable {
-                                        pendingForceImport = !pendingForceImport
-                                    }
-                                ) {
-                                    Checkbox(
-                                        checked = pendingForceImport,
-                                        onCheckedChange = { pendingForceImport = it }
-                                    )
-                                    Column {
-                                        Text(
-                                            stringResource(R.string.settings_backup_force_import),
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                        Text(
-                                            stringResource(R.string.settings_backup_force_import_warning),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                }
-                            }
-                        } else {
-                            Text(stringResource(R.string.settings_working))
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = !isBusy && (
-                        target != SettingsImportTarget.DATA ||
-                            pendingDataImportPreview?.isCompatible == true ||
-                            pendingForceImport
-                    ),
-                    onClick = {
-                        val uri = pendingImportUri ?: return@TextButton
-                        val currentTarget = pendingImportTarget ?: return@TextButton
-                        val forceImport = pendingForceImport
-                        launchTask {
-                            if (currentTarget == SettingsImportTarget.PREFERENCES) {
-                                importPreferencesBackup(context, appContainer, uri.toString())
-                                pendingImportTarget = null
-                                pendingImportUri = null
-                                pendingDataImportPreview = null
-                                pendingForceImport = false
-                                context.getString(R.string.settings_preferences_imported)
-                            } else {
-                                importDataBackup(context, appContainer, uri.toString(), forceImport)
-                                pendingImportTarget = null
-                                pendingImportUri = null
-                                pendingDataImportPreview = null
-                                pendingForceImport = false
-                                context.getString(R.string.settings_data_imported)
-                            }
-                        }
-                    }
-                ) {
-                    Text(stringResource(R.string.settings_import))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !isBusy,
-                    onClick = {
+        SettingsImportConfirmDialog(
+            target = target,
+            isBusy = isBusy,
+            preview = pendingDataImportPreview,
+            pendingForceImport = pendingForceImport,
+            onForceImportChange = { pendingForceImport = it },
+            onConfirm = {
+                val uri = pendingImportUri ?: return@SettingsImportConfirmDialog
+                val currentTarget = pendingImportTarget ?: return@SettingsImportConfirmDialog
+                val forceImport = pendingForceImport
+                launchTask {
+                    if (currentTarget == SettingsImportTarget.PREFERENCES) {
+                        importPreferencesBackup(context, appContainer, uri.toString())
                         pendingImportTarget = null
                         pendingImportUri = null
                         pendingDataImportPreview = null
                         pendingForceImport = false
+                        context.getString(R.string.settings_preferences_imported)
+                    } else {
+                        importDataBackup(context, appContainer, uri.toString(), forceImport)
+                        pendingImportTarget = null
+                        pendingImportUri = null
+                        pendingDataImportPreview = null
+                        pendingForceImport = false
+                        context.getString(R.string.settings_data_imported)
                     }
-                ) {
-                    Text(stringResource(R.string.cancel))
                 }
+            },
+            onDismiss = {
+                pendingImportTarget = null
+                pendingImportUri = null
+                pendingDataImportPreview = null
+                pendingForceImport = false
             }
         )
-    }
-}
-
-@Composable
-private fun BulkThumbnailActionsSection(
-    enabled: Boolean,
-    onDownloadMissing: () -> Unit,
-    onCleanOrphans: () -> Unit
-) {
-    ElevatedCard {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.settings_thumbnail_tools),
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = stringResource(R.string.settings_thumbnail_tools_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            OutlinedButton(
-                onClick = onDownloadMissing,
-                enabled = enabled,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.settings_thumbnail_download_missing))
-            }
-            OutlinedButton(
-                onClick = onCleanOrphans,
-                enabled = enabled,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.settings_thumbnail_clean_orphans))
-            }
-        }
-    }
-}
-
-@Composable
-private fun BackupActionSection(
-    title: String,
-    description: String,
-    exportLabel: String,
-    importLabel: String,
-    enabled: Boolean,
-    onExport: () -> Unit,
-    onImport: () -> Unit
-) {
-    ElevatedCard {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(text = title, style = MaterialTheme.typography.titleSmall)
-            Text(text = description, style = MaterialTheme.typography.bodyMedium)
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(
-                    onClick = onExport,
-                    enabled = enabled,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(exportLabel)
-                }
-                Button(
-                    onClick = onImport,
-                    enabled = enabled,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(importLabel)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AutomaticBackupSection(
-    enabled: Boolean,
-    directoryUri: String?,
-    backupTime: String,
-    includeSettings: Boolean,
-    onEnabledChange: (Boolean) -> Unit,
-    onSelectDirectory: () -> Unit,
-    onTimeClick: () -> Unit,
-    onIncludeSettingsChange: (Boolean) -> Unit
-) {
-    val context = LocalContext.current
-
-    val folderName = remember(directoryUri) {
-        if (directoryUri.isNullOrBlank()) return@remember null
-        runCatching {
-            val uri = Uri.parse(directoryUri)
-            val docId = android.provider.DocumentsContract.getTreeDocumentId(uri)
-            val segments = docId.split(":")
-            segments.lastOrNull() ?: docId
-        }.getOrNull()
-    }
-
-    ElevatedCard {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.auto_backup_title),
-                style = MaterialTheme.typography.titleSmall
-            )
-            Text(
-                text = stringResource(R.string.auto_backup_description),
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = stringResource(R.string.auto_backup_enabled),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.weight(1f)
-                )
-                Switch(
-                    checked = enabled,
-                    onCheckedChange = onEnabledChange
-                )
-            }
-            HorizontalDivider()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onSelectDirectory() }
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.auto_backup_location),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = folderName ?: stringResource(R.string.auto_backup_location_not_set),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (folderName != null) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
-                }
-                OutlinedButton(onClick = onSelectDirectory) {
-                    Text(stringResource(R.string.auto_backup_location_select))
-                }
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onTimeClick() }
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = stringResource(R.string.auto_backup_time),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = backupTime,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.auto_backup_include_settings),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = stringResource(R.string.auto_backup_include_settings_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Checkbox(
-                    checked = includeSettings,
-                    onCheckedChange = onIncludeSettingsChange
-                )
-            }
-            if (!enabled && !directoryUri.isNullOrBlank()) {
-                Text(
-                    text = stringResource(R.string.auto_backup_disabled_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
     }
 }

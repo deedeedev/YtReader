@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.data.CollectionRepository
 import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
@@ -13,7 +12,6 @@ import com.deedeedev.ytreader.data.PersistedCollectionFilters
 import com.deedeedev.ytreader.data.VideoRepository
 import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.VideoCollection
-import com.deedeedev.ytreader.data.local.AppDatabase
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -52,6 +50,11 @@ class CollectionsViewModel(
     private val userPreferencesRepository: UserPreferencesRepository,
     private val collectionRepository: CollectionRepository
 ) : ViewModel() {
+
+    private val ops = VideoOperationsHelper(
+        appContext, youtubeRepository, subtitleRepository, videoRepository,
+        noteRepository, collectionRepository
+    )
 
     private val _uiState = MutableStateFlow(createInitialUiState())
     val uiState: StateFlow<CollectionsUiState> = _uiState.asStateFlow()
@@ -100,15 +103,11 @@ class CollectionsViewModel(
     }
 
     fun createCollection(name: String): Boolean {
-        val trimmedName = name.trim()
-        if (trimmedName.isBlank()) {
-            return false
-        }
-        if (_uiState.value.collections.any { it.name.equals(trimmedName, ignoreCase = true) }) {
+        if (!ops.createCollection(name, _uiState.value.collections)) {
             return false
         }
         viewModelScope.launch {
-            collectionRepository.createCollection(trimmedName)
+            collectionRepository.createCollection(name.trim())
         }
         return true
     }
@@ -154,14 +153,10 @@ class CollectionsViewModel(
     }
 
     fun addVideoToCollection(collectionId: String, videoId: String): Boolean {
-        val collection = _uiState.value.collections.firstOrNull { it.id == collectionId } ?: return false
-        val normalizedVideoId = YouTubeVideoIdNormalizer.extractVideoId(videoId.trim()) ?: videoId.trim()
-        if (normalizedVideoId.isBlank()) {
+        if (!ops.addVideoToCollection(collectionId, videoId, _uiState.value.collections)) {
             return false
         }
-        if (normalizedVideoId in collection.videoIds) {
-            return true
-        }
+        val normalizedVideoId = YouTubeVideoIdNormalizer.extractVideoId(videoId.trim()) ?: videoId.trim()
         viewModelScope.launch {
             collectionRepository.addVideoToCollection(collectionId, normalizedVideoId)
         }
@@ -216,58 +211,21 @@ class CollectionsViewModel(
 
     fun downloadSubtitleAgain(subtitle: SubtitleEntity) {
         viewModelScope.launch {
-            _uiState.update { it.copy(error = null) }
-            _uiState.update { state ->
-                state.copy(downloadingSubtitleIds = state.downloadingSubtitleIds + subtitle.id)
-            }
-            try {
-                val info = youtubeRepository.getStreamInfo(resolveVideoLookupUrl(subtitle))
-                val matchingSubtitle = SubtitleIdentityMatcher.findMatchingStream(
-                    savedSubtitle = subtitle,
-                    streams = info.subtitles
-                )
-                    ?: throw IllegalStateException(
-                        appContext.getString(R.string.matching_subtitle_not_found)
-                    )
-
-                val subtitleContent = matchingSubtitle.content
-                val rawContent = if (matchingSubtitle.isUrl) {
-                    youtubeRepository.downloadSubtitle(subtitleContent)
-                } else {
-                    subtitleContent
-                }
-
-                subtitleRepository.replaceContentForRedownload(
-                        id = subtitle.id,
-                        content = rawContent,
-                        createdAt = System.currentTimeMillis()
-                    )
-                    noteRepository.deleteHighlightsBySubtitleId(subtitle.id)
-                    noteRepository.deleteBookmarksBySubtitleId(subtitle.id)
-
-                upsertVideoMetadata(
-                    videoRepository = videoRepository,
-                    youtubeRepository = youtubeRepository,
-                    appContext = appContext,
-                    videoId = subtitle.videoId,
-                    fallbackVideoUrl = displayUrlFor(subtitle.videoId, subtitle.videoUrl),
-                    fallbackTitle = info.name,
-                    fallbackChannelName = info.uploaderName ?: appContext.getString(R.string.channel_unknown),
-                    fallbackUploadDate = info.uploadDate?.instant?.toEpochMilli() ?: 0L,
-                    info = info
-                )
-                _uiState.update { it.copy(error = null) }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        error = e.message ?: appContext.getString(R.string.download_failed)
-                    )
-                }
-            } finally {
-                _uiState.update { state ->
-                    state.copy(downloadingSubtitleIds = state.downloadingSubtitleIds - subtitle.id)
-                }
-            }
+            ops.downloadSubtitleAgain(
+                subtitle = subtitle,
+                onDownloadingChange = { id, adding ->
+                    _uiState.update { state ->
+                        state.copy(
+                            downloadingSubtitleIds = if (adding) state.downloadingSubtitleIds + id
+                            else state.downloadingSubtitleIds - id
+                        )
+                    }
+                },
+                onError = { error ->
+                    _uiState.update { it.copy(error = error) }
+                },
+                onEvent = {}
+            )
         }
     }
 
@@ -279,67 +237,51 @@ class CollectionsViewModel(
         uploadDate: Long
     ) {
         viewModelScope.launch {
-            _uiState.update { state ->
-                state.copy(downloadingThumbnailVideoIds = state.downloadingThumbnailVideoIds + videoId)
-            }
-            try {
-                val info = youtubeRepository.getStreamInfo(displayUrlFor(videoId, videoUrl))
-                upsertVideoMetadata(
-                    videoRepository = videoRepository,
-                    youtubeRepository = youtubeRepository,
-                    appContext = appContext,
-                    videoId = videoId,
-                    fallbackVideoUrl = displayUrlFor(videoId, videoUrl),
-                    fallbackTitle = info.name.ifBlank { title },
-                    fallbackChannelName = (info.uploaderName ?: channelName).ifBlank { channelName },
-                    fallbackUploadDate = info.uploadDate?.instant?.toEpochMilli() ?: uploadDate,
-                    info = info
-                )
-                _uiState.update { it.copy(error = null) }
-                _events.tryEmit(CollectionsEvent.ShowMessage(appContext.getString(R.string.library_thumbnail_downloaded)))
-            } catch (e: Exception) {
-                val errorMessage = e.message ?: appContext.getString(R.string.library_thumbnail_download_failed)
-                _uiState.update {
-                    it.copy(error = errorMessage)
+            ops.downloadThumbnailForVideo(
+                videoId = videoId,
+                videoUrl = videoUrl,
+                title = title,
+                channelName = channelName,
+                uploadDate = uploadDate,
+                onDownloadingChange = { id, adding ->
+                    _uiState.update { state ->
+                        state.copy(
+                            downloadingThumbnailVideoIds = if (adding) state.downloadingThumbnailVideoIds + id
+                            else state.downloadingThumbnailVideoIds - id
+                        )
+                    }
+                },
+                onError = { error ->
+                    _uiState.update { it.copy(error = error) }
+                },
+                onEvent = { message ->
+                    _events.tryEmit(CollectionsEvent.ShowMessage(message))
                 }
-                _events.tryEmit(CollectionsEvent.ShowMessage(errorMessage))
-            } finally {
-                _uiState.update { state ->
-                    state.copy(downloadingThumbnailVideoIds = state.downloadingThumbnailVideoIds - videoId)
-                }
-            }
+            )
         }
     }
 
     fun markVideoAsRead(videoId: String) {
         viewModelScope.launch {
-            subtitleRepository.markVideoAsRead(videoId)
+            ops.markVideoAsRead(videoId)
         }
     }
 
     fun resetVideoProgress(videoId: String) {
         viewModelScope.launch {
-            subtitleRepository.resetReadingProgressForVideo(videoId)
+            ops.resetVideoProgress(videoId)
         }
     }
 
     fun deleteSubtitle(subtitle: SubtitleEntity) {
         viewModelScope.launch {
-            val subtitleCountForVideo = subtitleRepository.countByVideoId(subtitle.videoId)
-            if (subtitleCountForVideo <= 1) {
-                collectionRepository.removeVideoFromAllCollections(subtitle.videoId)
-            }
-            subtitleRepository.delete(subtitle)
+            ops.deleteSubtitle(subtitle)
         }
     }
 
     fun restoreLibraryItem(subtitles: List<SubtitleEntity>) {
         viewModelScope.launch {
-            val videoId = subtitles.firstOrNull()?.videoId ?: return@launch
-            subtitles.forEach { subtitle ->
-                subtitleRepository.upsertByIdentity(subtitle.copy(isInLibrary = true))
-            }
-            subtitleRepository.updateLibraryVisibility(videoId, true)
+            ops.restoreLibraryItem(subtitles)
         }
     }
 
