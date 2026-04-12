@@ -26,29 +26,6 @@ Two different subtitles whose IDs differ by a multiple of 10,000 will get the sa
 
 ---
 
-### 11. Outdated User-Agent in `NewPipeDownloader`
-
-**Location — `data/remote/NewPipeDownloader.kt`:**
-
-The Chrome 90 UA string (`Chrome/90.0.4430.212`) is from April 2021. YouTube may flag or throttle requests with an old browser signature.
-
-**Fix:** Update to a current Chrome user-agent string.
-
----
-
-### 12. Debug Stack Traces in Production Code
-
-**Location — `MainScreen.kt:407`:**
-```kotlin
-Log.d(TAG, "onInitialNavigationConsumed: clearing ...", Exception("stacktrace"))
-```
-
-Creating `Exception("stacktrace")` objects has non-trivial overhead in production.
-
-**Fix:** Remove or gate behind `BuildConfig.DEBUG`.
-
----
-
 ### 13. Race Condition in `updateReadingProgress()`
 
 **Location — `ReaderViewModel.kt:140-153`:**
