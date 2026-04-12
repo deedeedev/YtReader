@@ -49,14 +49,16 @@ class AiCleaningWorker(
 
         val container = (applicationContext as YtReaderApplication).container
         val subtitleDao = container.subtitleDao
+        val aiCleaningStateDao = container.aiCleaningStateDao
         val preferences = container.userPreferencesRepository
         val repository = container.aiCleaningRepository
         val subtitle = subtitleDao.getById(subtitleId)
             ?: return@withContext Result.failure()
 
-        val sourceText = subtitle.aiCleaningSourceText?.takeIf { it.isNotBlank() }
+        val aiState = aiCleaningStateDao.getBySubtitleId(subtitleId)
+        val sourceText = aiState?.aiCleaningSourceText?.takeIf { it.isNotBlank() }
         if (sourceText == null) {
-            subtitleDao.storeAiCleaningFailure(
+            aiCleaningStateDao.storeAiCleaningFailure(
                 subtitleId = subtitleId,
                 summary = applicationContext.getString(R.string.ai_cleaning_no_text_available),
                 log = applicationContext.getString(
@@ -83,7 +85,7 @@ class AiCleaningWorker(
                 summary = applicationContext.getString(R.string.ai_cleaning_missing_settings),
                 detailedLog = applicationContext.getString(R.string.ai_cleaning_log_missing_settings)
             )
-            subtitleDao.storeAiCleaningFailure(
+            aiCleaningStateDao.storeAiCleaningFailure(
                 subtitleId = subtitleId,
                 summary = failure.summary,
                 log = failure.detailedLog,
@@ -117,7 +119,7 @@ class AiCleaningWorker(
 
         return@withContext try {
             val cleanedText = repository.cleanText(request)
-            subtitleDao.storeAiCleaningResult(
+            aiCleaningStateDao.storeAiCleaningResult(
                 subtitleId = subtitleId,
                 result = cleanedText,
                 updatedAt = System.currentTimeMillis()
@@ -131,7 +133,7 @@ class AiCleaningWorker(
             Result.success()
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
-                subtitleDao.cancelAiCleaning(
+                aiCleaningStateDao.cancelAiCleaning(
                     subtitleId = subtitleId,
                     updatedAt = System.currentTimeMillis()
                 )
@@ -139,7 +141,7 @@ class AiCleaningWorker(
             throw cancelled
         } catch (throwable: Throwable) {
             val failure = repository.toFailure(request, throwable)
-            subtitleDao.storeAiCleaningFailure(
+            aiCleaningStateDao.storeAiCleaningFailure(
                 subtitleId = subtitleId,
                 summary = failure.summary,
                 log = failure.detailedLog,
@@ -339,7 +341,7 @@ internal suspend fun cancelAiCleaningWorkAndState(
     },
     cancelSubtitleState: suspend (Context, Long, Long) -> Unit = { context, subtitleId, updatedAt ->
         val container = (context as YtReaderApplication).container
-        container.subtitleDao.cancelAiCleaning(subtitleId = subtitleId, updatedAt = updatedAt)
+        container.aiCleaningStateDao.cancelAiCleaning(subtitleId = subtitleId, updatedAt = updatedAt)
     },
     cancelNotification: (Context, Int) -> Unit = { context, notificationId ->
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

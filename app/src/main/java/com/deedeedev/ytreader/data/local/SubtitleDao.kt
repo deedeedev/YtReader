@@ -13,6 +13,9 @@ interface SubtitleDao {
     @Query("SELECT * FROM subtitles ORDER BY createdAt DESC")
     fun getAll(): Flow<List<SubtitleEntity>>
 
+    @Query("SELECT * FROM subtitles ORDER BY createdAt DESC")
+    suspend fun getAllSync(): List<SubtitleEntity>
+
     @Query(
         """
         SELECT DISTINCT channelName
@@ -34,7 +37,7 @@ interface SubtitleDao {
                 WHERE s.videoId = agg.videoId
                   AND (:isCollection = 0 OR s.videoId IN (:videoIds))
                   AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                ORDER BY s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS videoUrl,
             COALESCE(v.title, (
@@ -43,7 +46,7 @@ interface SubtitleDao {
                 WHERE s.videoId = agg.videoId
                   AND (:isCollection = 0 OR s.videoId IN (:videoIds))
                   AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                ORDER BY s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS title,
             COALESCE(v.channelName, (
@@ -52,7 +55,7 @@ interface SubtitleDao {
                 WHERE s.videoId = agg.videoId
                   AND (:isCollection = 0 OR s.videoId IN (:videoIds))
                   AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                ORDER BY s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), '') AS channelName,
             COALESCE(v.uploadDate, (
@@ -61,50 +64,54 @@ interface SubtitleDao {
                 WHERE s.videoId = agg.videoId
                   AND (:isCollection = 0 OR s.videoId IN (:videoIds))
                   AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                ORDER BY s.createdAt DESC, s.id DESC
                 LIMIT 1
             ), 0) AS uploadDate,
             v.thumbnailLocalPath AS thumbnailLocalPath,
             agg.lastDownloaded AS lastDownloaded,
-            agg.lastOpenedAt AS lastOpenedAt,
+            COALESCE(agg.lastOpenedAt, 0) AS lastOpenedAt,
             COALESCE((
-                SELECT s.readingProgressPercent
-                FROM subtitles s
-                WHERE s.videoId = agg.videoId
-                  AND (:isCollection = 0 OR s.videoId IN (:videoIds))
-                  AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                SELECT rs.readingProgressPercent
+                FROM subtitle_reading_states rs
+                INNER JOIN subtitles s2 ON s2.id = rs.subtitleId
+                WHERE s2.videoId = agg.videoId
+                  AND (:isCollection = 0 OR s2.videoId IN (:videoIds))
+                  AND (:channelName IS NULL OR s2.channelName = :channelName)
+                ORDER BY rs.lastOpenedAt DESC, s2.createdAt DESC, s2.id DESC
                 LIMIT 1
             ), 0) AS readingProgressPercent,
             COALESCE((
-                SELECT s.currentPage
-                FROM subtitles s
-                WHERE s.videoId = agg.videoId
-                  AND (:isCollection = 0 OR s.videoId IN (:videoIds))
-                  AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                SELECT rs.currentPage
+                FROM subtitle_reading_states rs
+                INNER JOIN subtitles s2 ON s2.id = rs.subtitleId
+                WHERE s2.videoId = agg.videoId
+                  AND (:isCollection = 0 OR s2.videoId IN (:videoIds))
+                  AND (:channelName IS NULL OR s2.channelName = :channelName)
+                ORDER BY rs.lastOpenedAt DESC, s2.createdAt DESC, s2.id DESC
                 LIMIT 1
             ), 0) AS currentPage,
             COALESCE((
-                SELECT s.totalPages
-                FROM subtitles s
-                WHERE s.videoId = agg.videoId
-                  AND (:isCollection = 0 OR s.videoId IN (:videoIds))
-                  AND (:channelName IS NULL OR s.channelName = :channelName)
-                ORDER BY s.lastOpenedAt DESC, s.createdAt DESC, s.id DESC
+                SELECT rs.totalPages
+                FROM subtitle_reading_states rs
+                INNER JOIN subtitles s2 ON s2.id = rs.subtitleId
+                WHERE s2.videoId = agg.videoId
+                  AND (:isCollection = 0 OR s2.videoId IN (:videoIds))
+                  AND (:channelName IS NULL OR s2.channelName = :channelName)
+                ORDER BY rs.lastOpenedAt DESC, s2.createdAt DESC, s2.id DESC
                 LIMIT 1
             ), 0) AS totalPages,
             agg.isInLibrary AS isInLibrary
         FROM (
             SELECT
-                videoId,
-                MAX(createdAt) AS lastDownloaded,
-                MAX(lastOpenedAt) AS lastOpenedAt,
-                MAX(isInLibrary) AS isInLibrary
-            FROM subtitles
-            WHERE (:isCollection = 0 AND isInLibrary = 1 OR :isCollection = 1 AND videoId IN (:videoIds))
-              AND (:channelName IS NULL OR channelName = :channelName)
-            GROUP BY videoId
+                s.videoId,
+                MAX(s.createdAt) AS lastDownloaded,
+                MAX(rs.lastOpenedAt) AS lastOpenedAt,
+                MAX(s.isInLibrary) AS isInLibrary
+            FROM subtitles s
+            LEFT JOIN subtitle_reading_states rs ON rs.subtitleId = s.id
+            WHERE (:isCollection = 0 AND s.isInLibrary = 1 OR :isCollection = 1 AND s.videoId IN (:videoIds))
+              AND (:channelName IS NULL OR s.channelName = :channelName)
+            GROUP BY s.videoId
         ) agg
         LEFT JOIN videos v ON v.videoId = agg.videoId
         ORDER BY
@@ -186,7 +193,7 @@ interface SubtitleDao {
         SELECT *
         FROM subtitles
         WHERE videoId = :videoId
-        ORDER BY lastOpenedAt DESC, createdAt DESC, id DESC
+        ORDER BY createdAt DESC, id DESC
         """
     )
     fun observeByVideoId(videoId: String): Flow<List<SubtitleEntity>>
@@ -199,7 +206,7 @@ interface SubtitleDao {
         SELECT *
         FROM subtitles
         WHERE videoId = :videoId
-        ORDER BY lastOpenedAt DESC, createdAt DESC, id DESC
+        ORDER BY createdAt DESC, id DESC
         LIMIT 1
         """
     )
@@ -281,52 +288,14 @@ interface SubtitleDao {
         fontFamily: String
     )
 
-    @Query("UPDATE subtitles SET lastTimestamp = :timestamp WHERE id = :id")
-    suspend fun updateLastTimestamp(id: Long, timestamp: Long)
-
-    @Query("UPDATE subtitles SET lastOpenedAt = :openedAt WHERE id = :id")
-    suspend fun updateLastOpenedAt(id: Long, openedAt: Long)
-
-    @Query(
-        """
-        UPDATE subtitles SET
-            content = :content,
-            createdAt = :createdAt,
-            studyContent = NULL,
-            highlights = '',
-            lastTimestamp = 0,
-            lastStudyScroll = 0,
-            readingProgressPercent = 0,
-            currentPage = 0,
-            totalPages = 0
-        WHERE id = :id
-        """
-    )
-    suspend fun replaceContentForRedownload(id: Long, content: String, createdAt: Long)
-
-    @Query("UPDATE subtitles SET readingProgressPercent = 0, currentPage = 0 WHERE videoId = :videoId")
-    suspend fun resetReadingProgressForVideo(videoId: String)
-
-    @Query("UPDATE subtitles SET isRead = 1, readingProgressPercent = 100 WHERE videoId = :videoId")
-    suspend fun markVideoAsRead(videoId: String)
-
     @Query("DELETE FROM subtitles WHERE videoId = :videoId")
     suspend fun deleteByVideoId(videoId: String)
-
-    @Query("SELECT * FROM subtitles WHERE lastOpenedAt > 0 ORDER BY lastOpenedAt DESC LIMIT 1")
-    suspend fun getMostRecentlyOpened(): SubtitleEntity?
 
     @Query("UPDATE subtitles SET isInLibrary = :isInLibrary WHERE videoId = :videoId")
     suspend fun updateLibraryVisibility(videoId: String, isInLibrary: Boolean)
 
     @Query("UPDATE subtitles SET highlights = :highlights WHERE id = :subtitleId")
     suspend fun updateHighlights(subtitleId: Long, highlights: String)
-
-    @Query("UPDATE subtitles SET lastStudyScroll = :scrollPosition WHERE id = :subtitleId")
-    suspend fun updateLastStudyScroll(subtitleId: Long, scrollPosition: Int)
-
-    @Query("UPDATE subtitles SET readingProgressPercent = :percent, currentPage = :currentPage, totalPages = :totalPages WHERE id = :subtitleId")
-    suspend fun updateReadingProgress(subtitleId: Long, percent: Int, currentPage: Int, totalPages: Int)
 
     @Query("UPDATE subtitles SET fontSize = :fontSize WHERE id = :subtitleId")
     suspend fun updateFontSize(subtitleId: Long, fontSize: Float)
@@ -337,35 +306,30 @@ interface SubtitleDao {
     @Query("UPDATE subtitles SET studyContent = :studyContent WHERE id = :subtitleId")
     suspend fun updateStudyContent(subtitleId: Long, studyContent: String)
 
-    @Query("UPDATE subtitles SET aiCleaningInProgress = 1, aiCleaningSourceText = :sourceText, aiCleaningErrorSummary = NULL, aiCleaningErrorLog = NULL, aiCleaningPendingResult = NULL, aiCleaningUpdatedAt = :updatedAt WHERE id = :subtitleId")
-    suspend fun markAiCleaningQueued(subtitleId: Long, sourceText: String, updatedAt: Long)
+    @Query(
+        """
+        UPDATE subtitles SET
+            content = :content,
+            createdAt = :createdAt,
+            studyContent = NULL,
+            highlights = ''
+        WHERE id = :id
+        """
+    )
+    suspend fun replaceContentForRedownload(id: Long, content: String, createdAt: Long)
 
-    @Query("UPDATE subtitles SET aiCleaningPendingResult = :result, aiCleaningSourceText = NULL, aiCleaningInProgress = 0, aiCleaningUpdatedAt = :updatedAt WHERE id = :subtitleId")
-    suspend fun storeAiCleaningResult(subtitleId: Long, result: String, updatedAt: Long)
-
-    @Query("UPDATE subtitles SET aiCleaningErrorSummary = :summary, aiCleaningErrorLog = :log, aiCleaningSourceText = NULL, aiCleaningInProgress = 0, aiCleaningUpdatedAt = :updatedAt WHERE id = :subtitleId")
-    suspend fun storeAiCleaningFailure(subtitleId: Long, summary: String?, log: String?, updatedAt: Long)
-
-    @Query("UPDATE subtitles SET aiCleaningInProgress = 0, aiCleaningSourceText = NULL, aiCleaningPendingResult = NULL, aiCleaningErrorSummary = NULL, aiCleaningErrorLog = NULL, aiCleaningUpdatedAt = :updatedAt WHERE id = :subtitleId")
-    suspend fun cancelAiCleaning(subtitleId: Long, updatedAt: Long)
-
-    @Query("UPDATE subtitles SET aiCleaningPendingResult = NULL WHERE id = :subtitleId")
-    suspend fun clearAiCleaningResult(subtitleId: Long)
-
-    @Query("UPDATE subtitles SET aiCleaningErrorSummary = NULL, aiCleaningErrorLog = NULL WHERE id = :subtitleId")
-    suspend fun clearAiCleaningError(subtitleId: Long)
-
- @Query("SELECT COUNT(*) FROM subtitles WHERE videoId = :videoId AND isInLibrary = 1")
-        suspend fun countLibraryEntriesByVideoId(videoId: String): Int
+    @Query("SELECT COUNT(*) FROM subtitles WHERE videoId = :videoId AND isInLibrary = 1")
+    suspend fun countLibraryEntriesByVideoId(videoId: String): Int
 
     @Query("SELECT DISTINCT videoId FROM subtitles WHERE isInLibrary = 1")
-        suspend fun getLibraryVideoIds(): List<String>
+    suspend fun getLibraryVideoIds(): List<String>
 
     @Query("""
         SELECT DISTINCT s.* FROM subtitles s
         LEFT JOIN collection_videos cv ON s.videoId = cv.videoId
+        LEFT JOIN subtitle_reading_states rs ON rs.subtitleId = s.id
         WHERE s.isInLibrary = 1 OR cv.videoId IS NOT NULL
-        ORDER BY s.lastOpenedAt DESC
+        ORDER BY COALESCE(rs.lastOpenedAt, 0) DESC
     """)
     fun observeAllAccessibleSubtitles(): Flow<List<SubtitleEntity>>
 }

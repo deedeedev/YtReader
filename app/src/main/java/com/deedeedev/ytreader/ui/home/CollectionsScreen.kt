@@ -116,10 +116,10 @@ fun CollectionsScreen(
         subs.groupBy { sub -> sub.videoId }
             .mapValues { (_, subtitles) -> subtitles.any { sub -> !sub.isInLibrary } }
     }
-    val readVideosById = remember(uiState.savedSubtitles) {
+    val readVideosById = remember(uiState.savedSubtitles, uiState.readingProgressByVideoId) {
         val subs: List<com.deedeedev.ytreader.data.local.SubtitleEntity> = uiState.savedSubtitles
         subs.groupBy { sub -> sub.videoId }
-            .mapValues { (_, subtitles) -> subtitles.maxOfOrNull { sub -> sub.readingProgressPercent } ?: 0 }
+            .mapValues { (_, subtitles) -> uiState.readingProgressByVideoId[subtitles.first().videoId] ?: 0 }
     }
 
     Scaffold(

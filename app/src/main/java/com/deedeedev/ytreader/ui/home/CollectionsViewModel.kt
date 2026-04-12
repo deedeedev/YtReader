@@ -31,6 +31,7 @@ data class CollectionsUiState(
     val collections: List<VideoCollection> = emptyList(),
     val collectionFilterStates: Map<String, CollectionFilterState> = emptyMap(),
     val savedSubtitles: List<SubtitleEntity> = emptyList(),
+    val readingProgressByVideoId: Map<String, Int> = emptyMap(),
     val downloadingSubtitleIds: Set<Long> = emptySet(),
     val downloadingThumbnailVideoIds: Set<String> = emptySet(),
     val error: String? = null
@@ -77,7 +78,18 @@ class CollectionsViewModel(
     private fun loadSavedSubtitles() {
         viewModelScope.launch {
             subtitleRepository.observeAll().collect { subtitles ->
-                _uiState.update { it.copy(savedSubtitles = subtitles) }
+                val videoIds = subtitles.map { it.videoId }.distinct()
+                val progressMap = if (videoIds.isNotEmpty()) {
+                    subtitleRepository.getMaxReadingProgressForVideos(videoIds)
+                } else {
+                    emptyMap()
+                }
+                _uiState.update {
+                    it.copy(
+                        savedSubtitles = subtitles,
+                        readingProgressByVideoId = progressMap
+                    )
+                }
             }
         }
     }

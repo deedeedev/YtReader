@@ -51,10 +51,10 @@ open class ReaderWidgetProvider : AppWidgetProvider() {
             appWidgetId: Int
         ) {
             val application = context.applicationContext as YtReaderApplication
-            val subtitleDao = application.container.subtitleDao
+            val subtitleRepository = application.container.subtitleRepository
 
-            val recentSubtitle = subtitleDao.getMostRecentlyOpened()
-            val hasRecentSubtitle = recentSubtitle != null && recentSubtitle.lastOpenedAt > 0
+            val recentWithStates = subtitleRepository.getMostRecentlyOpened()
+            val hasRecentSubtitle = recentWithStates?.readingState?.let { it.lastOpenedAt > 0 } ?: false
 
             val layoutId = if (hasRecentSubtitle) R.layout.widget_reader else R.layout.widget_reader_icon
             val views = RemoteViews(context.packageName, layoutId)
@@ -62,7 +62,7 @@ open class ReaderWidgetProvider : AppWidgetProvider() {
             val pendingIntent = if (hasRecentSubtitle) {
                 val intent = Intent(context, MainActivity::class.java).apply {
                     action = MainActivity.ACTION_OPEN_READER
-                    putExtra(MainActivity.EXTRA_SUBTITLE_ID, recentSubtitle.id)
+                    putExtra(MainActivity.EXTRA_SUBTITLE_ID, recentWithStates.subtitle.id)
                     flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
                 PendingIntent.getActivity(

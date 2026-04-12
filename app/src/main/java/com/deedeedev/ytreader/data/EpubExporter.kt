@@ -57,6 +57,8 @@ suspend fun exportEpub(
 
     val subtitlesByVideo = subtitles.groupBy { it.videoId }
 
+    val aiCleaningStates = subtitleRepository.getAiCleaningStatesForSubtitles(subtitleIds)
+
     val chapters = videoIds.mapNotNull { videoId ->
         val tracks = subtitlesByVideo[videoId] ?: return@mapNotNull null
         val video = videosByVideoId[videoId]
@@ -68,7 +70,8 @@ suspend fun exportEpub(
             videoUrl = video?.videoUrl ?: tracks.firstOrNull()?.videoUrl ?: "",
             uploadDate = video?.uploadDate ?: tracks.firstOrNull()?.uploadDate ?: 0L,
             tracks = tracks.map { track ->
-                val text = track.aiCleaningPendingResult
+                val aiState = aiCleaningStates[track.id]
+                val text = aiState?.aiCleaningPendingResult
                     ?: track.studyContent
                     ?: SubtitleParser.parse(track.content)
                 val parsedHighlights = if (mode == EpubExportMode.ANNOTATED) {

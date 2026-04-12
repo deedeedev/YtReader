@@ -10,12 +10,14 @@ import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.VideoRepository
 import com.deedeedev.ytreader.data.YoutubeRepository
+import com.deedeedev.ytreader.data.local.AiCleaningStateDao
 import com.deedeedev.ytreader.data.local.AppDatabase
 import com.deedeedev.ytreader.data.local.BookmarkDao
 import com.deedeedev.ytreader.data.local.CollectionDao
 import com.deedeedev.ytreader.data.local.HighlightNoteDao
 import com.deedeedev.ytreader.data.local.SearchHistoryDao
 import com.deedeedev.ytreader.data.local.SubtitleDao
+import com.deedeedev.ytreader.data.local.SubtitleReadingStateDao
 import com.deedeedev.ytreader.data.local.VideoDao
 import com.deedeedev.ytreader.data.remote.NewPipeDownloader
 import okhttp3.OkHttpClient
@@ -26,6 +28,8 @@ interface AppContainer {
     val appContext: Context
     val database: AppDatabase
     val subtitleDao: SubtitleDao
+    val subtitleReadingStateDao: SubtitleReadingStateDao
+    val aiCleaningStateDao: AiCleaningStateDao
     val videoDao: VideoDao
     val highlightNoteDao: HighlightNoteDao
     val bookmarkDao: BookmarkDao
@@ -67,6 +71,7 @@ class DefaultAppContainer(
             .addMigrations(AppDatabase.MIGRATION_20_21)
             .addMigrations(AppDatabase.MIGRATION_21_22)
             .addMigrations(AppDatabase.MIGRATION_22_23)
+            .addMigrations(AppDatabase.MIGRATION_23_24)
             .fallbackToDestructiveMigration(allowDestructiveMigration)
             .build()
     }
@@ -89,6 +94,14 @@ class DefaultAppContainer(
 
     override val subtitleDao: SubtitleDao by lazy {
         database.subtitleDao()
+    }
+
+    override val subtitleReadingStateDao: SubtitleReadingStateDao by lazy {
+        database.subtitleReadingStateDao()
+    }
+
+    override val aiCleaningStateDao: AiCleaningStateDao by lazy {
+        database.aiCleaningStateDao()
     }
 
     override val highlightNoteDao: HighlightNoteDao by lazy {
@@ -128,7 +141,7 @@ class DefaultAppContainer(
     }
 
     override val subtitleRepository: SubtitleRepository by lazy {
-        SubtitleRepository(subtitleDao)
+        SubtitleRepository(subtitleDao, subtitleReadingStateDao, aiCleaningStateDao)
     }
 
     override val videoRepository: VideoRepository by lazy {

@@ -41,7 +41,8 @@ class VideoNotesViewModelTest {
         val items = buildVideoAnnotationItems(
             subtitles = listOf(subtitle),
             notes = listOf(note),
-            bookmarks = listOf(bookmark)
+            bookmarks = listOf(bookmark),
+            readingStates = emptyMap()
         )
 
         assertEquals(

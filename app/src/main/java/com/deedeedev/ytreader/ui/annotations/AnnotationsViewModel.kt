@@ -10,6 +10,7 @@ import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.data.local.HighlightNoteEntity
 import com.deedeedev.ytreader.data.local.SubtitleEntity
+import com.deedeedev.ytreader.data.local.SubtitleReadingStateEntity
 import com.deedeedev.ytreader.domain.SubtitleParser
 import com.deedeedev.ytreader.domain.lineTextAtOffset
 import com.deedeedev.ytreader.ui.reader.HighlightColor
@@ -98,6 +99,7 @@ class AnnotationsViewModel(
     val uiState: StateFlow<AnnotationsUiState> = _uiState.asStateFlow()
 
     private var subtitlesById: Map<Long, SubtitleEntity> = emptyMap()
+    private var readingStatesById: Map<Long, SubtitleReadingStateEntity> = emptyMap()
 
     private val _allItems = MutableStateFlow<List<AnnotationItem>>(emptyList())
     val allItems: StateFlow<List<AnnotationItem>> = _allItems.asStateFlow()
@@ -155,10 +157,17 @@ class AnnotationsViewModel(
                 }
                 .collectLatest { payload ->
                     subtitlesById = payload.subtitles.associateBy { it.id }
+                    val subtitleIds = subtitlesById.keys.toList()
+                    readingStatesById = if (subtitleIds.isNotEmpty()) {
+                        runCatching { subtitleRepository.getReadingStatesForSubtitles(subtitleIds) }.getOrDefault(emptyMap())
+                    } else {
+                        emptyMap()
+                    }
                     val items = buildAnnotationItems(
                         subtitles = payload.subtitles,
                         notes = payload.notes,
-                        bookmarks = payload.bookmarks
+                        bookmarks = payload.bookmarks,
+                        readingStates = readingStatesById
                     )
                     _allItems.value = items
                     _uiState.update { it.copy(isLoading = false) }
@@ -245,7 +254,8 @@ private data class HighlightNoteKey(
 private fun buildAnnotationItems(
     subtitles: List<SubtitleEntity>,
     notes: List<HighlightNoteEntity>,
-    bookmarks: List<BookmarkEntity>
+    bookmarks: List<BookmarkEntity>,
+    readingStates: Map<Long, SubtitleReadingStateEntity>
 ): List<AnnotationItem> {
     val notesByKey = notes.associateBy { note ->
         HighlightNoteKey(
@@ -310,7 +320,7 @@ private fun buildAnnotationItems(
                     AnnotationType.HIGHLIGHT
                 }
                 val updatedAt = note?.updatedAt
-                    ?: subtitle.lastOpenedAt.takeIf { it > 0L }
+                    ?: readingStates[subtitle.id]?.lastOpenedAt?.takeIf { it > 0L }
                     ?: subtitle.createdAt
                 val progressRatio = start.toFloat() / textLength.toFloat()
                 AnnotationItem(

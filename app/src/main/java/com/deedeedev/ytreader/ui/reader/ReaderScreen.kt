@@ -229,7 +229,7 @@ internal fun ReaderScreen(
         }
     }
     var lastKnownStudyScroll by rememberSaveable(subtitle.id) {
-        mutableStateOf(subtitle.lastStudyScroll)
+        mutableStateOf(uiState.lastStudyScroll)
     }
     var hasRestoredStudyScroll by rememberSaveable(subtitle.id) { mutableStateOf(false) }
     var studyViewportHeightPx by remember { mutableStateOf(0) }
@@ -948,8 +948,8 @@ internal fun ReaderScreen(
 
     ReaderCoreEffects(
         subtitleId = subtitle.id,
-        subtitleLastStudyScroll = subtitle.lastStudyScroll,
-        subtitleLastTimestamp = subtitle.lastTimestamp,
+        subtitleLastStudyScroll = uiState.lastStudyScroll,
+        subtitleLastTimestamp = uiState.lastTimestamp,
         hasInitialNavigationTarget = hasInitialNavigationTarget,
         uiContent = uiState.content,
         pendingAiCleanedText = uiState.pendingAiCleanedText,

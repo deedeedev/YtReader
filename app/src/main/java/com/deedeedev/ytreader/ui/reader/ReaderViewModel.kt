@@ -9,6 +9,7 @@ import com.deedeedev.ytreader.data.AiCleaningWorkScheduler
 import com.deedeedev.ytreader.widget.ReaderWidgetProvider
 import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
+import com.deedeedev.ytreader.data.SubtitleWithStates
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.data.local.HighlightNoteEntity
@@ -25,7 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 data class ReaderUiState(
-    val subtitle: SubtitleEntity? = null,
+    val subtitleWithStates: SubtitleWithStates? = null,
     val content: String = "",
     val originalParsedText: String = "",
     val highlights: List<TextHighlight> = emptyList(),
@@ -38,7 +39,13 @@ data class ReaderUiState(
     val aiCleaningErrorSummary: String? = null,
     val aiCleaningErrorLog: String? = null,
     val isLoading: Boolean = false
-)
+) {
+    val subtitle: SubtitleEntity? get() = subtitleWithStates?.subtitle
+    val lastStudyScroll: Int get() = subtitleWithStates?.readingState?.lastStudyScroll ?: 0
+    val lastTimestamp: Long get() = subtitleWithStates?.readingState?.lastTimestamp ?: 0L
+    val currentPage: Int get() = subtitleWithStates?.readingState?.currentPage ?: 0
+    val totalPages: Int get() = subtitleWithStates?.readingState?.totalPages ?: 0
+}
 
 class ReaderViewModel(
     private val appContext: Context,
@@ -75,15 +82,18 @@ class ReaderViewModel(
 
     private fun loadSubtitle() {
         viewModelScope.launch {
-            subtitleRepository.observeById(subtitleId)
+            subtitleRepository.observeSubtitleWithStates(subtitleId)
                 .combine(noteRepository.observeHighlightsBySubtitleId(subtitleId)) { subtitle, notes ->
                     subtitle to notes
                 }
                 .combine(noteRepository.observeBookmarksBySubtitleId(subtitleId)) { (subtitle, notes), bookmarks ->
                     Triple(subtitle, notes, bookmarks)
                 }
-                .collectLatest { (subtitle, notes, bookmarks) ->
-                if (subtitle != null) {
+                .collectLatest { (subtitleWithStates, notes, bookmarks) ->
+                if (subtitleWithStates != null) {
+                    val subtitle = subtitleWithStates.subtitle
+                    val readingState = subtitleWithStates.readingState
+                    val aiState = subtitleWithStates.aiCleaningState
                     val originalParsedText = SubtitleParser.parse(subtitle.content)
                     val content = subtitle.studyContent ?: originalParsedText
                     val notesByRange = notes.associateBy { HighlightRangeKey(it.highlightStart, it.highlightEnd) }
@@ -94,24 +104,24 @@ class ReaderViewModel(
                     }
 
                     val current = _uiState.value
-                    val subtitleChanged = current.subtitle == null || current.subtitle.content != subtitle.content || current.subtitle.studyContent != subtitle.studyContent || current.subtitle.highlights != subtitle.highlights || current.subtitle.fontSize != subtitle.fontSize || current.subtitle.fontFamily != subtitle.fontFamily || current.subtitle.aiCleaningInProgress != subtitle.aiCleaningInProgress || current.subtitle.aiCleaningPendingResult != subtitle.aiCleaningPendingResult || current.subtitle.aiCleaningErrorSummary != subtitle.aiCleaningErrorSummary || current.subtitle.aiCleaningErrorLog != subtitle.aiCleaningErrorLog
+                    val subtitleChanged = current.subtitleWithStates == null || current.subtitleWithStates.subtitle.content != subtitle.content || current.subtitleWithStates.subtitle.studyContent != subtitle.studyContent || current.subtitleWithStates.subtitle.highlights != subtitle.highlights || current.subtitleWithStates.subtitle.fontSize != subtitle.fontSize || current.subtitleWithStates.subtitle.fontFamily != subtitle.fontFamily || (current.subtitleWithStates.aiCleaningState?.aiCleaningInProgress != aiState?.aiCleaningInProgress) || (current.subtitleWithStates.aiCleaningState?.aiCleaningPendingResult != aiState?.aiCleaningPendingResult) || (current.subtitleWithStates.aiCleaningState?.aiCleaningErrorSummary != aiState?.aiCleaningErrorSummary) || (current.subtitleWithStates.aiCleaningState?.aiCleaningErrorLog != aiState?.aiCleaningErrorLog)
                     val highlightsChanged = current.highlights != highlights
                     val bookmarksChanged = current.bookmarks != bookmarks
 
                     if (subtitleChanged || highlightsChanged || bookmarksChanged || current.isLoading) {
                         _uiState.update {
                             it.copy(
-                                subtitle = subtitle,
+                                subtitleWithStates = subtitleWithStates,
                                 content = content,
                                 originalParsedText = originalParsedText,
                                 highlights = highlights,
                                 bookmarks = bookmarks,
                                 fontSize = subtitle.fontSize,
                                 fontFamily = subtitle.fontFamily,
-                                isAiCleaning = subtitle.aiCleaningInProgress,
-                                pendingAiCleanedText = subtitle.aiCleaningPendingResult,
-                                aiCleaningErrorSummary = subtitle.aiCleaningErrorSummary,
-                                aiCleaningErrorLog = subtitle.aiCleaningErrorLog,
+                                isAiCleaning = aiState?.aiCleaningInProgress ?: false,
+                                pendingAiCleanedText = aiState?.aiCleaningPendingResult,
+                                aiCleaningErrorSummary = aiState?.aiCleaningErrorSummary,
+                                aiCleaningErrorLog = aiState?.aiCleaningErrorLog,
                                 isLoading = false
                             )
                         }
@@ -184,10 +194,14 @@ class ReaderViewModel(
                 state.copy(
                     content = content,
                     highlights = newHighlights,
-                    subtitle = state.subtitle?.copy(
-                        studyContent = content,
-                        highlights = serializeHighlights(newHighlights)
-                    )
+                    subtitleWithStates = state.subtitleWithStates?.let {
+                        it.copy(
+                            subtitle = it.subtitle.copy(
+                                studyContent = content,
+                                highlights = serializeHighlights(newHighlights)
+                            )
+                        )
+                    }
                 )
             }
 
@@ -213,10 +227,14 @@ class ReaderViewModel(
                 state.copy(
                     content = content,
                     highlights = newHighlights,
-                    subtitle = state.subtitle?.copy(
-                        studyContent = content,
-                        highlights = serializeHighlights(newHighlights)
-                    )
+                    subtitleWithStates = state.subtitleWithStates?.let {
+                        it.copy(
+                            subtitle = it.subtitle.copy(
+                                studyContent = content,
+                                highlights = serializeHighlights(newHighlights)
+                            )
+                        )
+                    }
                 )
             }
 
@@ -382,7 +400,9 @@ class ReaderViewModel(
         _uiState.update {
             it.copy(
                 highlights = mergeResult.highlights,
-                subtitle = it.subtitle?.copy(highlights = serialized)
+                subtitleWithStates = it.subtitleWithStates?.let { sws ->
+                    sws.copy(subtitle = sws.subtitle.copy(highlights = serialized))
+                }
             )
         }
 
@@ -447,7 +467,9 @@ class ReaderViewModel(
         _uiState.update {
             it.copy(
                 highlights = highlights,
-                subtitle = it.subtitle?.copy(highlights = serialized)
+                subtitleWithStates = it.subtitleWithStates?.let { sws ->
+                    sws.copy(subtitle = sws.subtitle.copy(highlights = serialized))
+                }
             )
         }
         viewModelScope.launch {

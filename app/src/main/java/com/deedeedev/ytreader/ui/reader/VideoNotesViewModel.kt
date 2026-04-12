@@ -10,6 +10,7 @@ import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.data.local.HighlightNoteEntity
 import com.deedeedev.ytreader.data.local.SubtitleEntity
+import com.deedeedev.ytreader.data.local.SubtitleReadingStateEntity
 import com.deedeedev.ytreader.domain.SubtitleParser
 import com.deedeedev.ytreader.domain.lineTextAtOffset
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -80,6 +81,7 @@ class VideoNotesViewModel(
     private val _uiState = MutableStateFlow(VideoNotesUiState(videoId = videoId))
     val uiState: StateFlow<VideoNotesUiState> = _uiState.asStateFlow()
     private var subtitlesById: Map<Long, SubtitleEntity> = emptyMap()
+    private var readingStatesById: Map<Long, SubtitleReadingStateEntity> = emptyMap()
 
     init {
         loadAnnotations()
@@ -108,11 +110,18 @@ class VideoNotesViewModel(
                 }
                 .collectLatest { payload ->
                     subtitlesById = payload.subtitles.associateBy { subtitle -> subtitle.id }
+                    val subtitleIds = subtitlesById.keys.toList()
+                    readingStatesById = if (subtitleIds.isNotEmpty()) {
+                        runCatching { subtitleRepository.getReadingStatesForSubtitles(subtitleIds) }.getOrDefault(emptyMap())
+                    } else {
+                        emptyMap()
+                    }
                     val firstSubtitle = payload.subtitles.firstOrNull()
                     val items = buildVideoAnnotationItems(
                         subtitles = payload.subtitles,
                         notes = payload.notes,
-                        bookmarks = payload.bookmarks
+                        bookmarks = payload.bookmarks,
+                        readingStates = readingStatesById
                     )
                     _uiState.update {
                         it.copy(
@@ -185,7 +194,8 @@ private data class HighlightNoteKey(
 internal fun buildVideoAnnotationItems(
     subtitles: List<SubtitleEntity>,
     notes: List<HighlightNoteEntity>,
-    bookmarks: List<BookmarkEntity>
+    bookmarks: List<BookmarkEntity>,
+    readingStates: Map<Long, SubtitleReadingStateEntity>
 ): List<VideoAnnotationItem> {
     val notesByKey = notes.associateBy { note ->
         HighlightNoteKey(
@@ -249,7 +259,7 @@ internal fun buildVideoAnnotationItems(
                     VideoAnnotationType.HIGHLIGHT
                 }
                 val updatedAt = note?.updatedAt
-                    ?: subtitle.lastOpenedAt.takeIf { it > 0L }
+                    ?: readingStates[subtitle.id]?.lastOpenedAt?.takeIf { it > 0L }
                     ?: subtitle.createdAt
                 val progressRatio = start.toFloat() / textLength.toFloat()
                 SortableVideoAnnotationItem(

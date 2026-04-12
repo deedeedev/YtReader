@@ -2,19 +2,6 @@
 
 ## MEDIUM PRIORITY
 
-### 8. `SubtitleEntity` is Bloated (25 Fields)
-
-Mixes multiple concerns in a single entity:
-- **Content & metadata** — content, studyContent, languageCode, trackIdentity
-- **Reading state** — lastTimestamp, lastOpenedAt, readingProgressPercent, isRead, currentPage, totalPages, lastStudyScroll
-- **Display preferences** — fontSize, fontFamily
-- **AI cleaning state** — aiCleaningInProgress, aiCleaningSourceText, aiCleaningPendingResult, aiCleaningErrorSummary, aiCleaningErrorLog, aiCleaningUpdatedAt
-- **Highlight data** — highlights as serialized String
-
-**Fix:** Normalize into 2-3 focused entities (e.g., `SubtitleContentEntity`, `SubtitleReadingStateEntity`, `AiCleaningStateEntity`).
-
----
-
 ### 9. Notification ID Collisions
 
 **Location — `AiCleaningWorker.kt:363-366`:**

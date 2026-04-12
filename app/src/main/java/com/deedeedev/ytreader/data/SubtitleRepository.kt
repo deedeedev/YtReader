@@ -1,13 +1,29 @@
 package com.deedeedev.ytreader.data
 
+import com.deedeedev.ytreader.data.local.AiCleaningStateDao
+import com.deedeedev.ytreader.data.local.AiCleaningStateEntity
 import com.deedeedev.ytreader.data.local.LibraryVideoRow
 import com.deedeedev.ytreader.data.local.SubtitleDao
 import com.deedeedev.ytreader.data.local.SubtitleEntity
+import com.deedeedev.ytreader.data.local.SubtitleReadingStateDao
+import com.deedeedev.ytreader.data.local.SubtitleReadingStateEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
-class SubtitleRepository(private val subtitleDao: SubtitleDao) {
+data class SubtitleWithStates(
+    val subtitle: SubtitleEntity,
+    val readingState: SubtitleReadingStateEntity?,
+    val aiCleaningState: AiCleaningStateEntity?
+)
+
+class SubtitleRepository(
+    private val subtitleDao: SubtitleDao,
+    private val readingStateDao: SubtitleReadingStateDao,
+    private val aiCleaningStateDao: AiCleaningStateDao
+) {
 
     fun observeAll(): Flow<List<SubtitleEntity>> = subtitleDao.getAll()
 
@@ -32,6 +48,28 @@ class SubtitleRepository(private val subtitleDao: SubtitleDao) {
     fun observeSubtitleTracksForVideos(videoIds: List<String>): Flow<List<SubtitleEntity>> =
         subtitleDao.observeSubtitleTracksForVideos(videoIds)
 
+    suspend fun getAiCleaningStatesForSubtitles(subtitleIds: List<Long>): Map<Long, AiCleaningStateEntity> = withContext(Dispatchers.IO) {
+        subtitleIds.associate { id ->
+            id to aiCleaningStateDao.getBySubtitleId(id)
+        }.mapValues { it.value ?: AiCleaningStateEntity(subtitleId = it.key) }
+    }
+
+    suspend fun getReadingStatesForSubtitles(subtitleIds: List<Long>): Map<Long, SubtitleReadingStateEntity> = withContext(Dispatchers.IO) {
+        subtitleIds.associate { id ->
+            id to readingStateDao.getBySubtitleId(id)
+        }.mapValues { it.value ?: SubtitleReadingStateEntity(subtitleId = it.key) }
+    }
+
+    suspend fun getMaxReadingProgressForVideos(videoIds: List<String>): Map<String, Int> = withContext(Dispatchers.IO) {
+        val allSubtitles = subtitleDao.getAllSync()
+        val relevantSubtitles = allSubtitles.filter { it.videoId in videoIds }
+        if (relevantSubtitles.isEmpty()) return@withContext emptyMap()
+        val states = getReadingStatesForSubtitles(relevantSubtitles.map { it.id })
+        relevantSubtitles.groupBy { it.videoId }.mapValues { (_, subs) ->
+            subs.maxOfOrNull { states[it.id]?.readingProgressPercent ?: 0 } ?: 0
+        }
+    }
+
     fun observeCollectionVideoCount(videoIds: List<String>): Flow<Int> =
         subtitleDao.observeCollectionVideoCount(videoIds)
 
@@ -40,6 +78,16 @@ class SubtitleRepository(private val subtitleDao: SubtitleDao) {
     fun observeByVideoId(videoId: String): Flow<List<SubtitleEntity>> = subtitleDao.observeByVideoId(videoId)
 
     fun observeAllAccessibleSubtitles(): Flow<List<SubtitleEntity>> = subtitleDao.observeAllAccessibleSubtitles()
+
+    fun observeSubtitleWithStates(id: Long): Flow<SubtitleWithStates?> {
+        return combine(
+            subtitleDao.observeById(id),
+            readingStateDao.observeBySubtitleId(id),
+            aiCleaningStateDao.observeBySubtitleId(id)
+        ) { subtitle, readingState, aiCleaningState ->
+            subtitle?.let { SubtitleWithStates(it, readingState, aiCleaningState) }
+        }
+    }
 
     suspend fun getById(id: Long): SubtitleEntity? = withContext(Dispatchers.IO) {
         subtitleDao.getById(id)
@@ -91,31 +139,47 @@ class SubtitleRepository(private val subtitleDao: SubtitleDao) {
     }
 
     suspend fun updateLastTimestamp(id: Long, timestamp: Long) = withContext(Dispatchers.IO) {
-        subtitleDao.updateLastTimestamp(id, timestamp)
+        readingStateDao.updateLastTimestamp(id, timestamp)
     }
 
     suspend fun updateLastOpenedAt(id: Long, openedAt: Long) = withContext(Dispatchers.IO) {
-        subtitleDao.updateLastOpenedAt(id, openedAt)
+        readingStateDao.updateLastOpenedAt(id, openedAt)
     }
 
     suspend fun replaceContentForRedownload(id: Long, content: String, createdAt: Long) = withContext(Dispatchers.IO) {
         subtitleDao.replaceContentForRedownload(id, content, createdAt)
+        val readingState = SubtitleReadingStateEntity(
+            subtitleId = id,
+            lastTimestamp = 0L,
+            lastStudyScroll = 0,
+            readingProgressPercent = 0,
+            currentPage = 0,
+            totalPages = 0
+        )
+        readingStateDao.insert(readingState)
     }
 
     suspend fun resetReadingProgressForVideo(videoId: String) = withContext(Dispatchers.IO) {
-        subtitleDao.resetReadingProgressForVideo(videoId)
+        readingStateDao.resetReadingProgressForVideo(videoId)
     }
 
     suspend fun markVideoAsRead(videoId: String) = withContext(Dispatchers.IO) {
-        subtitleDao.markVideoAsRead(videoId)
+        readingStateDao.markVideoAsRead(videoId)
     }
 
     suspend fun deleteByVideoId(videoId: String) = withContext(Dispatchers.IO) {
         subtitleDao.deleteByVideoId(videoId)
     }
 
-    suspend fun getMostRecentlyOpened(): SubtitleEntity? = withContext(Dispatchers.IO) {
-        subtitleDao.getMostRecentlyOpened()
+    suspend fun getMostRecentlyOpened(): SubtitleWithStates? = withContext(Dispatchers.IO) {
+        val readingState = readingStateDao.getMostRecentlyOpened()
+        readingState?.let { rs ->
+            val subtitle = subtitleDao.getById(rs.subtitleId)
+            subtitle?.let {
+                val aiState = aiCleaningStateDao.getBySubtitleId(rs.subtitleId)
+                SubtitleWithStates(it, rs, aiState)
+            }
+        }
     }
 
     suspend fun updateLibraryVisibility(videoId: String, isInLibrary: Boolean) = withContext(Dispatchers.IO) {
@@ -127,11 +191,11 @@ class SubtitleRepository(private val subtitleDao: SubtitleDao) {
     }
 
     suspend fun updateLastStudyScroll(subtitleId: Long, scrollPosition: Int) = withContext(Dispatchers.IO) {
-        subtitleDao.updateLastStudyScroll(subtitleId, scrollPosition)
+        readingStateDao.updateLastStudyScroll(subtitleId, scrollPosition)
     }
 
     suspend fun updateReadingProgress(subtitleId: Long, percent: Int, currentPage: Int, totalPages: Int) = withContext(Dispatchers.IO) {
-        subtitleDao.updateReadingProgress(subtitleId, percent, currentPage, totalPages)
+        readingStateDao.updateReadingProgress(subtitleId, percent, currentPage, totalPages)
     }
 
     suspend fun updateFontSize(subtitleId: Long, fontSize: Float) = withContext(Dispatchers.IO) {
@@ -147,27 +211,27 @@ class SubtitleRepository(private val subtitleDao: SubtitleDao) {
     }
 
     suspend fun markAiCleaningQueued(subtitleId: Long, sourceText: String, updatedAt: Long) = withContext(Dispatchers.IO) {
-        subtitleDao.markAiCleaningQueued(subtitleId, sourceText, updatedAt)
+        aiCleaningStateDao.markAiCleaningQueued(subtitleId, sourceText, updatedAt)
     }
 
     suspend fun storeAiCleaningResult(subtitleId: Long, result: String, updatedAt: Long) = withContext(Dispatchers.IO) {
-        subtitleDao.storeAiCleaningResult(subtitleId, result, updatedAt)
+        aiCleaningStateDao.storeAiCleaningResult(subtitleId, result, updatedAt)
     }
 
     suspend fun storeAiCleaningFailure(subtitleId: Long, summary: String?, log: String?, updatedAt: Long) = withContext(Dispatchers.IO) {
-        subtitleDao.storeAiCleaningFailure(subtitleId, summary, log, updatedAt)
+        aiCleaningStateDao.storeAiCleaningFailure(subtitleId, summary, log, updatedAt)
     }
 
     suspend fun cancelAiCleaning(subtitleId: Long, updatedAt: Long) = withContext(Dispatchers.IO) {
-        subtitleDao.cancelAiCleaning(subtitleId, updatedAt)
+        aiCleaningStateDao.cancelAiCleaning(subtitleId, updatedAt)
     }
 
     suspend fun clearAiCleaningResult(subtitleId: Long) = withContext(Dispatchers.IO) {
-        subtitleDao.clearAiCleaningResult(subtitleId)
+        aiCleaningStateDao.clearAiCleaningResult(subtitleId)
     }
 
     suspend fun clearAiCleaningError(subtitleId: Long) = withContext(Dispatchers.IO) {
-        subtitleDao.clearAiCleaningError(subtitleId)
+        aiCleaningStateDao.clearAiCleaningError(subtitleId)
     }
 
     suspend fun countLibraryEntriesByVideoId(videoId: String): Int = withContext(Dispatchers.IO) {
