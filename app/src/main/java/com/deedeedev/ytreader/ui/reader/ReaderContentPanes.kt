@@ -139,7 +139,7 @@ internal fun ReaderOriginalPane(
             .systemBarsPadding()
             .onUnconsumedTap { onReaderTap(it) }
             .onUserDrag { onUserDrag() }
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 8.dp),
         contentPadding = PaddingValues(
             top = topContentPadding,
             bottom = bottomContentPadding
@@ -304,12 +304,12 @@ internal fun ReaderStudyPane(
         modifier = Modifier
             .fillMaxSize()
             .systemBarsPadding()
-            .padding(
-                start = 16.dp,
-                end = 16.dp,
-                top = topContentPadding,
-                bottom = bottomContentPadding
-            )
+.padding(
+                    start = 8.dp,
+                    end = 8.dp,
+                    top = topContentPadding,
+                    bottom = bottomContentPadding
+                )
             .onSizeChanged { onStudyViewportChanged(it.height) }
             .onUserDrag { onUserDrag() }
             .verticalScroll(studyScrollState)

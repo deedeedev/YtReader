@@ -30,7 +30,7 @@ body {
 }
 
 #content {
-  padding: 0 16px;
+  padding: 0 4px;
   text-align: justify;
   word-wrap: break-word;
   overflow-wrap: break-word;

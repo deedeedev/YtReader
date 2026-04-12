@@ -81,8 +81,8 @@ internal fun WebViewOriginalContentPane(
             .fillMaxSize()
             .systemBarsPadding()
             .padding(
-                start = 16.dp,
-                end = 16.dp,
+                start = 8.dp,
+                end = 8.dp,
                 top = topContentPadding,
                 bottom = bottomContentPadding
             ),
