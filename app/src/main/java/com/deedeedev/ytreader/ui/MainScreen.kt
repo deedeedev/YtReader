@@ -382,7 +382,6 @@ fun MainScreen(
                         }
                     },
                     onInitialNavigationConsumed = {
-                        Log.d(TAG, "onInitialNavigationConsumed: clearing pendingReaderJumpBackState=$pendingReaderJumpBackState", Exception("stacktrace"))
                         pendingReaderInitialLocation = null
                         pendingReaderJumpBackState = null
                     },
