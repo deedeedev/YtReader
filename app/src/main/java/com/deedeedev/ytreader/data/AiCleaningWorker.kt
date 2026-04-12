@@ -354,6 +354,6 @@ internal suspend fun cancelAiCleaningWorkAndState(
 }
 
 private fun notificationIdFor(subtitleId: Long): Int {
-    val normalized = (subtitleId % 10_000).toInt().coerceAtLeast(0)
+    val normalized = (subtitleId % Int.MAX_VALUE).toInt().coerceAtLeast(0)
     return AI_CLEANING_NOTIFICATION_ID_BASE + normalized
 }

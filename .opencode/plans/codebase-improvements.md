@@ -2,22 +2,6 @@
 
 ## MEDIUM PRIORITY
 
-### 9. Notification ID Collisions
-
-**Location — `AiCleaningWorker.kt:363-366`:**
-```kotlin
-private fun notificationIdFor(subtitleId: Long): Int {
-    val normalized = (subtitleId % 10_000).toInt().coerceAtLeast(0)
-    return AI_CLEANING_NOTIFICATION_ID_BASE + normalized
-}
-```
-
-Two different subtitles whose IDs differ by a multiple of 10,000 will get the same notification ID, causing one to overwrite the other.
-
-**Fix:** Use a wider modulo range or a `SparseArray` mapping.
-
----
-
 ### 10. Context Passed Into ViewModels
 
 `HomeViewModel`, `ReaderViewModel`, and `SettingsViewModel` all take `Context` as a constructor parameter. This is used mainly for `appContext.getString(...)`. It creates testing difficulties and potential memory leaks.
