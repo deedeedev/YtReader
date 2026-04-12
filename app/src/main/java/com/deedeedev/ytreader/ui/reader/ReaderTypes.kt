@@ -9,6 +9,7 @@ internal sealed interface PendingAction {
     data object ExitScreen : PendingAction
     data object ExitEditing : PendingAction
     data class SwitchMode(val targetMode: ReaderMode) : PendingAction
+    data object ShowWebViewEditUnavailable : PendingAction
 }
 
 internal data class SelectionRange(

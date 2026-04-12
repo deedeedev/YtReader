@@ -57,6 +57,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import androidx.core.app.ActivityCompat
+import android.webkit.WebView
+import com.deedeedev.ytreader.ui.reader.webview.WebViewReaderJs
 
 internal class OriginalSelectionCoordinator {
     val textViews = mutableMapOf<Int, SelectableHighlightTextView>()
@@ -153,8 +155,9 @@ internal fun ReaderScreen(
     val originalFallbackScrollState = rememberScrollState()
     val lineHeightSp = fontSize * uiState.lineHeightMultiplier
     val readerTextColor = MaterialTheme.colorScheme.onSurface.toArgb()
-    val readerBackgroundColor = Color.Transparent.toArgb()
+    val readerBackgroundColor = MaterialTheme.colorScheme.surface.toArgb()
     val appBrightnessPreference by userPreferencesRepository.appBrightness.collectAsStateWithLifecycle()
+    val useWebViewReader by userPreferencesRepository.useWebViewReader.collectAsStateWithLifecycle()
 
     var readerMode by rememberSaveable { mutableStateOf(ReaderMode.STUDY) }
     var showTimestamps by rememberSaveable { mutableStateOf(false) }
@@ -240,12 +243,26 @@ internal fun ReaderScreen(
     var gestureBrightness by remember { mutableStateOf<Float?>(null) }
     var showProgressIndicator by remember { mutableStateOf(false) }
     var progressIndicatorHideJob by remember { mutableStateOf<Job?>(null) }
+    var webViewStudyRef by remember { mutableStateOf<WebView?>(null) }
+    var webViewOriginalRef by remember { mutableStateOf<WebView?>(null) }
+    var webViewScrollY by remember { mutableStateOf(0) }
+    var webViewTotalHeight by remember { mutableStateOf(0) }
+    var webViewViewportHeight by remember { mutableStateOf(0) }
 
     val persistReadingProgress by rememberUpdatedState(newValue = {
-        val scrollToSave = if (readerMode == ReaderMode.STUDY) {
-            studyScrollState.value
+        val scrollToSave = if (useWebViewReader && readerMode == ReaderMode.STUDY && webViewStudyRef != null) {
+            if (webViewTotalHeight > 0) {
+                ((webViewScrollY.toFloat() / webViewTotalHeight) * 100).toInt()
+            } else 0
+        } else if (useWebViewReader && readerMode == ReaderMode.ORIGINAL && webViewOriginalRef != null) {
+            if (webViewTotalHeight > 0) {
+                ((webViewScrollY.toFloat() / webViewTotalHeight) * 100).toInt()
+            } else 0
         } else {
-            lastKnownStudyScroll
+            when (readerMode) {
+                ReaderMode.STUDY -> studyScrollState.value
+                ReaderMode.ORIGINAL -> lastKnownStudyScroll
+            }
         }
         viewModel.updateLastStudyScroll(scrollToSave)
     })
@@ -691,6 +708,15 @@ internal fun ReaderScreen(
     }
 
     fun requestAction(action: PendingAction) {
+        when (action) {
+            is PendingAction.ShowWebViewEditUnavailable -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(context.getString(R.string.reader_webview_edit_unavailable))
+                }
+                return
+            }
+            else -> {}
+        }
         requestReaderAction(
             action = action,
             hasUnsavedChanges = hasUnsavedChanges,
@@ -715,6 +741,22 @@ internal fun ReaderScreen(
     }
 
     suspend fun scrollOnePage(isForward: Boolean) {
+        if (useWebViewReader) {
+            val wv = if (readerMode == ReaderMode.STUDY) webViewStudyRef else webViewOriginalRef
+            if (wv != null) {
+                val currentScroll = webViewScrollY
+                val viewportHeight = webViewViewportHeight
+                val target = if (isForward) {
+                    currentScroll + viewportHeight
+                } else {
+                    currentScroll - viewportHeight
+                }
+                with(WebViewReaderJs) {
+                    wv.scrollToOffset(target.coerceAtLeast(0))
+                }
+            }
+            return
+        }
         when (readerMode) {
             ReaderMode.STUDY -> {
                 val target = targetScrollForPageStep(
@@ -1070,35 +1112,47 @@ internal fun ReaderScreen(
 
     val fullscreenProgressPercent by remember(
         readerMode,
-        originalSegments
+        originalSegments,
+        useWebViewReader,
+        webViewScrollY,
+        webViewTotalHeight,
+        webViewViewportHeight
     ) {
         derivedStateOf {
-            when (readerMode) {
-                ReaderMode.ORIGINAL -> {
-                    if (originalSegments.isEmpty()) {
+            if (useWebViewReader) {
+                val scrollY = webViewScrollY
+                val totalHeight = webViewTotalHeight
+                val viewportHeight = webViewViewportHeight
+                if (totalHeight <= viewportHeight) 0
+                else ((scrollY.toFloat() / (totalHeight - viewportHeight)) * 100).toInt().coerceIn(0, 100)
+            } else {
+                when (readerMode) {
+                    ReaderMode.ORIGINAL -> {
+                        if (originalSegments.isEmpty()) {
+                            scrollPercent(
+                                value = originalFallbackScrollState.value,
+                                maxValue = originalFallbackScrollState.maxValue,
+                                canScrollForward = originalFallbackScrollState.canScrollForward,
+                                canScrollBackward = originalFallbackScrollState.canScrollBackward
+                            )
+                        } else {
+                            lazyListScrollPercent(
+                                firstVisibleItemIndex = originalListState.firstVisibleItemIndex,
+                                totalItems = originalSegments.size,
+                                canScrollForward = originalListState.canScrollForward,
+                                canScrollBackward = originalListState.canScrollBackward
+                            )
+                        }
+                    }
+
+                    ReaderMode.STUDY -> {
                         scrollPercent(
-                            value = originalFallbackScrollState.value,
-                            maxValue = originalFallbackScrollState.maxValue,
-                            canScrollForward = originalFallbackScrollState.canScrollForward,
-                            canScrollBackward = originalFallbackScrollState.canScrollBackward
-                        )
-                    } else {
-                        lazyListScrollPercent(
-                            firstVisibleItemIndex = originalListState.firstVisibleItemIndex,
-                            totalItems = originalSegments.size,
-                            canScrollForward = originalListState.canScrollForward,
-                            canScrollBackward = originalListState.canScrollBackward
+                            value = studyScrollState.value,
+                            maxValue = studyScrollState.maxValue,
+                            canScrollForward = studyScrollState.canScrollForward,
+                            canScrollBackward = studyScrollState.canScrollBackward
                         )
                     }
-                }
-
-                ReaderMode.STUDY -> {
-                    scrollPercent(
-                        value = studyScrollState.value,
-                        maxValue = studyScrollState.maxValue,
-                        canScrollForward = studyScrollState.canScrollForward,
-                        canScrollBackward = studyScrollState.canScrollBackward
-                    )
                 }
             }
         }
@@ -1108,35 +1162,52 @@ internal fun ReaderScreen(
         readerMode,
         originalSegments,
         stableStudyViewportHeightPx,
-        stableOriginalFallbackViewportHeightPx
+        stableOriginalFallbackViewportHeightPx,
+        useWebViewReader,
+        webViewTotalHeight,
+        webViewViewportHeight,
+        webViewScrollY
     ) {
         derivedStateOf {
-            when (readerMode) {
-                ReaderMode.ORIGINAL -> {
-                    if (originalSegments.isEmpty()) {
+            if (useWebViewReader) {
+                val scrollY = webViewScrollY
+                val totalHeight = webViewTotalHeight
+                val viewportHeight = webViewViewportHeight
+                if (viewportHeight <= 0 || totalHeight <= viewportHeight) {
+                    PageProgress(currentPage = 1, totalPages = 1)
+                } else {
+                    val totalPages = ((totalHeight + viewportHeight - 1) / viewportHeight).coerceAtLeast(1)
+                    val currentPage = ((scrollY + viewportHeight) / viewportHeight).coerceIn(1, totalPages)
+                    PageProgress(currentPage = currentPage, totalPages = totalPages)
+                }
+            } else {
+                when (readerMode) {
+                    ReaderMode.ORIGINAL -> {
+                        if (originalSegments.isEmpty()) {
+                            pagedScrollProgress(
+                                value = originalFallbackScrollState.value,
+                                maxValue = originalFallbackScrollState.maxValue,
+                                viewportHeightPx = stableOriginalFallbackViewportHeightPx,
+                                canScrollForward = originalFallbackScrollState.canScrollForward
+                            )
+                        } else {
+                            lazyListPageProgress(
+                                firstVisibleItemIndex = originalListState.firstVisibleItemIndex,
+                                totalItems = originalSegments.size,
+                                visibleItemsCount = originalListState.layoutInfo.visibleItemsInfo.size,
+                                canScrollForward = originalListState.canScrollForward
+                            )
+                        }
+                    }
+
+                    ReaderMode.STUDY -> {
                         pagedScrollProgress(
-                            value = originalFallbackScrollState.value,
-                            maxValue = originalFallbackScrollState.maxValue,
-                            viewportHeightPx = stableOriginalFallbackViewportHeightPx,
-                            canScrollForward = originalFallbackScrollState.canScrollForward
-                        )
-                    } else {
-                        lazyListPageProgress(
-                            firstVisibleItemIndex = originalListState.firstVisibleItemIndex,
-                            totalItems = originalSegments.size,
-                            visibleItemsCount = originalListState.layoutInfo.visibleItemsInfo.size,
-                            canScrollForward = originalListState.canScrollForward
+                            value = studyScrollState.value,
+                            maxValue = studyScrollState.maxValue,
+                            viewportHeightPx = stableStudyViewportHeightPx,
+                            canScrollForward = studyScrollState.canScrollForward
                         )
                     }
-                }
-
-                ReaderMode.STUDY -> {
-                    pagedScrollProgress(
-                        value = studyScrollState.value,
-                        maxValue = studyScrollState.maxValue,
-                        viewportHeightPx = stableStudyViewportHeightPx,
-                        canScrollForward = studyScrollState.canScrollForward
-                    )
                 }
             }
         }
@@ -1413,7 +1484,23 @@ internal fun ReaderScreen(
         showProgressIndicator = showProgressIndicator,
         showBrightnessIndicator = showBrightnessIndicator,
         brightnessIndicatorPercent = brightnessIndicatorPercent,
-        snackbarHostState = snackbarHostState
+        snackbarHostState = snackbarHostState,
+        useWebView = useWebViewReader,
+        onWebViewStudyReady = { wv -> webViewStudyRef = wv },
+        onWebViewStudyDestroyed = { webViewStudyRef = null },
+        onWebViewOriginalReady = { wv -> webViewOriginalRef = wv },
+        onWebViewOriginalDestroyed = { webViewOriginalRef = null },
+        onWebViewScrollProgress = { scrollY, totalHeight, viewportHeight ->
+            webViewScrollY = scrollY
+            webViewTotalHeight = totalHeight
+            webViewViewportHeight = viewportHeight
+            showAndScheduleHideProgressIndicator()
+        },
+        onWebViewClearSelection = {
+            webViewStudyRef?.let { wv ->
+                with(WebViewReaderJs) { wv.clearSelection() }
+            }
+        }
     )
 
     ReaderDialogHost(

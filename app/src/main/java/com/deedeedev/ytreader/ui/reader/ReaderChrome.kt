@@ -136,7 +136,9 @@ internal fun ReaderBottomBar(
     onStartAiCleaning: (String) -> Unit,
     onRequestNotificationPermission: (String) -> Unit,
     hasTimestampedSegments: Boolean,
-    onShowJumpToTime: () -> Unit
+    onShowJumpToTime: () -> Unit,
+    useWebView: Boolean = false,
+    onEditUnavailable: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val copyTextLabel = stringResource(R.string.copy_text)
@@ -191,7 +193,16 @@ internal fun ReaderBottomBar(
                             )
                         }
                     } else {
-                        IconButton(onClick = onEditSaveTap) {
+                        IconButton(
+                            onClick = {
+                                if (useWebView) {
+                                    onEditUnavailable?.invoke()
+                                } else {
+                                    onEditSaveTap()
+                                }
+                            },
+                            enabled = !useWebView
+                        ) {
                             Icon(
                                 imageVector = if (isEditing) Icons.Filled.Save else Icons.Filled.Edit,
                                 contentDescription = if (isEditing) saveLabel else editLabel
@@ -283,7 +294,7 @@ internal fun ReaderBottomBar(
                                     }
                                 )
                             }
-                            if (!isOriginalMode) {
+                            if (!isOriginalMode && !useWebView) {
                                 DropdownMenuItem(
                                     text = { Text(findAndReplaceLabel) },
                                     onClick = {
@@ -298,6 +309,8 @@ internal fun ReaderBottomBar(
                                         onReplaceWithClipboard()
                                     }
                                 )
+                            }
+                            if (!isOriginalMode && !useWebView) {
                                 DropdownMenuItem(
                                     text = {
                                         Text(if (isAiCleaning) aiCleaningRunningLabel else aiCleaningLabel)

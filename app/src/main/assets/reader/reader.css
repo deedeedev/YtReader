@@ -1,0 +1,119 @@
+:root {
+  --font-size: 16px;
+  --line-height: 1.5;
+  --font-family: sans-serif;
+  --text-color: #000000;
+  --bg-color: #ffffff;
+  --highlight-red: rgba(229, 115, 115, 0.4);
+  --highlight-blue: rgba(66, 165, 245, 0.4);
+  --highlight-green: rgba(102, 187, 106, 0.4);
+  --highlight-yellow: rgba(255, 238, 88, 0.5);
+  --search-result: rgba(255, 179, 0, 0.6);
+  --selection-color: rgba(66, 165, 245, 0.3);
+  --bookmark-color: #e53935;
+  --note-indicator-color: #d32f2f;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-text-size-adjust: none;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  font-family: var(--font-family);
+}
+
+#content {
+  padding: 0 16px;
+  text-align: justify;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+#content p {
+  margin: 0 0 0.5em 0;
+}
+
+.highlight-red {
+  background-color: var(--highlight-red);
+  border-radius: 2px;
+}
+
+.highlight-blue {
+  background-color: var(--highlight-blue);
+  border-radius: 2px;
+}
+
+.highlight-green {
+  background-color: var(--highlight-green);
+  border-radius: 2px;
+}
+
+.highlight-yellow {
+  background-color: var(--highlight-yellow);
+  border-radius: 2px;
+}
+
+.has-note {
+  position: relative;
+}
+
+.has-note::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--note-indicator-color);
+}
+
+.search-result {
+  background-color: var(--search-result);
+  border-radius: 2px;
+}
+
+.bookmark-marker {
+  position: relative;
+}
+
+.bookmark-marker::after {
+  content: "\1F516";
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: 0.7em;
+  color: var(--bookmark-color);
+  pointer-events: auto;
+}
+
+::selection {
+  background-color: var(--selection-color);
+}
+
+.segment {
+  margin-bottom: 12px;
+}
+
+.segment-timestamp {
+  font-weight: bold;
+  opacity: 0.7;
+  font-size: 0.85em;
+  margin-bottom: 2px;
+  cursor: pointer;
+  color: var(--text-color);
+}
+
+.segment-text {
+  text-align: justify;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}

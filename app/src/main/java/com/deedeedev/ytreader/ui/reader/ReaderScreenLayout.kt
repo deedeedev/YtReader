@@ -20,6 +20,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.domain.SubtitleSegment
+import com.deedeedev.ytreader.ui.reader.webview.WebViewStudyContentPane
+import com.deedeedev.ytreader.ui.reader.webview.WebViewOriginalContentPane
+import android.webkit.WebView
 
 @Composable
 internal fun ReaderScreenMainLayer(
@@ -117,63 +120,117 @@ internal fun ReaderScreenMainLayer(
     showProgressIndicator: Boolean,
     showBrightnessIndicator: Boolean,
     brightnessIndicatorPercent: Int,
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    useWebView: Boolean = false,
+    onWebViewStudyReady: ((WebView) -> Unit)? = null,
+    onWebViewStudyDestroyed: (() -> Unit)? = null,
+    onWebViewOriginalReady: ((WebView) -> Unit)? = null,
+    onWebViewOriginalDestroyed: (() -> Unit)? = null,
+    onWebViewScrollProgress: ((scrollY: Int, totalHeight: Int, viewportHeight: Int) -> Unit)? = null,
+    onWebViewClearSelection: (() -> Unit)? = null
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         if (readerMode == ReaderMode.ORIGINAL) {
-            ReaderOriginalPane(
-                originalSegments = originalSegments,
-                originalFallbackText = originalFallbackText,
-                showTimestamps = showTimestamps,
-                originalListState = originalListState,
-                originalFallbackScrollState = originalFallbackScrollState,
-                topContentPadding = topContentPadding,
-                bottomContentPadding = bottomContentPadding,
-                fontSize = fontSize,
-                lineHeightMultiplier = lineHeightMultiplier,
-                fontFamilyName = fontFamilyName,
-                fontFamily = fontFamily,
-                readerTextColor = readerTextColor,
-                readerBackgroundColor = readerBackgroundColor,
-                activeOriginalFallbackSearchRange = activeOriginalFallbackSearchRange,
-                activeOriginalSegmentSearchResult = activeOriginalSegmentSearchResult,
-                originalSelectionCoordinator = originalSelectionCoordinator,
-                onReaderTap = onReaderTap,
-                onOriginalFallbackViewportChanged = onOriginalFallbackViewportChanged,
-                onOriginalTimestampTap = onOriginalTimestampTap,
-                onUserDrag = onUserDrag
-            )
+            if (useWebView) {
+                WebViewOriginalContentPane(
+                    originalSegments = originalSegments,
+                    originalFallbackText = originalFallbackText,
+                    showTimestamps = showTimestamps,
+                    topContentPadding = topContentPadding,
+                    bottomContentPadding = bottomContentPadding,
+                    fontSize = fontSize,
+                    lineHeightMultiplier = lineHeightMultiplier,
+                    fontFamilyName = fontFamilyName,
+                    readerTextColor = readerTextColor,
+                    readerBackgroundColor = readerBackgroundColor,
+                    onReaderTap = onReaderTap,
+                    onOriginalTimestampTap = onOriginalTimestampTap,
+                    onScrollProgress = { scrollY, totalHeight, viewportHeight ->
+                        onWebViewScrollProgress?.invoke(scrollY, totalHeight, viewportHeight)
+                    },
+                    onWebViewReady = { onWebViewOriginalReady?.invoke(it) },
+                    onWebViewDestroyed = { onWebViewOriginalDestroyed?.invoke() }
+                )
+            } else {
+                ReaderOriginalPane(
+                    originalSegments = originalSegments,
+                    originalFallbackText = originalFallbackText,
+                    showTimestamps = showTimestamps,
+                    originalListState = originalListState,
+                    originalFallbackScrollState = originalFallbackScrollState,
+                    topContentPadding = topContentPadding,
+                    bottomContentPadding = bottomContentPadding,
+                    fontSize = fontSize,
+                    lineHeightMultiplier = lineHeightMultiplier,
+                    fontFamilyName = fontFamilyName,
+                    fontFamily = fontFamily,
+                    readerTextColor = readerTextColor,
+                    readerBackgroundColor = readerBackgroundColor,
+                    activeOriginalFallbackSearchRange = activeOriginalFallbackSearchRange,
+                    activeOriginalSegmentSearchResult = activeOriginalSegmentSearchResult,
+                    originalSelectionCoordinator = originalSelectionCoordinator,
+                    onReaderTap = onReaderTap,
+                    onOriginalFallbackViewportChanged = onOriginalFallbackViewportChanged,
+                    onOriginalTimestampTap = onOriginalTimestampTap,
+                    onUserDrag = onUserDrag
+                )
+            }
         } else {
-            ReaderStudyPane(
-                isEditing = isEditing,
-                editText = editText,
-                onEditTextChange = onEditTextChange,
-                readOnlyContent = studyContent,
-                highlights = highlights,
-                bookmarks = bookmarks,
-                activeStudySearchRange = activeStudySearchRange,
-                topContentPadding = topContentPadding,
-                bottomContentPadding = bottomContentPadding,
-                fontSize = fontSize,
-                lineHeightMultiplier = lineHeightMultiplier,
-                lineHeightSp = lineHeightSp,
-                fontFamilyName = fontFamilyName,
-                fontFamily = fontFamily,
-                readerTextColor = readerTextColor,
-                readerBackgroundColor = readerBackgroundColor,
-                editTextFieldTag = READER_EDIT_TEXT_FIELD_TAG,
-                studyScrollState = studyScrollState,
-                onStudyViewportChanged = onStudyViewportChanged,
-                onReaderTap = onReaderTap,
-                onStudyTextViewReady = onStudyTextViewReady,
-                onSelectionRangeChanged = onSelectionRangeChanged,
-                onHighlightTapped = onHighlightTapped,
-                onBookmarkTapped = onBookmarkTapped,
-                hasActiveHighlight = hasActiveHighlight,
-                onClearActiveHighlight = onClearActiveHighlight,
-                clearSelectionNow = clearSelectionNow,
-                onUserDrag = onUserDrag
-            )
+            if (useWebView && !isEditing) {
+                WebViewStudyContentPane(
+                    readOnlyContent = studyContent,
+                    highlights = highlights,
+                    bookmarks = bookmarks,
+                    activeStudySearchRange = activeStudySearchRange,
+                    topContentPadding = topContentPadding,
+                    bottomContentPadding = bottomContentPadding,
+                    fontSize = fontSize,
+                    lineHeightMultiplier = lineHeightMultiplier,
+                    fontFamilyName = fontFamilyName,
+                    readerTextColor = readerTextColor,
+                    readerBackgroundColor = readerBackgroundColor,
+                    onReaderTap = onReaderTap,
+                    onSelectionRangeChanged = onSelectionRangeChanged,
+                    onHighlightTapped = onHighlightTapped,
+                    onBookmarkTapped = onBookmarkTapped,
+                    onScrollProgress = { scrollY, totalHeight, viewportHeight ->
+                        onWebViewScrollProgress?.invoke(scrollY, totalHeight, viewportHeight)
+                    },
+                    onWebViewReady = { onWebViewStudyReady?.invoke(it) },
+                    onWebViewDestroyed = { onWebViewStudyDestroyed?.invoke() }
+                )
+            } else {
+                ReaderStudyPane(
+                    isEditing = isEditing,
+                    editText = editText,
+                    onEditTextChange = onEditTextChange,
+                    readOnlyContent = studyContent,
+                    highlights = highlights,
+                    bookmarks = bookmarks,
+                    activeStudySearchRange = activeStudySearchRange,
+                    topContentPadding = topContentPadding,
+                    bottomContentPadding = bottomContentPadding,
+                    fontSize = fontSize,
+                    lineHeightMultiplier = lineHeightMultiplier,
+                    lineHeightSp = lineHeightSp,
+                    fontFamilyName = fontFamilyName,
+                    fontFamily = fontFamily,
+                    readerTextColor = readerTextColor,
+                    readerBackgroundColor = readerBackgroundColor,
+                    editTextFieldTag = READER_EDIT_TEXT_FIELD_TAG,
+                    studyScrollState = studyScrollState,
+                    onStudyViewportChanged = onStudyViewportChanged,
+                    onReaderTap = onReaderTap,
+                    onStudyTextViewReady = onStudyTextViewReady,
+                    onSelectionRangeChanged = onSelectionRangeChanged,
+                    onHighlightTapped = onHighlightTapped,
+                    onBookmarkTapped = onBookmarkTapped,
+                    hasActiveHighlight = hasActiveHighlight,
+                    onClearActiveHighlight = onClearActiveHighlight,
+                    clearSelectionNow = clearSelectionNow,
+                    onUserDrag = onUserDrag
+                )
+            }
         }
 
         var activeBrightness by remember { mutableStateOf(0f) }
@@ -245,7 +302,11 @@ internal fun ReaderScreenMainLayer(
             onStartAiCleaning = onStartAiCleaning,
             onRequestNotificationPermission = onRequestNotificationPermission,
             hasTimestampedSegments = hasTimestampedSegments,
-            onShowJumpToTime = onShowJumpToTime
+            onShowJumpToTime = onShowJumpToTime,
+            useWebView = useWebView,
+            onEditUnavailable = {
+                onRequestAction(PendingAction.ShowWebViewEditUnavailable)
+            }
         )
 
         ReaderAnnotationsSwipeArea(

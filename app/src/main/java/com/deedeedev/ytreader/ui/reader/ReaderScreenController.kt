@@ -77,6 +77,10 @@ internal fun executeReaderPendingAction(
             }
             setReaderMode(action.targetMode)
         }
+
+        PendingAction.ShowWebViewEditUnavailable -> {
+            // Handled in ReaderScreen.requestAction
+        }
     }
 }
 
