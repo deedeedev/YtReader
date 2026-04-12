@@ -38,6 +38,7 @@ fun SettingsScreen(
     appContainer: AppContainer,
     viewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModel.provideFactory(
+            appContainer,
             appContainer.appContext,
             appContainer.userPreferencesRepository,
             appContainer.youtubeRepository,

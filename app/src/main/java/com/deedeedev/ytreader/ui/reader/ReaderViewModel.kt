@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.StringProvider
 import com.deedeedev.ytreader.data.AiCleaningWorkScheduler
 import com.deedeedev.ytreader.widget.ReaderWidgetProvider
 import com.deedeedev.ytreader.data.NoteRepository
@@ -48,6 +49,7 @@ data class ReaderUiState(
 }
 
 class ReaderViewModel(
+    private val stringProvider: StringProvider,
     private val appContext: Context,
     private val subtitleRepository: SubtitleRepository,
     private val noteRepository: NoteRepository,
@@ -437,12 +439,12 @@ class ReaderViewModel(
         val model = userPreferencesRepository.getAiModel().trim()
         if (endpoint.isBlank() || key.isBlank() || model.isBlank()) {
             return Result.failure(
-                IllegalStateException(appContext.getString(R.string.ai_cleaning_missing_settings))
+                IllegalStateException(stringProvider.getString(R.string.ai_cleaning_missing_settings))
             )
         }
         if (_uiState.value.isAiCleaning) {
             return Result.failure(
-                IllegalStateException(appContext.getString(R.string.ai_cleaning_already_running))
+                IllegalStateException(stringProvider.getString(R.string.ai_cleaning_already_running))
             )
         }
 
@@ -454,7 +456,7 @@ class ReaderViewModel(
             subtitleRepository.storeAiCleaningFailure(
                 subtitleId = subtitleId,
                 summary = error.message?.takeIf { it.isNotBlank() }
-                    ?: appContext.getString(R.string.ai_cleaning_start_failed),
+                    ?: stringProvider.getString(R.string.ai_cleaning_start_failed),
                 log = error.stackTraceToString(),
                 updatedAt = System.currentTimeMillis()
             )
@@ -517,6 +519,7 @@ class ReaderViewModel(
 
     companion object {
         fun provideFactory(
+            stringProvider: StringProvider,
             appContext: Context,
             subtitleRepository: SubtitleRepository,
             noteRepository: NoteRepository,
@@ -526,6 +529,7 @@ class ReaderViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return ReaderViewModel(
+                    stringProvider,
                     appContext,
                     subtitleRepository,
                     noteRepository,

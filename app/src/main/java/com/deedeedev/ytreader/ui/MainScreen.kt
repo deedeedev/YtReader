@@ -349,6 +349,7 @@ fun MainScreen(
                 val bookmarkStart = backStackEntry.arguments?.getInt("bookmarkStart") ?: -1
                 
                 ReaderScreen(
+                    appContainer = appContainer,
                     subtitleId = subtitleId,
                     subtitleRepository = appContainer.subtitleRepository,
                     noteRepository = appContainer.noteRepository,

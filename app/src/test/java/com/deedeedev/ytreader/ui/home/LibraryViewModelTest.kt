@@ -2,6 +2,7 @@ package com.deedeedev.ytreader.ui.home
 
 import android.content.Context
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.StringProvider
 import com.deedeedev.ytreader.data.CollectionRepository
 import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.PersistedLibraryFilters
@@ -42,6 +43,7 @@ class LibraryViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private lateinit var appContext: Context
+    private lateinit var stringProvider: StringProvider
     private lateinit var youtubeRepository: YoutubeRepository
     private lateinit var subtitleRepository: SubtitleRepository
     private lateinit var videoRepository: VideoRepository
@@ -53,6 +55,7 @@ class LibraryViewModelTest {
     @Before
     fun setUp() {
         appContext = mock()
+        stringProvider = mock()
         youtubeRepository = mock()
         subtitleRepository = mock()
         videoRepository = mock()
@@ -65,15 +68,16 @@ class LibraryViewModelTest {
         whenever(userPreferencesRepository.getLibraryFilterState()).thenReturn(
             PersistedLibraryFilters()
         )
-        whenever(appContext.getString(R.string.library_thumbnail_downloaded)).thenReturn("Downloaded")
-        whenever(appContext.getString(R.string.library_thumbnail_download_failed)).thenReturn("Failed")
-        whenever(appContext.getString(R.string.download_failed)).thenReturn("Download fail")
-        whenever(appContext.getString(R.string.matching_subtitle_not_found)).thenReturn("Not found")
-        whenever(appContext.getString(R.string.channel_unknown)).thenReturn("Unknown")
+        whenever(stringProvider.getString(R.string.library_thumbnail_downloaded)).thenReturn("Downloaded")
+        whenever(stringProvider.getString(R.string.library_thumbnail_download_failed)).thenReturn("Failed")
+        whenever(stringProvider.getString(R.string.download_failed)).thenReturn("Download fail")
+        whenever(stringProvider.getString(R.string.matching_subtitle_not_found)).thenReturn("Not found")
+        whenever(stringProvider.getString(R.string.channel_unknown)).thenReturn("Unknown")
     }
 
     private fun createViewModel(): LibraryViewModel {
         return LibraryViewModel(
+            stringProvider,
             appContext,
             youtubeRepository,
             subtitleRepository,

@@ -2,6 +2,7 @@ package com.deedeedev.ytreader.ui.home
 
 import android.content.Context
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.StringProvider
 import com.deedeedev.ytreader.data.CollectionRepository
 import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
@@ -12,6 +13,7 @@ import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 
 internal class VideoOperationsHelper(
+    private val stringProvider: StringProvider,
     private val appContext: Context,
     private val youtubeRepository: YoutubeRepository,
     private val subtitleRepository: SubtitleRepository,
@@ -33,7 +35,7 @@ internal class VideoOperationsHelper(
                 streams = info.subtitles
             )
                 ?: throw IllegalStateException(
-                    appContext.getString(R.string.matching_subtitle_not_found)
+                    stringProvider.getString(R.string.matching_subtitle_not_found)
                 )
 
             val subtitleContent = matchingSubtitle.content
@@ -57,13 +59,13 @@ internal class VideoOperationsHelper(
                 videoId = subtitle.videoId,
                 fallbackVideoUrl = displayUrlFor(subtitle.videoId, subtitle.videoUrl),
                 fallbackTitle = info.name,
-                fallbackChannelName = info.uploaderName ?: appContext.getString(R.string.channel_unknown),
+                fallbackChannelName = info.uploaderName ?: stringProvider.getString(R.string.channel_unknown),
                 fallbackUploadDate = info.uploadDate?.instant?.toEpochMilli() ?: 0L,
                 info = info
             )
             onError(null)
         } catch (e: Exception) {
-            val message = e.message ?: appContext.getString(R.string.download_failed)
+            val message = e.message ?: stringProvider.getString(R.string.download_failed)
             onError(message)
         } finally {
             onDownloadingChange(subtitle.id, false)
@@ -95,9 +97,9 @@ internal class VideoOperationsHelper(
                 info = info
             )
             onError(null)
-            onEvent(appContext.getString(R.string.library_thumbnail_downloaded))
+            onEvent(stringProvider.getString(R.string.library_thumbnail_downloaded))
         } catch (e: Exception) {
-            val errorMessage = e.message ?: appContext.getString(R.string.library_thumbnail_download_failed)
+            val errorMessage = e.message ?: stringProvider.getString(R.string.library_thumbnail_download_failed)
             onError(errorMessage)
             onEvent(errorMessage)
         } finally {

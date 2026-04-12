@@ -2,6 +2,7 @@ package com.deedeedev.ytreader.ui.home
 
 import android.content.Context
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.StringProvider
 import com.deedeedev.ytreader.data.CollectionRepository
 import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
@@ -41,6 +42,7 @@ class CollectionsViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private lateinit var appContext: Context
+    private lateinit var stringProvider: StringProvider
     private lateinit var youtubeRepository: YoutubeRepository
     private lateinit var subtitleRepository: SubtitleRepository
     private lateinit var videoRepository: VideoRepository
@@ -53,6 +55,7 @@ class CollectionsViewModelTest {
     @Before
     fun setUp() {
         appContext = mock()
+        stringProvider = mock()
         youtubeRepository = mock()
         subtitleRepository = mock()
         videoRepository = mock()
@@ -66,15 +69,16 @@ class CollectionsViewModelTest {
         whenever(collectionRepository.collections).thenReturn(collectionsFlow)
         whenever(subtitleRepository.observeAll()).thenReturn(savedSubtitlesFlow)
         whenever(userPreferencesRepository.getCollectionFilterStates()).thenReturn(emptyMap())
-        whenever(appContext.getString(R.string.channel_unknown)).thenReturn("Unknown")
-        whenever(appContext.getString(R.string.download_failed)).thenReturn("Download failed")
-        whenever(appContext.getString(R.string.matching_subtitle_not_found)).thenReturn("Not found")
-        whenever(appContext.getString(R.string.library_thumbnail_downloaded)).thenReturn("Downloaded")
-        whenever(appContext.getString(R.string.library_thumbnail_download_failed)).thenReturn("Failed")
+        whenever(stringProvider.getString(R.string.channel_unknown)).thenReturn("Unknown")
+        whenever(stringProvider.getString(R.string.download_failed)).thenReturn("Download failed")
+        whenever(stringProvider.getString(R.string.matching_subtitle_not_found)).thenReturn("Not found")
+        whenever(stringProvider.getString(R.string.library_thumbnail_downloaded)).thenReturn("Downloaded")
+        whenever(stringProvider.getString(R.string.library_thumbnail_download_failed)).thenReturn("Failed")
     }
 
     private fun createViewModel(): CollectionsViewModel {
         return CollectionsViewModel(
+            stringProvider,
             appContext,
             youtubeRepository,
             subtitleRepository,

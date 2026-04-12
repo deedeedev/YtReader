@@ -2,6 +2,7 @@ package com.deedeedev.ytreader.ui.home
 
 import android.content.Context
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.StringProvider
 import com.deedeedev.ytreader.data.SearchHistoryRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
@@ -40,6 +41,7 @@ class SearchViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private lateinit var appContext: Context
+    private lateinit var stringProvider: StringProvider
     private lateinit var youtubeRepository: YoutubeRepository
     private lateinit var subtitleRepository: SubtitleRepository
     private lateinit var videoRepository: VideoRepository
@@ -52,6 +54,7 @@ class SearchViewModelTest {
     @Before
     fun setUp() {
         appContext = mock()
+        stringProvider = mock()
         youtubeRepository = mock()
         subtitleRepository = mock()
         videoRepository = mock()
@@ -67,13 +70,13 @@ class SearchViewModelTest {
         whenever(searchHistoryRepository.observeAll()).thenReturn(searchHistoryFlow)
         whenever(userPreferencesRepository.defaultFontSize).thenReturn(MutableStateFlow(16f))
         whenever(userPreferencesRepository.fontFamily).thenReturn(MutableStateFlow("Default"))
-        whenever(appContext.getString(R.string.channel_unknown)).thenReturn("Unknown")
-        whenever(appContext.getString(R.string.unknown_error)).thenReturn("Unknown error")
-        whenever(appContext.getString(R.string.download_failed)).thenReturn("Download failed")
-        whenever(appContext.getString(R.string.library_unknown_code)).thenReturn("und")
-        whenever(appContext.getString(R.string.matching_subtitle_not_found)).thenReturn("Not found")
-        whenever(appContext.getString(R.string.library_thumbnail_downloaded)).thenReturn("Downloaded")
-        whenever(appContext.getString(R.string.library_thumbnail_download_failed)).thenReturn("Failed")
+        whenever(stringProvider.getString(R.string.channel_unknown)).thenReturn("Unknown")
+        whenever(stringProvider.getString(R.string.unknown_error)).thenReturn("Unknown error")
+        whenever(stringProvider.getString(R.string.download_failed)).thenReturn("Download failed")
+        whenever(stringProvider.getString(R.string.library_unknown_code)).thenReturn("und")
+        whenever(stringProvider.getString(R.string.matching_subtitle_not_found)).thenReturn("Not found")
+        whenever(stringProvider.getString(R.string.library_thumbnail_downloaded)).thenReturn("Downloaded")
+        whenever(stringProvider.getString(R.string.library_thumbnail_download_failed)).thenReturn("Failed")
     }
 
     private fun createStreamInfo(
@@ -93,6 +96,7 @@ class SearchViewModelTest {
 
     private fun createViewModel(): SearchViewModel {
         return SearchViewModel(
+            stringProvider,
             appContext,
             youtubeRepository,
             subtitleRepository,

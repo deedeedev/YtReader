@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.StringProvider
 import com.deedeedev.ytreader.data.AutoBackupScheduler
 import com.deedeedev.ytreader.data.VideoThumbnailStore
 import com.deedeedev.ytreader.data.YoutubeRepository
@@ -42,6 +43,7 @@ data class SettingsUiState(
 )
 
 class SettingsViewModel(
+    private val stringProvider: StringProvider,
     private val appContext: Context,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val youtubeRepository: YoutubeRepository,
@@ -192,13 +194,13 @@ class SettingsViewModel(
 
     suspend fun downloadMissingThumbnails(): String {
         if (_uiState.value.isRunningThumbnailBulkAction) {
-            return appContext.getString(R.string.settings_working)
+            return stringProvider.getString(R.string.settings_working)
         }
         _uiState.update { it.copy(isRunningThumbnailBulkAction = true) }
         return try {
             val videos = videoRepository.getAllMissingThumbnailPath()
             if (videos.isEmpty()) {
-                return appContext.getString(R.string.settings_thumbnail_download_none_missing)
+                return stringProvider.getString(R.string.settings_thumbnail_download_none_missing)
             }
 
             var downloadedCount = 0
@@ -245,15 +247,15 @@ class SettingsViewModel(
             }
 
             when {
-                downloadedCount == 0 -> appContext.getString(
+                downloadedCount == 0 -> stringProvider.getString(
                     R.string.settings_thumbnail_download_no_results,
                     skippedCount
                 )
-                skippedCount == 0 -> appContext.getString(
+                skippedCount == 0 -> stringProvider.getString(
                     R.string.settings_thumbnail_download_success,
                     downloadedCount
                 )
-                else -> appContext.getString(
+                else -> stringProvider.getString(
                     R.string.settings_thumbnail_download_partial,
                     downloadedCount,
                     skippedCount
@@ -266,7 +268,7 @@ class SettingsViewModel(
 
     suspend fun cleanOrphanThumbnails(): String {
         if (_uiState.value.isRunningThumbnailBulkAction) {
-            return appContext.getString(R.string.settings_working)
+            return stringProvider.getString(R.string.settings_working)
         }
         _uiState.update { it.copy(isRunningThumbnailBulkAction = true) }
         return try {
@@ -294,9 +296,9 @@ class SettingsViewModel(
             }
 
             if (removedFiles == 0 && clearedReferences == 0) {
-                appContext.getString(R.string.settings_thumbnail_cleanup_nothing_to_do)
+                stringProvider.getString(R.string.settings_thumbnail_cleanup_nothing_to_do)
             } else {
-                appContext.getString(
+                stringProvider.getString(
                     R.string.settings_thumbnail_cleanup_result,
                     removedFiles,
                     clearedReferences
@@ -309,6 +311,7 @@ class SettingsViewModel(
 
     companion object {
         fun provideFactory(
+            stringProvider: StringProvider,
             appContext: Context,
             userPreferencesRepository: UserPreferencesRepository,
             youtubeRepository: YoutubeRepository,
@@ -317,6 +320,7 @@ class SettingsViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return SettingsViewModel(
+                    stringProvider,
                     appContext,
                     userPreferencesRepository,
                     youtubeRepository,

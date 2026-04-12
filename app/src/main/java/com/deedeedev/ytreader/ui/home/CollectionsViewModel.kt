@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.deedeedev.ytreader.StringProvider
 import com.deedeedev.ytreader.data.CollectionRepository
 import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
@@ -43,6 +44,7 @@ sealed interface CollectionsEvent {
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CollectionsViewModel(
+    private val stringProvider: StringProvider,
     private val appContext: Context,
     private val youtubeRepository: YoutubeRepository,
     private val subtitleRepository: SubtitleRepository,
@@ -53,7 +55,7 @@ class CollectionsViewModel(
 ) : ViewModel() {
 
     private val ops = VideoOperationsHelper(
-        appContext, youtubeRepository, subtitleRepository, videoRepository,
+        stringProvider, appContext, youtubeRepository, subtitleRepository, videoRepository,
         noteRepository, collectionRepository
     )
 
@@ -340,6 +342,7 @@ class CollectionsViewModel(
 
     companion object {
         fun provideFactory(
+            stringProvider: StringProvider,
             appContext: Context,
             youtubeRepository: YoutubeRepository,
             subtitleRepository: SubtitleRepository,
@@ -351,6 +354,7 @@ class CollectionsViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return CollectionsViewModel(
+                    stringProvider,
                     appContext,
                     youtubeRepository,
                     subtitleRepository,

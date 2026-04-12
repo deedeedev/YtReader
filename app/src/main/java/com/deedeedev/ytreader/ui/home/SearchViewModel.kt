@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.StringProvider
 import com.deedeedev.ytreader.data.SearchHistoryRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
@@ -40,6 +41,7 @@ sealed interface SearchEvent {
 }
 
 class SearchViewModel(
+    private val stringProvider: StringProvider,
     private val appContext: Context,
     private val youtubeRepository: YoutubeRepository,
     private val subtitleRepository: SubtitleRepository,
@@ -108,12 +110,12 @@ class SearchViewModel(
             try {
                 val info = youtubeRepository.getStreamInfo(url)
                 _uiState.update { it.copy(isLoading = false, streamInfo = info) }
-                saveToSearchHistory(url, info.name, info.uploaderName ?: appContext.getString(R.string.channel_unknown))
+                saveToSearchHistory(url, info.name, info.uploaderName ?: stringProvider.getString(R.string.channel_unknown))
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = e.message ?: appContext.getString(R.string.unknown_error)
+                        error = e.message ?: stringProvider.getString(R.string.unknown_error)
                     )
                 }
             }
@@ -167,9 +169,9 @@ class SearchViewModel(
                     videoId = canonicalVideoRef.videoId,
                     videoUrl = canonicalVideoRef.videoUrl,
                     title = info.name,
-                    channelName = info.uploaderName ?: appContext.getString(R.string.channel_unknown),
+                    channelName = info.uploaderName ?: stringProvider.getString(R.string.channel_unknown),
                     languageCode = subtitle.languageTag
-                        ?: appContext.getString(R.string.library_unknown_code),
+                        ?: stringProvider.getString(R.string.library_unknown_code),
                     subtitleTrackId = subtitle.id,
                     trackIdentity = SubtitleIdentity.fromTrack(
                         subtitleTrackId = subtitle.id,
@@ -189,7 +191,7 @@ class SearchViewModel(
                     videoId = canonicalVideoRef.videoId,
                     fallbackVideoUrl = canonicalVideoRef.videoUrl,
                     fallbackTitle = info.name,
-                    fallbackChannelName = info.uploaderName ?: appContext.getString(R.string.channel_unknown),
+                    fallbackChannelName = info.uploaderName ?: stringProvider.getString(R.string.channel_unknown),
                     fallbackUploadDate = info.uploadDate?.instant?.toEpochMilli() ?: 0L,
                     info = info
                 )
@@ -199,7 +201,7 @@ class SearchViewModel(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = e.message ?: appContext.getString(R.string.download_failed)
+                        error = e.message ?: stringProvider.getString(R.string.download_failed)
                     )
                 }
             }
@@ -208,6 +210,7 @@ class SearchViewModel(
 
     companion object {
         fun provideFactory(
+            stringProvider: StringProvider,
             appContext: Context,
             youtubeRepository: YoutubeRepository,
             subtitleRepository: SubtitleRepository,
@@ -218,6 +221,7 @@ class SearchViewModel(
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return SearchViewModel(
+                    stringProvider,
                     appContext,
                     youtubeRepository,
                     subtitleRepository,

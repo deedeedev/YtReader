@@ -2,6 +2,7 @@ package com.deedeedev.ytreader.ui.reader
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.deedeedev.ytreader.StringProvider
 import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
@@ -49,9 +50,11 @@ class ReaderViewModelTest {
     private lateinit var subtitleFlow: MutableStateFlow<SubtitleEntity?>
     private lateinit var noteFlow: MutableStateFlow<List<HighlightNoteEntity>>
     private lateinit var bookmarkFlow: MutableStateFlow<List<BookmarkEntity>>
+    private lateinit var stringProvider: StringProvider
 
     @Before
     fun setUp() {
+        stringProvider = mock()
         subtitleRepository = mock()
         noteRepository = mock()
         subtitleFlow = MutableStateFlow(baseSubtitle(highlights = emptyList()))
@@ -61,6 +64,9 @@ class ReaderViewModelTest {
         whenever(subtitleRepository.observeById(SUBTITLE_ID)).thenReturn(subtitleFlow)
         whenever(noteRepository.observeHighlightsBySubtitleId(SUBTITLE_ID)).thenReturn(noteFlow)
         whenever(noteRepository.observeBookmarksBySubtitleId(SUBTITLE_ID)).thenReturn(bookmarkFlow)
+        whenever(stringProvider.getString(com.deedeedev.ytreader.R.string.ai_cleaning_missing_settings)).thenReturn("Missing settings")
+        whenever(stringProvider.getString(com.deedeedev.ytreader.R.string.ai_cleaning_already_running)).thenReturn("Already running")
+        whenever(stringProvider.getString(com.deedeedev.ytreader.R.string.ai_cleaning_start_failed)).thenReturn("Start failed")
     }
 
     @Test
@@ -205,6 +211,7 @@ class ReaderViewModelTest {
 
     private fun createViewModel(): ReaderViewModel {
         return ReaderViewModel(
+            stringProvider = stringProvider,
             appContext = mock(),
             subtitleRepository = subtitleRepository,
             noteRepository = noteRepository,

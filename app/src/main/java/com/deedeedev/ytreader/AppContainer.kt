@@ -24,7 +24,7 @@ import okhttp3.OkHttpClient
 import org.schabi.newpipe.extractor.NewPipe
 import java.util.concurrent.TimeUnit
 
-interface AppContainer {
+interface AppContainer : StringProvider {
     val appContext: Context
     val database: AppDatabase
     val subtitleDao: SubtitleDao
@@ -162,5 +162,13 @@ class DefaultAppContainer(
 
     override fun closeDatabase() {
         database.close()
+    }
+
+    override fun getString(resId: Int): String {
+        return context.applicationContext.getString(resId)
+    }
+
+    override fun getString(resId: Int, vararg formatArgs: Any): String {
+        return context.applicationContext.getString(resId, *formatArgs)
     }
 }

@@ -63,6 +63,7 @@ class MainActivity : ComponentActivity() {
             YtReaderTheme(appTheme = appTheme) {
                 val searchViewModel: SearchViewModel = viewModel(
                     factory = SearchViewModel.provideFactory(
+                        appContainer,
                         appContainer.appContext,
                         appContainer.youtubeRepository,
                         appContainer.subtitleRepository,
@@ -73,6 +74,7 @@ class MainActivity : ComponentActivity() {
                 )
                 val libraryViewModel: LibraryViewModel = viewModel(
                     factory = LibraryViewModel.provideFactory(
+                        appContainer,
                         appContainer.appContext,
                         appContainer.youtubeRepository,
                         appContainer.subtitleRepository,
@@ -84,6 +86,7 @@ class MainActivity : ComponentActivity() {
                 )
                 val collectionsViewModel: CollectionsViewModel = viewModel(
                     factory = CollectionsViewModel.provideFactory(
+                        appContainer,
                         appContainer.appContext,
                         appContainer.youtubeRepository,
                         appContainer.subtitleRepository,

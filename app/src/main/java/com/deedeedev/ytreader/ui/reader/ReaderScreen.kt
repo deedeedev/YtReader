@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.AppContainer
 import com.deedeedev.ytreader.ui.FontOption
 import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
@@ -83,6 +84,7 @@ private val DEFAULT_NOTE_HIGHLIGHT_COLOR = HighlightColor.YELLOW
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ReaderScreen(
+    appContainer: AppContainer,
     subtitleId: Long,
     subtitleRepository: SubtitleRepository,
     noteRepository: NoteRepository,
@@ -107,6 +109,7 @@ internal fun ReaderScreen(
     val viewModel: ReaderViewModel = viewModel(
         key = "Reader_$subtitleId",
         factory = ReaderViewModel.provideFactory(
+            appContainer,
             context.applicationContext,
             subtitleRepository,
             noteRepository,
