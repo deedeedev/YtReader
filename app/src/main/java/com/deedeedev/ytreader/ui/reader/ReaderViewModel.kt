@@ -147,11 +147,12 @@ class ReaderViewModel(
         }
     }
 
-    private var lastSavedPercent = 0
+    private val lastSavedPercent = MutableStateFlow(0)
 
     fun updateReadingProgress(percent: Int, currentPage: Int, totalPages: Int) {
-        if (percent < lastSavedPercent && percent < 100) return
-        lastSavedPercent = percent.coerceIn(0, 100)
+        val currentSaved = lastSavedPercent.value
+        if (percent < currentSaved && percent < 100) return
+        lastSavedPercent.value = percent.coerceIn(0, 100)
         viewModelScope.launch {
             subtitleRepository.updateReadingProgress(
                 subtitleId = subtitleId,

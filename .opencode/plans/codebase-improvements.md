@@ -2,35 +2,6 @@
 
 ## MEDIUM PRIORITY
 
-### 10. Context Passed Into ViewModels
-
-`HomeViewModel`, `ReaderViewModel`, and `SettingsViewModel` all take `Context` as a constructor parameter. This is used mainly for `appContext.getString(...)`. It creates testing difficulties and potential memory leaks.
-
-**Fix:** Use string resource IDs (`@StringRes`) in UiState or create a `StringProvider` interface.
-
----
-
-### 13. Race Condition in `updateReadingProgress()`
-
-**Location — `ReaderViewModel.kt:140-153`:**
-```kotlin
-private var lastSavedPercent = 0
-
-fun updateReadingProgress(percent: Int, currentPage: Int, totalPages: Int) {
-    if (percent < lastSavedPercent && percent < 100) return
-    lastSavedPercent = percent.coerceIn(0, 100)
-    viewModelScope.launch {
-        subtitleDao.updateReadingProgress(...)
-    }
-}
-```
-
-`lastSavedPercent` is read/written from the UI thread and from coroutines without synchronization.
-
-**Fix:** Use `MutableStateFlow<Int>` or `AtomicInteger` for thread safety.
-
----
-
 ### 14. Uncancelled CoroutineScope in `AiCleaningCancelReceiver`
 
 **Location — `AiCleaningWorker.kt:314`:**
@@ -90,16 +61,6 @@ Current config leaves performance on the table:
 - `SubtitleDaoTest` (488 lines) — thorough DAO testing with in-memory Room
 - `ReaderViewModelTest` — excellent ViewModel testing with proper coroutine dispatchers
 - Good edge case coverage in `TextHighlightTest`, `ReaderFindTest`, `AnnotationRemapperTest`
-
----
-
-### 18. Miscellaneous Cleanup
-
-- **Remove legacy template colors** in `colors.xml` (`purple_200/500/700`, `teal_200/700`, `black`, `white`) — unused with Compose Material3
-- **Mark AI log strings `translatable="false"`** in `strings.xml` (lines 314-326) — developer-facing messages
-- **Add `.gitignore` entries:** `*.apk`, `*.aab`, `*.hprof`, `*.keystore`, `*.jks`, `.env`
-- **Remove boilerplate tests:** `ExampleUnitTest.kt` and `ExampleInstrumentedTest.kt` provide zero value
-- **Add root-level plugin declarations** in root `build.gradle.kts` for `ksp` and `kotlin-android`
 
 ---
 
