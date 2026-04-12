@@ -2,19 +2,6 @@
 
 ## MEDIUM PRIORITY
 
-### 7. Oversized Files Need Decomposition
-
-| File | Lines | Suggestion |
-|---|---|---|
-| `ReaderScreen.kt` | 1662 | Extract more focused composable functions |
-| `SettingsScreen.kt` | 958 | Group settings into separate composable files |
-| `LibraryScreen.kt` | 915 | Extract inline composables into separate files |
-| `HomeViewModel.kt` | 855 | Split into focused ViewModels (see #1) |
-| `JustifiedStudyTextView.kt` | 762 | Consider extracting text layout logic |
-| `ReaderDialogs.kt` | 693 | Split into individual dialog files |
-
----
-
 ### 8. `SubtitleEntity` is Bloated (25 Fields)
 
 Mixes multiple concerns in a single entity:
