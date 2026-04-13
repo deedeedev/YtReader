@@ -252,14 +252,8 @@ internal fun ReaderScreen(
     var webViewViewportHeight by remember { mutableStateOf(0) }
 
     val persistReadingProgress by rememberUpdatedState(newValue = {
-        val scrollToSave = if (readerMode == ReaderMode.STUDY && webViewStudyRef != null) {
-            if (webViewTotalHeight > 0) {
-                ((webViewScrollY.toFloat() / webViewTotalHeight) * 100).toInt()
-            } else 0
-        } else if (readerMode == ReaderMode.ORIGINAL && webViewOriginalRef != null) {
-            if (webViewTotalHeight > 0) {
-                ((webViewScrollY.toFloat() / webViewTotalHeight) * 100).toInt()
-            } else 0
+        val scrollToSave = if (webViewTotalHeight > 0) {
+            ((webViewScrollY.toFloat() / webViewTotalHeight) * 100).toInt()
         } else {
             studyScrollState.value
         }
@@ -1380,6 +1374,7 @@ internal fun ReaderScreen(
         showBrightnessIndicator = showBrightnessIndicator,
         brightnessIndicatorPercent = brightnessIndicatorPercent,
         snackbarHostState = snackbarHostState,
+        initialScrollPercent = uiState.lastStudyScroll,
         useWebView = true,
         onWebViewStudyReady = { wv -> webViewStudyRef = wv },
         onWebViewStudyDestroyed = { webViewStudyRef = null },

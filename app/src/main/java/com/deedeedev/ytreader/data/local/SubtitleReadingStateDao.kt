@@ -18,6 +18,9 @@ interface SubtitleReadingStateDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(state: SubtitleReadingStateEntity)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfNotExists(state: SubtitleReadingStateEntity)
+
     @Update
     suspend fun update(state: SubtitleReadingStateEntity)
 

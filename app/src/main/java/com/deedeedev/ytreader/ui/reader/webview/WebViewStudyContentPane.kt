@@ -106,7 +106,7 @@ internal fun WebViewStudyContentPane(
             memoizedOnScrollProgress(scrollY, totalHeight, viewportHeight)
         }
 
-        bridge.onContentHeightChanged = { _ -> }
+        bridge.onContentHeightChanged = { height -> webViewTotalHeight = height }
 
         bridge.onContentTextChanged = { text ->
             memoizedOnEditTextChanged(text)

@@ -9,6 +9,9 @@ import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.data.local.HighlightNoteEntity
 import com.deedeedev.ytreader.data.local.SubtitleEntity
+import com.deedeedev.ytreader.data.SubtitleWithStates
+import com.deedeedev.ytreader.data.local.AiCleaningStateEntity
+import com.deedeedev.ytreader.data.local.SubtitleReadingStateEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,7 +50,7 @@ class ReaderViewModelTest {
 
     private lateinit var subtitleRepository: SubtitleRepository
     private lateinit var noteRepository: NoteRepository
-    private lateinit var subtitleFlow: MutableStateFlow<SubtitleEntity?>
+    private lateinit var subtitleWithStatesFlow: MutableStateFlow<SubtitleWithStates?>
     private lateinit var noteFlow: MutableStateFlow<List<HighlightNoteEntity>>
     private lateinit var bookmarkFlow: MutableStateFlow<List<BookmarkEntity>>
     private lateinit var stringProvider: StringProvider
@@ -57,11 +60,17 @@ class ReaderViewModelTest {
         stringProvider = mock()
         subtitleRepository = mock()
         noteRepository = mock()
-        subtitleFlow = MutableStateFlow(baseSubtitle(highlights = emptyList()))
+        subtitleWithStatesFlow = MutableStateFlow(
+            SubtitleWithStates(
+                subtitle = baseSubtitleEntity(highlights = emptyList()),
+                readingState = null,
+                aiCleaningState = null
+            )
+        )
         noteFlow = MutableStateFlow(emptyList())
         bookmarkFlow = MutableStateFlow(emptyList())
 
-        whenever(subtitleRepository.observeById(SUBTITLE_ID)).thenReturn(subtitleFlow)
+        whenever(subtitleRepository.observeSubtitleWithStates(SUBTITLE_ID)).thenReturn(subtitleWithStatesFlow)
         whenever(noteRepository.observeHighlightsBySubtitleId(SUBTITLE_ID)).thenReturn(noteFlow)
         whenever(noteRepository.observeBookmarksBySubtitleId(SUBTITLE_ID)).thenReturn(bookmarkFlow)
         whenever(stringProvider.getString(com.deedeedev.ytreader.R.string.ai_cleaning_missing_settings)).thenReturn("Missing settings")
@@ -75,7 +84,7 @@ class ReaderViewModelTest {
             TextHighlight(start = 0, end = 5, color = HighlightColor.YELLOW),
             TextHighlight(start = 8, end = 12, color = HighlightColor.BLUE)
         )
-        subtitleFlow.value = baseSubtitle(highlights = highlights)
+        subtitleWithStatesFlow.value = baseSubtitleWithStates(highlights = highlights)
         noteFlow.value = listOf(
             HighlightNoteEntity(
                 subtitleId = SUBTITLE_ID,
@@ -100,7 +109,7 @@ class ReaderViewModelTest {
     @Test
     fun saveHighlightNote_trimsAndPersistsUpdatedNote() = runTest {
         val existingHighlight = TextHighlight(start = 0, end = 5, color = HighlightColor.YELLOW)
-        subtitleFlow.value = baseSubtitle(highlights = listOf(existingHighlight))
+        subtitleWithStatesFlow.value = baseSubtitleWithStates(highlights = listOf(existingHighlight))
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -127,7 +136,7 @@ class ReaderViewModelTest {
             TextHighlight(start = 0, end = 4, color = HighlightColor.RED),
             TextHighlight(start = 6, end = 10, color = HighlightColor.GREEN)
         )
-        subtitleFlow.value = baseSubtitle(highlights = highlights)
+        subtitleWithStatesFlow.value = baseSubtitleWithStates(highlights = highlights)
         noteFlow.value = listOf(
             HighlightNoteEntity(
                 subtitleId = SUBTITLE_ID,
@@ -164,7 +173,7 @@ class ReaderViewModelTest {
     @Test
     fun deleteHighlightNote_clearsUiStateAndDeletesPersistedNote() = runTest {
         val highlight = TextHighlight(start = 2, end = 7, color = HighlightColor.GREEN)
-        subtitleFlow.value = baseSubtitle(highlights = listOf(highlight))
+        subtitleWithStatesFlow.value = baseSubtitleWithStates(highlights = listOf(highlight))
         noteFlow.value = listOf(
             HighlightNoteEntity(
                 subtitleId = SUBTITLE_ID,
@@ -187,7 +196,7 @@ class ReaderViewModelTest {
 
     @Test
     fun updateContent_clearsHighlightsAndDeletesAllNotes() = runTest {
-        subtitleFlow.value = baseSubtitle(highlights = emptyList())
+        subtitleWithStatesFlow.value = baseSubtitleWithStates(highlights = emptyList())
         noteFlow.value = listOf(
             HighlightNoteEntity(
                 subtitleId = SUBTITLE_ID,
@@ -207,6 +216,69 @@ class ReaderViewModelTest {
         verify(subtitleRepository).updateStudyContent(SUBTITLE_ID, "Updated content")
         verify(subtitleRepository).updateHighlights(SUBTITLE_ID, "")
         verify(noteRepository).deleteHighlightsBySubtitleId(SUBTITLE_ID)
+    }
+
+    @Test
+    fun init_exposesLastStudyScrollFromReadingState() = runTest {
+        subtitleWithStatesFlow.value = baseSubtitleWithStates(
+            highlights = emptyList(),
+            lastStudyScroll = 42
+        )
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(42, viewModel.uiState.value.lastStudyScroll)
+    }
+
+    @Test
+    fun init_exposesZeroLastStudyScrollWhenNoReadingState() = runTest {
+        subtitleWithStatesFlow.value = baseSubtitleWithStates(
+            highlights = emptyList()
+        )
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(0, viewModel.uiState.value.lastStudyScroll)
+    }
+
+    @Test
+    fun updateLastStudyScroll_persistsScrollPercentToRepository() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.updateLastStudyScroll(37)
+        advanceUntilIdle()
+
+        verify(subtitleRepository).updateLastStudyScroll(SUBTITLE_ID, 37)
+    }
+
+    @Test
+    fun updateLastStudyScroll_coercesNegativeValuesToZero() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.updateLastStudyScroll(-5)
+        advanceUntilIdle()
+
+        verify(subtitleRepository).updateLastStudyScroll(SUBTITLE_ID, 0)
+    }
+
+    @Test
+    fun updateReadingProgress_persistsPercentAndPageProgress() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.updateReadingProgress(percent = 15, currentPage = 5, totalPages = 15)
+        advanceUntilIdle()
+
+        verify(subtitleRepository).updateReadingProgress(
+            eq(SUBTITLE_ID),
+            eq(15),
+            eq(5),
+            eq(15)
+        )
     }
 
     private fun createViewModel(): ReaderViewModel {
@@ -239,7 +311,7 @@ class ReaderViewModelTest {
         return UserPreferencesRepository(context)
     }
 
-    private fun baseSubtitle(highlights: List<TextHighlight>): SubtitleEntity {
+    private fun baseSubtitleEntity(highlights: List<TextHighlight>): SubtitleEntity {
         return SubtitleEntity(
             id = SUBTITLE_ID,
             videoId = "video-id",
@@ -247,6 +319,19 @@ class ReaderViewModelTest {
             languageCode = "en",
             content = "Hello world more text",
             highlights = serializeHighlights(highlights)
+        )
+    }
+
+    private fun baseSubtitleWithStates(
+        highlights: List<TextHighlight>,
+        lastStudyScroll: Int = 0
+    ): SubtitleWithStates {
+        return SubtitleWithStates(
+            subtitle = baseSubtitleEntity(highlights),
+            readingState = if (lastStudyScroll > 0) {
+                SubtitleReadingStateEntity(subtitleId = SUBTITLE_ID, lastStudyScroll = lastStudyScroll)
+            } else null,
+            aiCleaningState = null
         )
     }
 

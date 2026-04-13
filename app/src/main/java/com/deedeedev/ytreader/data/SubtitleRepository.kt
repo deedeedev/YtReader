@@ -143,6 +143,7 @@ class SubtitleRepository(
     }
 
     suspend fun updateLastOpenedAt(id: Long, openedAt: Long) = withContext(Dispatchers.IO) {
+        readingStateDao.insertIfNotExists(SubtitleReadingStateEntity(subtitleId = id))
         readingStateDao.updateLastOpenedAt(id, openedAt)
     }
 
