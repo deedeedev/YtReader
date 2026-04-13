@@ -13,6 +13,7 @@ internal class WebViewReaderBridge {
     var onTap: ((xFraction: Float, yFraction: Float) -> Unit)? = null
     var onScrollProgress: ((scrollY: Int, totalHeight: Int, viewportHeight: Int) -> Unit)? = null
     var onContentHeightChanged: ((height: Int) -> Unit)? = null
+    var onVisibleCharOffset: ((offset: Int) -> Unit)? = null
     var onOriginalTimestampTap: ((startTimeMs: Long) -> Unit)? = null
     var onContentTextChanged: ((text: String) -> Unit)? = null
 
@@ -55,6 +56,13 @@ internal class WebViewReaderBridge {
     fun onContentHeightChanged(height: Int) {
         mainHandler.post {
             onContentHeightChanged?.invoke(height)
+        }
+    }
+
+    @JavascriptInterface
+    fun onVisibleCharOffset(offset: Int) {
+        mainHandler.post {
+            onVisibleCharOffset?.invoke(offset)
         }
     }
 

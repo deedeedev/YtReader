@@ -222,6 +222,14 @@ function scrollToOffset(y) {
   window.scrollTo(0, y);
 }
 
+function scrollToPercent(percent) {
+  if (percent <= 0 || percent >= 100) return;
+  var totalHeight = document.body.scrollHeight;
+  if (totalHeight <= 0) return;
+  var targetY = Math.round((totalHeight * percent) / 100);
+  window.scrollTo(0, Math.min(targetY, totalHeight - 1));
+}
+
 function scrollToCharOffset(offset) {
   buildOffsetMap();
   var entry = findOffsetEntry(offset);
@@ -230,7 +238,7 @@ function scrollToCharOffset(offset) {
   range.setStart(entry.node, entry.localOffset);
   range.collapse(true);
   var rect = range.getBoundingClientRect();
-  var targetY = window.scrollY + rect.top - window.innerHeight / 3;
+  var targetY = window.scrollY + rect.top;
   window.scrollTo(0, Math.max(0, targetY));
 }
 
@@ -239,12 +247,32 @@ function getCharOffsetAtTop() {
   var viewportTop = window.scrollY;
   for (var i = 0; i < offsetMap.length; i++) {
     if (!offsetMap[i].node.parentElement) continue;
+    var node = offsetMap[i].node;
+    var nodeStart = offsetMap[i].start;
+    var textLen = node.textContent.length;
     var range = document.createRange();
-    range.setStart(offsetMap[i].node, 0);
+    range.setStart(node, 0);
     range.collapse(true);
     var rect = range.getBoundingClientRect();
-    if (rect.top + window.scrollY >= viewportTop) {
-      return offsetMap[i].start;
+    var charTop = rect.top + window.scrollY;
+    if (charTop >= viewportTop) {
+      return nodeStart;
+    }
+    var lo = 0, hi = textLen - 1;
+    while (lo <= hi) {
+      var mid = (lo + hi) >> 1;
+      range.setStart(node, mid);
+      range.collapse(true);
+      rect = range.getBoundingClientRect();
+      charTop = rect.top + window.scrollY;
+      if (charTop < viewportTop) {
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    if (lo < textLen) {
+      return nodeStart + lo;
     }
   }
   return 0;
@@ -338,6 +366,7 @@ window.addEventListener("scroll", function() {
   scrollThrottleTimeout = setTimeout(function() {
     scrollThrottleTimeout = null;
     Bridge.onScrollProgress(window.scrollY, document.body.scrollHeight, window.innerHeight);
+    Bridge.onVisibleCharOffset(getCharOffsetAtTop());
   }, 16);
 });
 
@@ -593,7 +622,7 @@ function highlightFindMatch(index) {
     domRange.surroundContents(span);
     
     var rect = span.getBoundingClientRect();
-    var targetY = window.scrollY + rect.top - window.innerHeight / 3;
+  var targetY = window.scrollY + rect.top;
     window.scrollTo(0, Math.max(0, targetY));
   } catch (e) {
     // Skip

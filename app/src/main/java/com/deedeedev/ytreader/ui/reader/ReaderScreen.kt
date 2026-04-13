@@ -250,14 +250,10 @@ internal fun ReaderScreen(
     var webViewScrollY by remember { mutableStateOf(0) }
     var webViewTotalHeight by remember { mutableStateOf(0) }
     var webViewViewportHeight by remember { mutableStateOf(0) }
+    var webViewCharOffsetAtTop by remember { mutableStateOf(0) }
 
     val persistReadingProgress by rememberUpdatedState(newValue = {
-        val scrollToSave = if (webViewTotalHeight > 0) {
-            ((webViewScrollY.toFloat() / webViewTotalHeight) * 100).toInt()
-        } else {
-            studyScrollState.value
-        }
-        viewModel.updateLastStudyScroll(scrollToSave)
+        viewModel.updateLastStudyScroll(webViewCharOffsetAtTop)
     })
 
     val hasInitialNavigationTarget = initialReaderLocation != null ||
@@ -1385,6 +1381,9 @@ internal fun ReaderScreen(
             webViewTotalHeight = totalHeight
             webViewViewportHeight = viewportHeight
             showAndScheduleHideProgressIndicator()
+        },
+        onWebViewVisibleCharOffset = { offset ->
+            webViewCharOffsetAtTop = offset
         },
         onWebViewClearSelection = {
             webViewStudyRef?.let { wv ->

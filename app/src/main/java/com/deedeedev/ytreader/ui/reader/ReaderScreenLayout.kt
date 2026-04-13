@@ -129,6 +129,7 @@ internal fun ReaderScreenMainLayer(
     onWebViewOriginalReady: ((WebView) -> Unit)? = null,
     onWebViewOriginalDestroyed: (() -> Unit)? = null,
     onWebViewScrollProgress: ((scrollY: Int, totalHeight: Int, viewportHeight: Int) -> Unit)? = null,
+    onWebViewVisibleCharOffset: ((Int) -> Unit)? = null,
     onWebViewClearSelection: (() -> Unit)? = null,
     webViewStudyRef: WebView? = null
 ) {
@@ -176,6 +177,7 @@ internal fun ReaderScreenMainLayer(
                     onScrollProgress = { scrollY, totalHeight, viewportHeight ->
                         onWebViewScrollProgress?.invoke(scrollY, totalHeight, viewportHeight)
                     },
+                    onVisibleCharOffsetChanged = onWebViewVisibleCharOffset,
                     onWebViewReady = { onWebViewStudyReady?.invoke(it) },
                     onWebViewDestroyed = { onWebViewStudyDestroyed?.invoke() },
                     onEditTextChanged = { text -> onEditTextChange(text) },

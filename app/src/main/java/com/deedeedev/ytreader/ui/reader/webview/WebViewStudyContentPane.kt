@@ -40,6 +40,7 @@ internal fun WebViewStudyContentPane(
     onHighlightTapped: (TextHighlight?) -> Unit,
     onBookmarkTapped: (BookmarkEntity) -> Unit,
     onScrollProgress: (scrollY: Int, totalHeight: Int, viewportHeight: Int) -> Unit,
+    onVisibleCharOffsetChanged: ((Int) -> Unit)? = null,
     onWebViewReady: (WebView) -> Unit,
     onWebViewDestroyed: () -> Unit,
     onEditTextChanged: (String) -> Unit = {},
@@ -108,6 +109,10 @@ internal fun WebViewStudyContentPane(
 
         bridge.onContentHeightChanged = { height -> webViewTotalHeight = height }
 
+        bridge.onVisibleCharOffset = { offset ->
+            onVisibleCharOffsetChanged?.invoke(offset)
+        }
+
         bridge.onContentTextChanged = { text ->
             memoizedOnEditTextChanged(text)
         }
@@ -119,6 +124,7 @@ internal fun WebViewStudyContentPane(
             bridge.onTap = null
             bridge.onScrollProgress = null
             bridge.onContentHeightChanged = null
+            bridge.onVisibleCharOffset = null
             bridge.onContentTextChanged = null
         }
     }
@@ -201,17 +207,12 @@ internal fun WebViewStudyContentPane(
         }
     }
 
-    LaunchedEffect(isWebViewReady, webViewTotalHeight, initialScrollPercent) {
+    LaunchedEffect(isWebViewReady, initialScrollPercent) {
         if (!isWebViewReady || hasAppliedInitialScroll) return@LaunchedEffect
         val wv = webView ?: return@LaunchedEffect
-        val totalHeight = webViewTotalHeight
-        if (totalHeight <= 0) return@LaunchedEffect
-        val targetScroll = if (initialScrollPercent > 0 && initialScrollPercent < 100) {
-            ((totalHeight * initialScrollPercent) / 100).coerceIn(0, totalHeight - 1)
-        } else 0
-        if (targetScroll > 0) {
+        if (initialScrollPercent > 0) {
             with(WebViewReaderJs) {
-                wv.scrollToOffset(targetScroll)
+                wv.scrollToCharOffset(initialScrollPercent)
             }
         }
         hasAppliedInitialScroll = true

@@ -104,6 +104,10 @@ internal object WebViewReaderJs {
         evaluateJavascript("scrollToOffset($y)", null)
     }
 
+    fun WebView.scrollToPercent(percent: Int) {
+        evaluateJavascript("scrollToPercent($percent)", null)
+    }
+
     fun WebView.scrollToCharOffset(offset: Int) {
         evaluateJavascript("scrollToCharOffset($offset)", null)
     }
