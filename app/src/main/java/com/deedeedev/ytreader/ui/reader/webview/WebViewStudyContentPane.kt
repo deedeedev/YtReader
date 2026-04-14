@@ -209,8 +209,9 @@ internal fun WebViewStudyContentPane(
         }
     }
 
-    LaunchedEffect(isWebViewReady, initialScrollPercent, annotationScrollOffset) {
+    LaunchedEffect(isWebViewReady, lastContent, initialScrollPercent, annotationScrollOffset) {
         if (!isWebViewReady || hasAppliedInitialScroll) return@LaunchedEffect
+        if (lastContent.isEmpty()) return@LaunchedEffect
         val wv = webView ?: return@LaunchedEffect
         if (annotationScrollOffset != null && annotationScrollOffset > 0) {
             with(WebViewReaderJs) {

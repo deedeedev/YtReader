@@ -490,20 +490,39 @@ internal fun ReaderScreen(
     }
 
     fun openBookmarkDialog() {
-        val textView = studyTextView ?: return
-        val anchorStart = textView.topVisibleLineAnchor(studyScrollState.value) ?: return
-        editingBookmark = null
-        pendingBookmarkAnchorStart = anchorStart
-        pendingBookmarkFallbackTitle = textView.lineTextForOffset(anchorStart)
-        bookmarkTitleDraft = ""
-        showBookmarkDialog = true
+        val textView = studyTextView
+        if (textView != null) {
+            val anchorStart = textView.topVisibleLineAnchor(studyScrollState.value) ?: return
+            editingBookmark = null
+            pendingBookmarkAnchorStart = anchorStart
+            pendingBookmarkFallbackTitle = textView.lineTextForOffset(anchorStart)
+            bookmarkTitleDraft = ""
+            showBookmarkDialog = true
+        } else {
+            val wv = webViewStudyRef ?: return
+            with(WebViewReaderJs) {
+                wv.getCharOffsetAtTop { anchorStart ->
+                    editingBookmark = null
+                    pendingBookmarkAnchorStart = anchorStart
+                    pendingBookmarkFallbackTitle = lineTextForOffset(uiState.content, anchorStart)
+                    bookmarkTitleDraft = ""
+                    showBookmarkDialog = true
+                }
+            }
+        }
     }
 
     fun openBookmarkDialog(bookmark: BookmarkEntity) {
-        val textView = studyTextView ?: return
+        val textView = studyTextView
+        val fallbackTitle: String
+        if (textView != null) {
+            fallbackTitle = textView.lineTextForOffset(bookmark.anchorStart)
+        } else {
+            fallbackTitle = lineTextForOffset(uiState.content, bookmark.anchorStart)
+        }
         editingBookmark = bookmark
         pendingBookmarkAnchorStart = bookmark.anchorStart
-        pendingBookmarkFallbackTitle = textView.lineTextForOffset(bookmark.anchorStart)
+        pendingBookmarkFallbackTitle = fallbackTitle
         bookmarkTitleDraft = bookmark.title
         showBookmarkDialog = true
     }
@@ -1691,4 +1710,12 @@ internal fun ReaderScreen(
             }
         )
     }
+}
+
+private fun lineTextForOffset(text: String, offset: Int): String {
+    if (text.isEmpty()) return ""
+    val safeOffset = offset.coerceIn(0, text.lastIndex)
+    val lineStart = text.lastIndexOf('\n', safeOffset - 1).let { if (it == -1) 0 else it + 1 }
+    val lineEnd = text.indexOf('\n', safeOffset).let { if (it == -1) text.length else it }
+    return text.substring(lineStart, lineEnd).replace(Regex("\\s+"), " ").trim()
 }

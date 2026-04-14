@@ -115,21 +115,37 @@ function setHighlights(json) {
 
 function applyBookmarks() {
   var container = document.getElementById("content");
+  var existing = container.querySelectorAll(".bookmark-overlay");
+  for (var i = 0; i < existing.length; i++) {
+    existing[i].remove();
+  }
   var markers = container.querySelectorAll(".bookmark-marker");
   for (var i = 0; i < markers.length; i++) {
     markers[i].classList.remove("bookmark-marker");
     markers[i].removeAttribute("data-bookmark-id");
   }
-  buildOffsetMap();
 
   for (var i = 0; i < bookmarks.length; i++) {
     var bm = bookmarks[i];
     var entry = findOffsetEntry(bm.anchorStart);
     if (!entry) continue;
     var parent = entry.node.parentElement;
-    if (parent) {
+    if (parent && parent.id !== "content") {
       parent.classList.add("bookmark-marker");
       parent.setAttribute("data-bookmark-id", bm.id);
+    } else {
+      try {
+        var range = document.createRange();
+        range.setStart(entry.node, entry.localOffset);
+        range.collapse(true);
+        var rect = range.getBoundingClientRect();
+        var containerRect = container.getBoundingClientRect();
+        var overlay = document.createElement("div");
+        overlay.className = "bookmark-overlay";
+        overlay.setAttribute("data-bookmark-id", bm.id);
+        overlay.style.top = (rect.top - containerRect.top + container.scrollTop) + "px";
+        container.appendChild(overlay);
+      } catch (e) {}
     }
   }
 }
@@ -137,6 +153,10 @@ function applyBookmarks() {
 function setBookmarks(json) {
   bookmarks = JSON.parse(json);
   var container = document.getElementById("content");
+  var existing = container.querySelectorAll(".bookmark-overlay");
+  for (var i = 0; i < existing.length; i++) {
+    existing[i].remove();
+  }
   var markers = container.querySelectorAll(".bookmark-marker");
   for (var i = 0; i < markers.length; i++) {
     markers[i].classList.remove("bookmark-marker");
@@ -343,7 +363,7 @@ document.addEventListener("click", function(e) {
   }
 
   // Check bookmark tap
-  var bookmarkEl = target.closest("[data-bookmark-id]");
+  var bookmarkEl = target.closest("[data-bookmark-id]:not(#content)");
   if (bookmarkEl) {
     var bookmarkId = bookmarkEl.getAttribute("data-bookmark-id");
     Bridge.onBookmarkTapped(parseFloat(bookmarkId));

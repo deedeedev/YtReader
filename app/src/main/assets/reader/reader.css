@@ -30,6 +30,7 @@ body {
 }
 
 #content {
+  position: relative;
   padding: 0 4px;
   text-align: justify;
   word-wrap: break-word;
@@ -91,6 +92,21 @@ body {
   position: absolute;
   right: 0;
   top: 0;
+  font-size: 0.7em;
+  color: var(--bookmark-color);
+  pointer-events: auto;
+}
+
+.bookmark-overlay {
+  position: absolute;
+  right: 0;
+  width: 1.5em;
+  height: 1.2em;
+  cursor: pointer;
+}
+
+.bookmark-overlay::after {
+  content: "\1F516";
   font-size: 0.7em;
   color: var(--bookmark-color);
   pointer-events: auto;
