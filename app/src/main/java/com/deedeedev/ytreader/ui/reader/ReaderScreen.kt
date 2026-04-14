@@ -1106,6 +1106,29 @@ internal fun ReaderScreen(
         )
     }
 
+    val webViewAnnotationScrollOffset = pendingInitialHighlightRange?.start
+        ?: pendingInitialBookmarkStart
+
+    val webViewAnnotationNavigated by rememberUpdatedState(newValue = {
+        val pendingRange = pendingInitialHighlightRange
+        if (pendingRange != null) {
+            val targetHighlight = uiState.highlights.firstOrNull {
+                it.start == pendingRange.start && it.end == pendingRange.end
+            }
+            if (targetHighlight != null) {
+                activeHighlight = targetHighlight
+                suppressSelectionToolbar = true
+            }
+            pendingInitialHighlightRange = null
+        } else if (pendingInitialBookmarkStart != null) {
+            pendingInitialBookmarkStart = null
+        }
+        selectionRange = null
+        dismissHighlightNoteDialog()
+        dismissBookmarkDialog()
+        isUiVisible = false
+    })
+
     ReaderScreenMainLayer(
         readerMode = readerMode,
         isUiVisible = isUiVisible,
@@ -1371,6 +1394,8 @@ internal fun ReaderScreen(
         brightnessIndicatorPercent = brightnessIndicatorPercent,
         snackbarHostState = snackbarHostState,
         initialScrollPercent = uiState.lastStudyScroll,
+        annotationScrollOffset = webViewAnnotationScrollOffset,
+        onAnnotationNavigated = { webViewAnnotationNavigated() },
         useWebView = true,
         onWebViewStudyReady = { wv -> webViewStudyRef = wv },
         onWebViewStudyDestroyed = { webViewStudyRef = null },

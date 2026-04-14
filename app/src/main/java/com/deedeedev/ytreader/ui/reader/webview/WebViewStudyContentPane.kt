@@ -34,6 +34,8 @@ internal fun WebViewStudyContentPane(
     readerTextColor: Int,
     readerBackgroundColor: Int,
     initialScrollPercent: Int = 0,
+    annotationScrollOffset: Int? = null,
+    onAnnotationNavigated: (() -> Unit)? = null,
     isEditMode: Boolean = false,
     onReaderTap: (ReaderTapPosition) -> Unit,
     onSelectionRangeChanged: (Int, Int) -> Unit,
@@ -207,10 +209,15 @@ internal fun WebViewStudyContentPane(
         }
     }
 
-    LaunchedEffect(isWebViewReady, initialScrollPercent) {
+    LaunchedEffect(isWebViewReady, initialScrollPercent, annotationScrollOffset) {
         if (!isWebViewReady || hasAppliedInitialScroll) return@LaunchedEffect
         val wv = webView ?: return@LaunchedEffect
-        if (initialScrollPercent > 0) {
+        if (annotationScrollOffset != null && annotationScrollOffset > 0) {
+            with(WebViewReaderJs) {
+                wv.scrollToCharOffset(annotationScrollOffset)
+            }
+            onAnnotationNavigated?.invoke()
+        } else if (initialScrollPercent > 0) {
             with(WebViewReaderJs) {
                 wv.scrollToCharOffset(initialScrollPercent)
             }
