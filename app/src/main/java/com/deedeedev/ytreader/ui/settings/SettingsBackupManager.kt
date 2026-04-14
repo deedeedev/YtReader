@@ -30,7 +30,7 @@ import java.util.zip.ZipOutputStream
 private const val DATABASE_NAME = "ytreader.db"
 private const val DATA_BACKUP_MANIFEST_NAME = "manifest.json"
 private const val DATA_BACKUP_FORMAT_VERSION = 2
-private const val APP_DATABASE_VERSION = 20
+private const val APP_DATABASE_VERSION = 24
 private const val SQLITE_INTEGRITY_OK = "ok"
 private const val THUMBNAIL_BACKUP_DIRECTORY = "video_thumbnails"
 
@@ -426,7 +426,7 @@ private fun sanitizeImportedDatabase(databaseDir: File) {
     try {
         database.execSQL(
             """
-            UPDATE subtitles
+            UPDATE ai_cleaning_states
             SET aiCleaningInProgress = 0,
                 aiCleaningSourceText = NULL,
                 aiCleaningPendingResult = NULL,
