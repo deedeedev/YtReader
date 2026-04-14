@@ -42,11 +42,7 @@ function escapeHtml(text) {
 
 function setContent(html) {
   const container = document.getElementById("content");
-  const escaped = escapeHtml(html);
-  const paragraphs = escaped.split(/\n/).map(function(line) {
-    return "<p>" + (line || "&nbsp;") + "</p>";
-  }).join("");
-  container.innerHTML = paragraphs;
+  container.textContent = html;
   buildOffsetMap();
   applyHighlights();
   applyBookmarks();
