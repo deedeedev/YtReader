@@ -1024,10 +1024,17 @@ internal fun ReaderScreen(
         clearPendingFindSelection = { pendingFindSelection = null },
         onOriginalTimestampVisible = { viewModel.updateLastTimestamp(it) },
         onSelectStudyFindMatch = { selection ->
-            val textView = studyTextView ?: return@ReaderCoreEffects
-            val targetScroll = textView.verticalOffsetForSelection(selection.start)
-                .coerceIn(0, studyScrollState.maxValue)
-            studyScrollState.animateScrollTo(targetScroll)
+            val textView = studyTextView
+            if (textView != null) {
+                val targetScroll = textView.verticalOffsetForSelection(selection.start)
+                    .coerceIn(0, studyScrollState.maxValue)
+                studyScrollState.animateScrollTo(targetScroll)
+            } else {
+                val wv = webViewStudyRef
+                if (wv != null) {
+                    with(WebViewReaderJs) { wv.scrollToCharOffset(selection.start) }
+                }
+            }
             pendingFindSelection = null
         },
         onSelectOriginalFallbackFindMatch = { selection ->

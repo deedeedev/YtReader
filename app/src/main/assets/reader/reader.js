@@ -498,47 +498,57 @@ function replaceWithText(text, replaceAllFlag) {
 // ============================================
 
 function findNext(searchText, caseSensitive) {
-  findSearchText = searchText;
-  var content = document.getElementById("content");
-  var flags = caseSensitive ? "g" : "gi";
-  var regex = new RegExp(escapeRegex(searchText), flags);
-  var text = content.innerText;
-  findMatchRanges = [];
-  
-  var match;
-  while ((match = regex.exec(text)) !== null) {
-    findMatchRanges.push({ start: match.index, end: match.index + match[0].length });
-    if (match[0].length === 0) break;
+  if (findSearchText !== searchText || findMatchRanges.length === 0) {
+    findSearchText = searchText;
+    var content = document.getElementById("content");
+    var flags = caseSensitive ? "g" : "gi";
+    var regex = new RegExp(escapeRegex(searchText), flags);
+    var text = content.innerText;
+    findMatchRanges = [];
+
+    var match;
+    while ((match = regex.exec(text)) !== null) {
+      findMatchRanges.push({ start: match.index, end: match.index + match[0].length });
+      if (match[0].length === 0) break;
+    }
+
+    if (findMatchRanges.length === 0) {
+      findCurrentMatchIndex = -1;
+      return 0;
+    }
+
+    findCurrentMatchIndex = 0;
+  } else {
+    findCurrentMatchIndex = (findCurrentMatchIndex + 1) % findMatchRanges.length;
   }
-  
-  if (findMatchRanges.length === 0) {
-    return 0;
-  }
-  
-  findCurrentMatchIndex = 0;
-  highlightFindMatch(0);
+  highlightFindMatch(findCurrentMatchIndex);
   return findMatchRanges.length;
 }
 
 function findPrevious(searchText, caseSensitive) {
-  findSearchText = searchText;
-  var content = document.getElementById("content");
-  var flags = caseSensitive ? "g" : "gi";
-  var regex = new RegExp(escapeRegex(searchText), flags);
-  var text = content.innerText;
-  findMatchRanges = [];
-  
-  var match;
-  while ((match = regex.exec(text)) !== null) {
-    findMatchRanges.push({ start: match.index, end: match.index + match[0].length });
-    if (match[0].length === 0) break;
+  if (findSearchText !== searchText || findMatchRanges.length === 0) {
+    findSearchText = searchText;
+    var content = document.getElementById("content");
+    var flags = caseSensitive ? "g" : "gi";
+    var regex = new RegExp(escapeRegex(searchText), flags);
+    var text = content.innerText;
+    findMatchRanges = [];
+
+    var match;
+    while ((match = regex.exec(text)) !== null) {
+      findMatchRanges.push({ start: match.index, end: match.index + match[0].length });
+      if (match[0].length === 0) break;
+    }
+
+    if (findMatchRanges.length === 0) {
+      findCurrentMatchIndex = -1;
+      return 0;
+    }
+
+    findCurrentMatchIndex = findMatchRanges.length - 1;
+  } else {
+    findCurrentMatchIndex = (findCurrentMatchIndex - 1 + findMatchRanges.length) % findMatchRanges.length;
   }
-  
-  if (findMatchRanges.length === 0) {
-    return 0;
-  }
-  
-  findCurrentMatchIndex = findMatchRanges.length - 1;
   highlightFindMatch(findCurrentMatchIndex);
   return findMatchRanges.length;
 }
