@@ -50,6 +50,11 @@ function setContent(html) {
   Bridge.onContentHeightChanged(document.body.scrollHeight);
 }
 
+function setNotchHeight(topPx, bottomPx) {
+  document.documentElement.style.setProperty("--notch-height", topPx + "px");
+  document.documentElement.style.setProperty("--nav-height", bottomPx + "px");
+}
+
 function setStyles(fontSize, lineHeight, fontFamily, textColor, bgColor) {
   const root = document.documentElement;
   root.style.setProperty("--font-size", fontSize + "px");

@@ -9,10 +9,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.deedeedev.ytreader.domain.SubtitleSegment
@@ -50,6 +53,10 @@ internal fun WebViewOriginalContentPane(
     val memoizedOnScrollProgress by rememberUpdatedState(onScrollProgress)
     val memoizedOnWebViewReady by rememberUpdatedState(onWebViewReady)
 
+    val density = LocalDensity.current
+    val statusBarHeightPx = WindowInsets.statusBars.getTop(density)
+    val navBarHeightPx = WindowInsets.navigationBars.getBottom(density)
+
     DisposableEffect(bridge) {
         bridge.onTap = { xFraction, yFraction ->
             memoizedOnReaderTap(ReaderTapPosition(xFraction, yFraction))
@@ -79,7 +86,6 @@ internal fun WebViewOriginalContentPane(
     WebViewReaderPane(
         modifier = Modifier
             .fillMaxSize()
-            .systemBarsPadding()
             .padding(
                 start = 8.dp,
                 end = 8.dp,
@@ -88,6 +94,8 @@ internal fun WebViewOriginalContentPane(
             ),
         bridge = bridge,
         initialBackgroundColor = readerBackgroundColor,
+        statusBarHeightPx = statusBarHeightPx,
+        navBarHeightPx = navBarHeightPx,
         onViewCreated = { wv ->
             webView = wv
             isWebViewReady = true

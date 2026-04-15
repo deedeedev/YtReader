@@ -12,6 +12,8 @@
   --selection-color: rgba(66, 165, 245, 0.3);
   --bookmark-color: #e53935;
   --note-indicator-color: #d32f2f;
+  --notch-height: 0px;
+  --nav-height: 0px;
 }
 
 * {
@@ -32,6 +34,8 @@ body {
 #content {
   position: relative;
   padding: 0 4px;
+  padding-top: var(--notch-height);
+  padding-bottom: var(--nav-height);
   text-align: justify;
   word-wrap: break-word;
   overflow-wrap: break-word;

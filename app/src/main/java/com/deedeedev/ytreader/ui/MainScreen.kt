@@ -204,10 +204,11 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
+        val isReaderRoute = currentRoute?.startsWith("reader") == true
         NavHost(
             navController = navController,
             startDestination = Screen.Library.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = if (isReaderRoute) Modifier else Modifier.padding(innerPadding)
         ) {
             composable(
                 route = Screen.Search.route,

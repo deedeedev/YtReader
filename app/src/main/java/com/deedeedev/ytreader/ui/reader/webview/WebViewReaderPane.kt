@@ -22,16 +22,21 @@ internal fun WebViewReaderPane(
     modifier: Modifier = Modifier,
     bridge: WebViewReaderBridge,
     initialBackgroundColor: Int,
+    statusBarHeightPx: Int,
+    navBarHeightPx: Int,
     onViewCreated: (WebView) -> Unit,
     onWebViewDestroyed: () -> Unit
 ) {
     val rememberedOnCreated by rememberUpdatedState(onViewCreated)
     val rememberedOnDestroyed by rememberUpdatedState(onWebViewDestroyed)
+    val notchTop by rememberUpdatedState(statusBarHeightPx)
+    val notchBottom by rememberUpdatedState(navBarHeightPx)
 
     AndroidView(
         modifier = modifier,
         factory = { context ->
             WebView(context).apply {
+                fitsSystemWindows = false
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
@@ -49,6 +54,9 @@ internal fun WebViewReaderPane(
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
                         if (view != null) {
+                            with(WebViewReaderJs) {
+                                view.setNotchHeight(notchTop, notchBottom)
+                            }
                             rememberedOnCreated(view)
                         }
                     }
@@ -59,7 +67,6 @@ internal fun WebViewReaderPane(
             }
         },
         update = { webView ->
-            // Don't call onViewCreated here - wait for page load
         },
         onRelease = {
             rememberedOnDestroyed()

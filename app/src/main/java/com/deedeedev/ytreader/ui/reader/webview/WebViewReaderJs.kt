@@ -124,6 +124,10 @@ internal object WebViewReaderJs {
         evaluateJavascript("setOriginalSegments('$escaped')", null)
     }
 
+    fun WebView.setNotchHeight(topPx: Int, bottomPx: Int) {
+        evaluateJavascript("setNotchHeight($topPx, $bottomPx)", null)
+    }
+
     fun WebView.setEditMode(enabled: Boolean) {
         evaluateJavascript("setEditMode($enabled)", null)
     }
