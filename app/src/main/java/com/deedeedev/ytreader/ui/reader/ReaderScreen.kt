@@ -919,6 +919,7 @@ internal fun ReaderScreen(
 
     fun handleReaderTap(tapPosition: ReaderTapPosition) {
         if (isEditing) return
+        if (selectionRange != null || activeHighlight != null) return
         if (readerMode == ReaderMode.STUDY && isBookmarkCornerTap(tapPosition)) {
             openBookmarkDialog()
             return

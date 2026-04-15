@@ -84,6 +84,8 @@ internal fun WebViewStudyContentPane(
             val normalizedEnd = maxOf(start, end)
             if (normalizedStart >= 0 && normalizedStart < normalizedEnd) {
                 memoizedOnSelectionRangeChanged(normalizedStart, normalizedEnd)
+            } else {
+                memoizedOnSelectionRangeChanged(-1, -1)
             }
         }
 
