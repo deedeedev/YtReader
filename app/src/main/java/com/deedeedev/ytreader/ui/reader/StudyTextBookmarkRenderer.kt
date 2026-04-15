@@ -96,11 +96,11 @@ internal class StudyTextBookmarkRenderer {
         return result
     }
 
-    private fun bookmarkMarkerWidthPx(dpToPx: (Float) -> Float): Float = dpToPx(10f)
-    private fun bookmarkMarkerHeightPx(dpToPx: (Float) -> Float): Float = dpToPx(14f)
+    private fun bookmarkMarkerWidthPx(dpToPx: (Float) -> Float): Float = dpToPx(16f)
+    private fun bookmarkMarkerHeightPx(dpToPx: (Float) -> Float): Float = dpToPx(22f)
     private fun bookmarkMarkerTopInsetPx(dpToPx: (Float) -> Float): Float = dpToPx(2f)
-    private fun bookmarkMarkerEndInsetPx(dpToPx: (Float) -> Float): Float = dpToPx(2f)
-    private fun bookmarkMarkerNotchDepthPx(dpToPx: (Float) -> Float): Float = dpToPx(4f)
+    private fun bookmarkMarkerEndInsetPx(dpToPx: (Float) -> Float): Float = dpToPx(4f)
+    private fun bookmarkMarkerNotchDepthPx(dpToPx: (Float) -> Float): Float = dpToPx(6f)
 
     internal data class BookmarkMarkerBounds(
         val bookmark: BookmarkEntity,

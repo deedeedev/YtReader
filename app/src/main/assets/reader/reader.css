@@ -88,28 +88,30 @@ body {
 }
 
 .bookmark-marker::after {
-  content: "\1F516";
+  content: "";
   position: absolute;
   right: 0;
   top: 0;
-  font-size: 0.7em;
-  color: var(--bookmark-color);
+  width: 1em;
+  height: 1.3em;
+  background-color: var(--bookmark-color);
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 50% 75%, 0% 100%);
   pointer-events: auto;
 }
 
 .bookmark-overlay {
   position: absolute;
   right: 0;
-  width: 1.5em;
-  height: 1.2em;
+  width: 1em;
+  height: 1.3em;
   cursor: pointer;
+  background-color: var(--bookmark-color);
+  clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 50% 75%, 0% 100%);
 }
 
 .bookmark-overlay::after {
-  content: "\1F516";
-  font-size: 0.7em;
-  color: var(--bookmark-color);
-  pointer-events: auto;
+  content: "";
+  display: none;
 }
 
 ::selection {

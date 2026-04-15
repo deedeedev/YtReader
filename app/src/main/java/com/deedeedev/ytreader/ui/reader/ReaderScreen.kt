@@ -14,13 +14,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -1081,16 +1079,8 @@ internal fun ReaderScreen(
     val showSearchResultsToolbar = !isEditing && searchResultsMode != null
     val showJumpBackToolbar = !isEditing && searchResultsMode == null && jumpBackState != null
     Log.d(TAG, "showJumpBackToolbar=$showJumpBackToolbar isEditing=$isEditing searchResultsMode=$searchResultsMode jumpBackState=$jumpBackState")
-    val topContentPadding by animateDpAsState(
-        targetValue = if (isUiVisible) TopAppBarDefaults.TopAppBarExpandedHeight else 0.dp,
-        label = "readerTopContentPadding"
-    )
-    val bottomContentPadding by animateDpAsState(
-        targetValue = (if (isUiVisible) READER_BOTTOM_BAR_HEIGHT else 0.dp) +
-            (if (showSearchResultsToolbar) READER_SEARCH_RESULTS_BAR_HEIGHT else 0.dp) +
-            (if (showJumpBackToolbar) READER_JUMP_BACK_BAR_HEIGHT else 0.dp),
-        label = "readerBottomContentPadding"
-    )
+    val topContentPadding = 0.dp
+    val bottomContentPadding = 0.dp
 
     val fullscreenProgressPercent by remember(
         webViewScrollY,
