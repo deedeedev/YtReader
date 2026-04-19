@@ -120,9 +120,7 @@ internal fun ReaderScreen(
 
     ReaderSystemBarsEffect(
         activity = activity,
-        view = view,
-        isUiVisible = isUiVisible,
-        isEditing = isEditing
+        view = view
     )
 
     if (uiState.isLoading || subtitle == null) {

@@ -185,45 +185,31 @@ internal fun ReaderCoreEffects(
 @Composable
 internal fun ReaderSystemBarsEffect(
     activity: Activity?,
-    view: android.view.View,
-    isUiVisible: Boolean,
-    isEditing: Boolean
+    view: android.view.View
 ) {
     val window = activity?.window
     val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    fun applyBarState(controller: WindowInsetsControllerCompat) {
-        controller.systemBarsBehavior =
-            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        if (isUiVisible || isEditing) {
-            controller.show(WindowInsetsCompat.Type.systemBars())
-        } else {
-            controller.hide(WindowInsetsCompat.Type.systemBars())
-        }
-    }
-
-    LaunchedEffect(isUiVisible, isEditing) {
+    LaunchedEffect(Unit) {
         if (insetsController != null) {
-            applyBarState(insetsController)
+            insetsController.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
         }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             if (insetsController != null) {
-                applyBarState(insetsController)
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
             }
         }
     }
 
     DisposableEffect(activity, view) {
-        val window = activity?.window
-        val insetsController = window?.let { WindowCompat.getInsetsController(it, view) }
-        if (insetsController != null) {
-            insetsController.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
-
         onDispose {
-            insetsController?.show(WindowInsetsCompat.Type.systemBars())
+            val controller = activity?.window?.let {
+                WindowCompat.getInsetsController(it, view)
+            }
+            controller?.show(WindowInsetsCompat.Type.systemBars())
         }
     }
 }
