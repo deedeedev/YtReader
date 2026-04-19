@@ -1432,7 +1432,19 @@ internal fun ReaderScreen(
                 with(WebViewReaderJs) { wv.clearSelection() }
             }
         },
-        webViewStudyRef = webViewStudyRef
+        webViewStudyRef = webViewStudyRef,
+        webViewScrollProgress = if (webViewTotalHeight > webViewViewportHeight) {
+            webViewScrollY.toFloat() / (webViewTotalHeight - webViewViewportHeight).toFloat()
+        } else 0f,
+        webViewCanScroll = webViewTotalHeight > webViewViewportHeight,
+        onWebViewScrollToProgress = { progress ->
+            val activeWebView = if (readerMode == ReaderMode.STUDY) webViewStudyRef else webViewOriginalRef
+            activeWebView?.let { wv ->
+                val maxScroll = (webViewTotalHeight - webViewViewportHeight).coerceAtLeast(1)
+                val targetY = (progress * maxScroll).toInt()
+                with(WebViewReaderJs) { wv.scrollToOffset(targetY) }
+            }
+        }
     )
 
     ReaderDialogHost(

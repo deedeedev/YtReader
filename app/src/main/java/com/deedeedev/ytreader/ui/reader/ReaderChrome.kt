@@ -40,6 +40,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -58,6 +61,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.ui.FontOption
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -365,6 +370,39 @@ internal fun ReaderModeFab(
                 }
             )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun ReaderScrollSlider(
+    modifier: Modifier = Modifier,
+    visible: Boolean,
+    scrollProgress: Float,
+    enabled: Boolean,
+    onScrollToProgress: (Float) -> Unit
+) {
+    val sliderLabel = stringResource(R.string.reader_scroll_slider)
+    AnimatedVisibility(
+        visible = visible && enabled,
+        enter = slideInVertically(initialOffsetY = { it }),
+        exit = slideOutVertically(targetOffsetY = { it }),
+        modifier = modifier
+    ) {
+        Slider(
+            value = scrollProgress,
+            onValueChange = onScrollToProgress,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 2.dp)
+                .testTag(READER_SCROLL_SLIDER_TAG),
+            colors = SliderDefaults.colors(
+                activeTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                activeTickColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                thumbColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+            )
+        )
     }
 }
 

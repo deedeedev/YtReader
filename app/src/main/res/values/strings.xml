@@ -158,6 +158,7 @@
     <string name="reader_find_result_number">%1$d.</string>
     <string name="reader_page_progress">%1$d%% %2$d/%3$d</string>
     <string name="reader_progress_percent">%1$d%%</string>
+    <string name="reader_scroll_slider">Scroll position</string>
     <string name="reader_jump_back">Back</string>
     <string name="reader_return_to_previous_position">Return to previous position</string>
     <string name="reader_return_to_search_origin">Return to search start</string>

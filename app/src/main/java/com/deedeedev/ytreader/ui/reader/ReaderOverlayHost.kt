@@ -59,7 +59,7 @@ internal fun BoxScope.ReaderOverlayHost(
             .padding(
                 start = 16.dp,
                 end = 16.dp,
-                bottom = if (isUiVisible) 84.dp else 16.dp
+                bottom = if (isUiVisible) READER_OVERLAY_BOTTOM_PADDING_WITH_CHROME else 16.dp
             )
             .navigationBarsPadding()
     ) {
@@ -85,7 +85,7 @@ internal fun BoxScope.ReaderOverlayHost(
             .padding(
                 start = 16.dp,
                 end = 16.dp,
-                bottom = if (isUiVisible) 84.dp else 16.dp
+                bottom = if (isUiVisible) READER_OVERLAY_BOTTOM_PADDING_WITH_CHROME else 16.dp
             )
             .navigationBarsPadding()
     ) {
@@ -112,7 +112,7 @@ internal fun BoxScope.ReaderOverlayHost(
             .padding(
                 start = 16.dp,
                 end = 16.dp,
-                bottom = if (isUiVisible) 84.dp else 16.dp
+                bottom = if (isUiVisible) READER_OVERLAY_BOTTOM_PADDING_WITH_CHROME else 16.dp
             )
             .navigationBarsPadding()
     ) {
@@ -147,7 +147,7 @@ internal fun BoxScope.ReaderOverlayHost(
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .navigationBarsPadding()
-            .padding(bottom = if (isUiVisible) 88.dp else 16.dp)
+            .padding(bottom = if (isUiVisible) READER_FAB_BOTTOM_PADDING_WITH_CHROME else 16.dp)
     ) {
         TinyValueIndicator(
             text = stringResource(R.string.reader_progress_percent, brightnessIndicatorPercent),

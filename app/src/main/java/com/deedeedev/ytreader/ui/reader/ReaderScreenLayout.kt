@@ -133,7 +133,10 @@ internal fun ReaderScreenMainLayer(
     onWebViewScrollProgress: ((scrollY: Int, totalHeight: Int, viewportHeight: Int) -> Unit)? = null,
     onWebViewVisibleCharOffset: ((Int) -> Unit)? = null,
     onWebViewClearSelection: (() -> Unit)? = null,
-    webViewStudyRef: WebView? = null
+    webViewStudyRef: WebView? = null,
+    webViewScrollProgress: Float = 0f,
+    webViewCanScroll: Boolean = false,
+    onWebViewScrollToProgress: (Float) -> Unit = {}
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         if (readerMode == ReaderMode.ORIGINAL) {
@@ -269,6 +272,17 @@ internal fun ReaderScreenMainLayer(
             onCancelEditing = { onRequestAction(PendingAction.ExitEditing) }
         )
 
+        ReaderScrollSlider(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = READER_BOTTOM_BAR_HEIGHT),
+            visible = isUiVisible,
+            scrollProgress = webViewScrollProgress,
+            enabled = webViewCanScroll,
+            onScrollToProgress = onWebViewScrollToProgress
+        )
+
         ReaderBottomBar(
             modifier = Modifier.align(Alignment.BottomCenter),
             visible = isUiVisible,
@@ -315,7 +329,7 @@ internal fun ReaderScreenMainLayer(
         ReaderModeFab(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = if (isUiVisible) 88.dp else 16.dp)
+                .padding(end = 16.dp, bottom = if (isUiVisible) READER_FAB_BOTTOM_PADDING_WITH_CHROME else 16.dp)
                 .navigationBarsPadding(),
             visible = isUiVisible,
             isOriginalMode = readerMode == ReaderMode.ORIGINAL,
