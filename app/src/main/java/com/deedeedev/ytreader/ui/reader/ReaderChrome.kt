@@ -1,14 +1,20 @@
 package com.deedeedev.ytreader.ui.reader
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -52,6 +58,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -63,6 +70,8 @@ import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.ui.FontOption
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -380,29 +389,65 @@ internal fun ReaderScrollSlider(
     visible: Boolean,
     scrollProgress: Float,
     enabled: Boolean,
-    onScrollToProgress: (Float) -> Unit
+    showReturnButton: Boolean = false,
+    onScrollToProgress: (Float) -> Unit,
+    onReturnClick: () -> Unit = {},
+    onValueChangeFinished: () -> Unit = {}
 ) {
     val sliderLabel = stringResource(R.string.reader_scroll_slider)
+    val returnLabel = stringResource(R.string.reader_return_to_previous_position)
     AnimatedVisibility(
         visible = visible && enabled,
         enter = slideInVertically(initialOffsetY = { it }),
         exit = slideOutVertically(targetOffsetY = { it }),
         modifier = modifier
     ) {
-        Slider(
-            value = scrollProgress,
-            onValueChange = onScrollToProgress,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 2.dp)
-                .testTag(READER_SCROLL_SLIDER_TAG),
-            colors = SliderDefaults.colors(
-                activeTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                activeTickColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                thumbColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-            )
-        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AnimatedVisibility(
+                    visible = showReturnButton,
+                    enter = fadeIn() + scaleIn(initialScale = 0.5f),
+                    exit = fadeOut() + scaleOut(targetScale = 0.5f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 12.dp, end = 4.dp)
+                            .size(28.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
+                                shape = CircleShape
+                            )
+                            .clickable(onClick = onReturnClick),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = returnLabel,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+                Slider(
+                    value = scrollProgress,
+                    onValueChange = onScrollToProgress,
+                    onValueChangeFinished = onValueChangeFinished,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 24.dp, vertical = 2.dp)
+                        .testTag(READER_SCROLL_SLIDER_TAG),
+                    colors = SliderDefaults.colors(
+                        activeTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                        inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                        activeTickColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                        thumbColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                    )
+                )
+            }
+        }
     }
 }
 

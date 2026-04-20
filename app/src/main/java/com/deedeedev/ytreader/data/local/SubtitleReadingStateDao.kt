@@ -38,7 +38,7 @@ interface SubtitleReadingStateDao {
 
     @Query("""
         UPDATE subtitle_reading_states
-        SET readingProgressPercent = 0, currentPage = 0
+        SET readingProgressPercent = 0, currentPage = 0, lastStudyScroll = 0, lastTimestamp = 0
         WHERE subtitleId IN (SELECT id FROM subtitles WHERE videoId = :videoId)
     """)
     suspend fun resetReadingProgressForVideo(videoId: String)

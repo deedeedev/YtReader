@@ -43,7 +43,8 @@ internal enum class ReaderJumpReason {
     SEARCH,
     ANNOTATION,
     INITIAL_TARGET,
-    TIME_JUMP
+    TIME_JUMP,
+    SLIDER_DRAG
 }
 
 internal data class JumpBackState(

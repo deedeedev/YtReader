@@ -136,7 +136,10 @@ internal fun ReaderScreenMainLayer(
     webViewStudyRef: WebView? = null,
     webViewScrollProgress: Float = 0f,
     webViewCanScroll: Boolean = false,
-    onWebViewScrollToProgress: (Float) -> Unit = {}
+    onWebViewScrollToProgress: (Float) -> Unit = {},
+    showSliderReturnButton: Boolean = false,
+    onSliderReturnClick: () -> Unit = {},
+    onSliderDragFinished: () -> Unit = {}
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         if (readerMode == ReaderMode.ORIGINAL) {
@@ -280,7 +283,10 @@ internal fun ReaderScreenMainLayer(
             visible = isUiVisible,
             scrollProgress = webViewScrollProgress,
             enabled = webViewCanScroll,
-            onScrollToProgress = onWebViewScrollToProgress
+            showReturnButton = showSliderReturnButton,
+            onScrollToProgress = onWebViewScrollToProgress,
+            onReturnClick = onSliderReturnClick,
+            onValueChangeFinished = onSliderDragFinished
         )
 
         ReaderBottomBar(

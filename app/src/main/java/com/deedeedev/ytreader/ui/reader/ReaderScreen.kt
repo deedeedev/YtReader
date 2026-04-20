@@ -247,6 +247,8 @@ internal fun ReaderScreen(
     var webViewTotalHeight by remember { mutableStateOf(0) }
     var webViewViewportHeight by remember { mutableStateOf(0) }
     var webViewCharOffsetAtTop by remember { mutableStateOf(0) }
+    var sliderReturnCharOffset by remember { mutableStateOf<Int?>(null) }
+    var isSliderDragging by remember { mutableStateOf(false) }
 
     val persistReadingProgress by rememberUpdatedState(newValue = {
         viewModel.updateLastStudyScroll(webViewCharOffsetAtTop)
@@ -266,6 +268,15 @@ internal fun ReaderScreen(
         onDispose {
             brightnessHideJob?.cancel()
             progressIndicatorHideJob?.cancel()
+        }
+    }
+
+    LaunchedEffect(isUiVisible) {
+        if (!isUiVisible) {
+            sliderReturnCharOffset = null
+            if (jumpBackState?.reason == ReaderJumpReason.SLIDER_DRAG) {
+                jumpBackState = null
+            }
         }
     }
 
@@ -1436,12 +1447,33 @@ internal fun ReaderScreen(
         } else 0f,
         webViewCanScroll = webViewTotalHeight > webViewViewportHeight,
         onWebViewScrollToProgress = { progress ->
+            if (!isSliderDragging && sliderReturnCharOffset == null) {
+                sliderReturnCharOffset = webViewCharOffsetAtTop
+            }
+            isSliderDragging = true
             val activeWebView = if (readerMode == ReaderMode.STUDY) webViewStudyRef else webViewOriginalRef
             activeWebView?.let { wv ->
                 val maxScroll = (webViewTotalHeight - webViewViewportHeight).coerceAtLeast(1)
                 val targetY = (progress * maxScroll).toInt()
                 with(WebViewReaderJs) { wv.scrollToOffset(targetY) }
             }
+        },
+        showSliderReturnButton = sliderReturnCharOffset != null,
+        onSliderReturnClick = {
+            sliderReturnCharOffset?.let { offset ->
+                val activeWebView = if (readerMode == ReaderMode.STUDY) webViewStudyRef else webViewOriginalRef
+                activeWebView?.let { wv ->
+                    with(WebViewReaderJs) { wv.scrollToCharOffset(offset) }
+                }
+            }
+            sliderReturnCharOffset = null
+            if (jumpBackState?.reason == ReaderJumpReason.SLIDER_DRAG) {
+                clearJumpBackState()
+            }
+        },
+        onSliderDragFinished = {
+            isSliderDragging = false
+            registerProgrammaticJump(ReaderJumpReason.SLIDER_DRAG)
         }
     )
 
