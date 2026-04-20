@@ -363,8 +363,13 @@ internal fun ReaderScreen(
     fun captureCurrentLocation(): ReaderLocation? {
         val anchor = when (readerMode) {
             ReaderMode.STUDY -> {
-                val anchorStart = studyTextView?.topVisibleLineAnchor(studyScrollState.value) ?: return null
-                ReaderAnchor.Study(anchorStart)
+                val textView = studyTextView
+                if (textView != null) {
+                    val anchorStart = textView.topVisibleLineAnchor(studyScrollState.value) ?: return null
+                    ReaderAnchor.Study(anchorStart)
+                } else {
+                    ReaderAnchor.Study(webViewCharOffsetAtTop)
+                }
             }
 
             ReaderMode.ORIGINAL -> {
@@ -422,15 +427,27 @@ internal fun ReaderScreen(
                             clearJumpBackState()
                             return
                         }
+                        val wv = webViewStudyRef
+                        if (wv != null) {
+                            with(WebViewReaderJs) { wv.scrollToCharOffset(anchor.anchorStart) }
+                            clearSearchResultsMode()
+                            clearJumpBackState()
+                            return
+                        }
                         delay(16)
                     }
                     return
                 }
 
-                val textView = studyTextView ?: return
-                val targetScroll = textView.verticalOffsetForSelection(anchor.anchorStart)
-                    .coerceIn(0, studyScrollState.maxValue)
-                studyScrollState.animateScrollTo(targetScroll)
+                val textView = studyTextView
+                if (textView != null) {
+                    val targetScroll = textView.verticalOffsetForSelection(anchor.anchorStart)
+                        .coerceIn(0, studyScrollState.maxValue)
+                    studyScrollState.animateScrollTo(targetScroll)
+                } else {
+                    val wv = webViewStudyRef ?: return
+                    with(WebViewReaderJs) { wv.scrollToCharOffset(anchor.anchorStart) }
+                }
             }
 
             is ReaderAnchor.OriginalFallback -> {
@@ -1458,17 +1475,23 @@ internal fun ReaderScreen(
                 with(WebViewReaderJs) { wv.scrollToOffset(targetY) }
             }
         },
-        showSliderReturnButton = sliderReturnCharOffset != null,
+        showSliderReturnButton = sliderReturnCharOffset != null || (showSearchResultsToolbar && jumpBackState != null),
         onSliderReturnClick = {
-            sliderReturnCharOffset?.let { offset ->
-                val activeWebView = if (readerMode == ReaderMode.STUDY) webViewStudyRef else webViewOriginalRef
-                activeWebView?.let { wv ->
-                    with(WebViewReaderJs) { wv.scrollToCharOffset(offset) }
+            if (sliderReturnCharOffset != null) {
+                sliderReturnCharOffset?.let { offset ->
+                    val activeWebView = if (readerMode == ReaderMode.STUDY) webViewStudyRef else webViewOriginalRef
+                    activeWebView?.let { wv ->
+                        with(WebViewReaderJs) { wv.scrollToCharOffset(offset) }
+                    }
                 }
-            }
-            sliderReturnCharOffset = null
-            if (jumpBackState?.reason == ReaderJumpReason.SLIDER_DRAG) {
-                clearJumpBackState()
+                sliderReturnCharOffset = null
+                if (jumpBackState?.reason == ReaderJumpReason.SLIDER_DRAG) {
+                    clearJumpBackState()
+                }
+            } else if (jumpBackState != null) {
+                jumpBackState?.let { state ->
+                    coroutineScope.launch { jumpBackTo(state) }
+                }
             }
         },
         onSliderDragFinished = {
