@@ -1,5 +1,8 @@
 package com.deedeedev.ytreader.ui.reader
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.layout.Box
@@ -14,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
@@ -104,7 +108,7 @@ internal fun ReaderScreenMainLayer(
     onSearchInOriginal: () -> Unit,
     onBookmarkTapped: (BookmarkEntity) -> Unit,
     showSearchResultsToolbar: Boolean,
-    showJumpBackToolbar: Boolean,
+    showJumpBackFab: Boolean,
     searchResultsCurrentIndex: Int,
     searchResultsTotalCount: Int,
     canNavigateToPreviousSearchResult: Boolean,
@@ -114,8 +118,7 @@ internal fun ReaderScreenMainLayer(
     onCloseSearchResults: () -> Unit,
     onReplaceCurrent: (() -> Unit)?,
     onJumpBack: () -> Unit,
-    onUserDrag: () -> Unit,
-    fullscreenProgressPercent: Int,
+    onUserDrag: () -> Unit,    fullscreenProgressPercent: Int,
     fullscreenPageProgress: PageProgress,
     showProgressIndicator: Boolean,
     showBrightnessIndicator: Boolean,
@@ -136,8 +139,6 @@ internal fun ReaderScreenMainLayer(
     webViewScrollProgress: Float = 0f,
     webViewCanScroll: Boolean = false,
     onWebViewScrollToProgress: (Float) -> Unit = {},
-    showSliderReturnButton: Boolean = false,
-    onSliderReturnClick: () -> Unit = {},
     onSliderDragFinished: () -> Unit = {}
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
@@ -282,9 +283,7 @@ internal fun ReaderScreenMainLayer(
             visible = isUiVisible,
             scrollProgress = webViewScrollProgress,
             enabled = webViewCanScroll,
-            showReturnButton = showSliderReturnButton,
             onScrollToProgress = onWebViewScrollToProgress,
-            onReturnClick = onSliderReturnClick,
             onValueChangeFinished = onSliderDragFinished
         )
 
@@ -344,6 +343,21 @@ internal fun ReaderScreenMainLayer(
             }
         )
 
+        AnimatedVisibility(
+            visible = showJumpBackFab,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 16.dp, bottom = if (isUiVisible) READER_FAB_BOTTOM_PADDING_WITH_CHROME else 16.dp)
+                .navigationBarsPadding()
+        ) {
+            JumpBackFab(
+                onJumpBack = onJumpBack,
+                modifier = Modifier.testTag(READER_JUMP_BACK_BAR_TAG)
+            )
+        }
+
         ReaderOverlayHost(
             isUiVisible = isUiVisible,
             isEditing = isEditing,
@@ -357,7 +371,6 @@ internal fun ReaderScreenMainLayer(
             showSearchInOriginal = showSearchInOriginal,
             onSearchInOriginal = onSearchInOriginal,
             showSearchResultsToolbar = showSearchResultsToolbar,
-            showJumpBackToolbar = showJumpBackToolbar,
             searchResultsCurrentIndex = searchResultsCurrentIndex,
             searchResultsTotalCount = searchResultsTotalCount,
             canNavigateToPreviousSearchResult = canNavigateToPreviousSearchResult,
@@ -366,7 +379,6 @@ internal fun ReaderScreenMainLayer(
             onNavigateToNextSearchResult = onNavigateToNextSearchResult,
             onCloseSearchResults = onCloseSearchResults,
             onReplaceCurrent = onReplaceCurrent,
-            onJumpBack = onJumpBack,
             fullscreenProgressPercent = fullscreenProgressPercent,
             fullscreenPageProgress = fullscreenPageProgress,
             showProgressIndicator = showProgressIndicator,

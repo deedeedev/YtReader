@@ -32,7 +32,6 @@ internal fun BoxScope.ReaderOverlayHost(
     showSearchInOriginal: Boolean,
     onSearchInOriginal: () -> Unit,
     showSearchResultsToolbar: Boolean,
-    showJumpBackToolbar: Boolean,
     searchResultsCurrentIndex: Int,
     searchResultsTotalCount: Int,
     canNavigateToPreviousSearchResult: Boolean,
@@ -41,7 +40,6 @@ internal fun BoxScope.ReaderOverlayHost(
     onNavigateToNextSearchResult: () -> Unit,
     onCloseSearchResults: () -> Unit,
     onReplaceCurrent: (() -> Unit)?,
-    onJumpBack: () -> Unit,
     fullscreenProgressPercent: Int,
     fullscreenPageProgress: PageProgress,
     showProgressIndicator: Boolean,
@@ -98,25 +96,6 @@ internal fun BoxScope.ReaderOverlayHost(
             onReplaceCurrent = onReplaceCurrent,
             onClose = onCloseSearchResults,
             modifier = Modifier.testTag(READER_SEARCH_RESULTS_BAR_TAG)
-        )
-    }
-
-    AnimatedVisibility(
-        visible = showJumpBackToolbar,
-        enter = slideInVertically(initialOffsetY = { it }),
-        exit = slideOutVertically(targetOffsetY = { it }),
-        modifier = Modifier
-            .align(Alignment.BottomCenter)
-            .padding(
-                start = 16.dp,
-                end = 16.dp,
-                bottom = if (isUiVisible) READER_OVERLAY_BOTTOM_PADDING_WITH_CHROME else 16.dp
-            )
-            .navigationBarsPadding()
-    ) {
-        JumpBackToolbar(
-            onJumpBack = onJumpBack,
-            modifier = Modifier.testTag(READER_JUMP_BACK_BAR_TAG)
         )
     }
 

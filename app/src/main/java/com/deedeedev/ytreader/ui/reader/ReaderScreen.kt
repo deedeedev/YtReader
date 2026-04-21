@@ -1104,8 +1104,7 @@ internal fun ReaderScreen(
         !suppressSelectionToolbar &&
         (selectionRange != null || activeHighlight != null)
     val showSearchResultsToolbar = !isEditing && searchResultsMode != null
-    val showJumpBackToolbar = !isEditing && searchResultsMode == null && jumpBackState != null
-    Log.d(TAG, "showJumpBackToolbar=$showJumpBackToolbar isEditing=$isEditing searchResultsMode=$searchResultsMode jumpBackState=$jumpBackState")
+    val showJumpBackFab = !isEditing && (jumpBackState != null || sliderReturnCharOffset != null)
     val topContentPadding = 0.dp
     val bottomContentPadding = 0.dp
 
@@ -1413,7 +1412,7 @@ internal fun ReaderScreen(
             openBookmarkDialog(bookmark)
         },
         showSearchResultsToolbar = showSearchResultsToolbar,
-        showJumpBackToolbar = showJumpBackToolbar,
+        showJumpBackFab = showJumpBackFab,
         searchResultsCurrentIndex = (searchResultsMode?.activeIndex ?: 0) + 1,
         searchResultsTotalCount = searchResultsMode?.totalResults ?: 0,
         canNavigateToPreviousSearchResult = canNavigateToPreviousSearchResult(searchResultsMode),
@@ -1423,8 +1422,21 @@ internal fun ReaderScreen(
         onCloseSearchResults = { closeSearchResults() },
         onReplaceCurrent = interactiveReplaceState?.let { { replaceCurrentOccurrence() } },
         onJumpBack = {
-            jumpBackState?.let { state ->
-                coroutineScope.launch { jumpBackTo(state) }
+            if (sliderReturnCharOffset != null) {
+                sliderReturnCharOffset?.let { offset ->
+                    val activeWebView = if (readerMode == ReaderMode.STUDY) webViewStudyRef else webViewOriginalRef
+                    activeWebView?.let { wv ->
+                        with(WebViewReaderJs) { wv.scrollToCharOffset(offset) }
+                    }
+                }
+                sliderReturnCharOffset = null
+                if (jumpBackState?.reason == ReaderJumpReason.SLIDER_DRAG) {
+                    clearJumpBackState()
+                }
+            } else if (jumpBackState != null) {
+                jumpBackState?.let { state ->
+                    coroutineScope.launch { jumpBackTo(state) }
+                }
             }
         },
         onUserDrag = { clearJumpBackState() },
@@ -1471,25 +1483,6 @@ internal fun ReaderScreen(
                 val maxScroll = (webViewTotalHeight - webViewViewportHeight).coerceAtLeast(1)
                 val targetY = (progress * maxScroll).toInt()
                 with(WebViewReaderJs) { wv.scrollToOffset(targetY) }
-            }
-        },
-        showSliderReturnButton = sliderReturnCharOffset != null || (showSearchResultsToolbar && jumpBackState != null),
-        onSliderReturnClick = {
-            if (sliderReturnCharOffset != null) {
-                sliderReturnCharOffset?.let { offset ->
-                    val activeWebView = if (readerMode == ReaderMode.STUDY) webViewStudyRef else webViewOriginalRef
-                    activeWebView?.let { wv ->
-                        with(WebViewReaderJs) { wv.scrollToCharOffset(offset) }
-                    }
-                }
-                sliderReturnCharOffset = null
-                if (jumpBackState?.reason == ReaderJumpReason.SLIDER_DRAG) {
-                    clearJumpBackState()
-                }
-            } else if (jumpBackState != null) {
-                jumpBackState?.let { state ->
-                    coroutineScope.launch { jumpBackTo(state) }
-                }
             }
         },
         onSliderDragFinished = {

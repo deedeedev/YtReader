@@ -27,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.StickyNote2
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
@@ -333,34 +334,19 @@ internal fun SearchResultsToolbar(
 }
 
 @Composable
-internal fun JumpBackToolbar(
+internal fun JumpBackFab(
     onJumpBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val jumpBackLabel = stringResource(R.string.reader_return_to_previous_position)
-    val jumpBackShortLabel = stringResource(R.string.reader_jump_back)
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
-        tonalElevation = 4.dp,
-        shadowElevation = 6.dp
+    FloatingActionButton(
+        onClick = onJumpBack,
+        modifier = modifier
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-        ) {
-            FilledTonalButton(onClick = onJumpBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = jumpBackLabel
-                )
-                Text(
-                    text = jumpBackShortLabel,
-                    modifier = Modifier.padding(start = 6.dp)
-                )
-            }
-        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = jumpBackLabel
+        )
     }
 }
 
