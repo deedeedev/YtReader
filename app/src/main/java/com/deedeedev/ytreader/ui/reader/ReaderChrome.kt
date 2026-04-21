@@ -67,8 +67,12 @@ import androidx.compose.ui.res.stringResource
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.ui.FontOption
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.DpSize
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -185,7 +189,10 @@ internal fun ReaderBottomBar(
                 .fillMaxWidth()
                 .navigationBarsPadding()
         ) {
-            BottomAppBar {
+            BottomAppBar(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                contentPadding = PaddingValues(vertical = 0.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
@@ -402,14 +409,31 @@ internal fun ReaderScrollSlider(
             onValueChangeFinished = onValueChangeFinished,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 2.dp)
+                .padding(horizontal = 24.dp, vertical = 0.dp)
                 .testTag(READER_SCROLL_SLIDER_TAG),
             colors = SliderDefaults.colors(
                 activeTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                 inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                activeTickColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                activeTickColor = Color.Transparent,
+                inactiveTickColor = Color.Transparent,
                 thumbColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-            )
+            ),
+            track = { sliderState ->
+                SliderDefaults.Track(
+                    sliderState = sliderState,
+                    modifier = Modifier.height(2.dp),
+                    drawStopIndicator = {},
+                    thumbTrackGapSize = 0.dp,
+                    trackInsideCornerSize = 0.dp
+                )
+            },
+            thumb = {
+                SliderDefaults.Thumb(
+                    interactionSource = remember { MutableInteractionSource() },
+                    modifier = Modifier.size(12.dp),
+                    thumbSize = DpSize(12.dp, 12.dp)
+                )
+            }
         )
     }
 }

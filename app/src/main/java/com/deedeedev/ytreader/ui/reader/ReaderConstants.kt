@@ -18,7 +18,7 @@ internal const val READER_BRIGHTNESS_GESTURE_TAG = "reader_brightness_gesture"
 internal const val READER_BRIGHTNESS_INDICATOR_TAG = "reader_brightness_indicator"
 internal const val READER_PAGE_PROGRESS_TAG = "reader_page_progress"
 
-internal val READER_BOTTOM_BAR_HEIGHT = 80.dp
+internal val READER_BOTTOM_BAR_HEIGHT = 64.dp
 internal val READER_SEARCH_RESULTS_BAR_HEIGHT = 64.dp
 internal const val BRIGHTNESS_SWIPE_FULL_RANGE_PX = 600f
 internal const val MIN_READER_BRIGHTNESS = 0.05f
@@ -28,6 +28,6 @@ internal const val PROGRESS_INDICATOR_HIDE_DELAY_MS = 1000L
 internal const val READER_ANNOTATIONS_SWIPE_TAG = "reader_annotations_swipe"
 internal const val READER_SCROLL_SLIDER_TAG = "reader_scroll_slider"
 internal val READER_ANNOTATIONS_SWIPE_AREA_HEIGHT = 32.dp
-internal val READER_SCROLL_SLIDER_HEIGHT = 24.dp
-internal val READER_FAB_BOTTOM_PADDING_WITH_CHROME = READER_BOTTOM_BAR_HEIGHT + READER_SCROLL_SLIDER_HEIGHT + 8.dp
+internal val READER_SCROLL_SLIDER_HEIGHT = 16.dp
+internal val READER_FAB_BOTTOM_PADDING_WITH_CHROME = READER_BOTTOM_BAR_HEIGHT + READER_SCROLL_SLIDER_HEIGHT + 20.dp
 internal val READER_OVERLAY_BOTTOM_PADDING_WITH_CHROME = READER_FAB_BOTTOM_PADDING_WITH_CHROME
