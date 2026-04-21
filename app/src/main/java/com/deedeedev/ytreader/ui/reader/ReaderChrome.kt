@@ -402,50 +402,48 @@ internal fun ReaderScrollSlider(
         exit = slideOutVertically(targetOffsetY = { it }),
         modifier = modifier
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AnimatedVisibility(
-                    visible = showReturnButton,
-                    enter = fadeIn() + scaleIn(initialScale = 0.5f),
-                    exit = fadeOut() + scaleOut(targetScale = 0.5f)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .padding(start = 12.dp, end = 4.dp)
-                            .size(28.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
-                                shape = CircleShape
-                            )
-                            .clickable(onClick = onReturnClick),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = returnLabel,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-                Slider(
-                    value = scrollProgress,
-                    onValueChange = onScrollToProgress,
-                    onValueChangeFinished = onValueChangeFinished,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 24.dp, vertical = 2.dp)
-                        .testTag(READER_SCROLL_SLIDER_TAG),
-                    colors = SliderDefaults.colors(
-                        activeTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                        inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                        activeTickColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                        thumbColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                    )
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Slider(
+                value = scrollProgress,
+                onValueChange = onScrollToProgress,
+                onValueChangeFinished = onValueChangeFinished,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 2.dp)
+                    .testTag(READER_SCROLL_SLIDER_TAG),
+                colors = SliderDefaults.colors(
+                    activeTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                    inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    activeTickColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                    thumbColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                 )
+            )
+            AnimatedVisibility(
+                visible = showReturnButton,
+                enter = fadeIn() + scaleIn(initialScale = 0.5f),
+                exit = fadeOut() + scaleOut(targetScale = 0.5f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .padding(start = 12.dp, end = 4.dp)
+                        .size(28.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
+                            shape = CircleShape
+                        )
+                        .clickable(onClick = onReturnClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = returnLabel,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
         }
     }
