@@ -175,6 +175,8 @@ internal fun ReaderBottomBar(
     val aiCleaningLabel = stringResource(R.string.ai_cleaning_menu_label)
     val aiCleaningRunningLabel = stringResource(R.string.ai_cleaning_running_menu_label)
     val jumpToTimeLabel = stringResource(R.string.reader_jump_to_time)
+    var showFontMenu by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically(initialOffsetY = { it }),
@@ -227,7 +229,6 @@ internal fun ReaderBottomBar(
                         Icon(Icons.Filled.Add, contentDescription = increaseFontSizeLabel)
                     }
 
-                    var showFontMenu by remember { mutableStateOf(false) }
                     Box {
                         IconButton(onClick = { showFontMenu = true }) {
                             Icon(Icons.Filled.FormatSize, contentDescription = fontFamilyLabel)
@@ -260,7 +261,6 @@ internal fun ReaderBottomBar(
                         Icon(Icons.AutoMirrored.Filled.Notes, contentDescription = highlightsAndNotesLabel)
                     }
 
-                    var showOverflowMenu by remember { mutableStateOf(false) }
                     Box {
                         IconButton(onClick = { showOverflowMenu = true }) {
                             Icon(Icons.Filled.MoreVert, contentDescription = moreOptionsLabel)

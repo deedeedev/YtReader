@@ -197,6 +197,7 @@ internal fun ReaderScreen(
     var editingBookmark by remember { mutableStateOf<BookmarkEntity?>(null) }
     var pendingBookmarkAnchorStart by remember { mutableStateOf<Int?>(null) }
     var pendingBookmarkFallbackTitle by remember { mutableStateOf("") }
+
     var suppressSelectionToolbar by remember { mutableStateOf(false) }
     var studyTextView by remember { mutableStateOf<JustifiedStudyTextView?>(null) }
     val originalSelectionCoordinator = remember { OriginalSelectionCoordinator() }
