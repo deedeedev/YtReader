@@ -1418,9 +1418,6 @@ internal fun ReaderScreen(
         searchResultsTotalCount = searchResultsMode?.totalResults ?: 0,
         canNavigateToPreviousSearchResult = canNavigateToPreviousSearchResult(searchResultsMode),
         canNavigateToNextSearchResult = canNavigateToNextSearchResult(searchResultsMode),
-        onReturnToSearchOrigin = jumpBackState
-            ?.takeIf { it.reason == ReaderJumpReason.SEARCH }
-            ?.let { state -> { coroutineScope.launch { jumpBackTo(state) } } },
         onNavigateToPreviousSearchResult = { moveSearchResultsBackward() },
         onNavigateToNextSearchResult = { moveSearchResultsForward() },
         onCloseSearchResults = { closeSearchResults() },

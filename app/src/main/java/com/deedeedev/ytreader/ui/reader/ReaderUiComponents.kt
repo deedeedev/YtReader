@@ -274,14 +274,12 @@ internal fun SearchResultsToolbar(
     totalResults: Int,
     canGoPrevious: Boolean,
     canGoNext: Boolean,
-    onReturnToOrigin: (() -> Unit)?,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onReplaceCurrent: (() -> Unit)? = null,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val returnToOriginLabel = stringResource(R.string.reader_return_to_search_origin)
     val previousSearchResultLabel = stringResource(R.string.reader_previous_search_result)
     val nextSearchResultLabel = stringResource(R.string.reader_next_search_result)
     val closeSearchResultsLabel = stringResource(R.string.reader_search_results_close)
@@ -297,14 +295,6 @@ internal fun SearchResultsToolbar(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
         ) {
-            if (onReturnToOrigin != null) {
-                IconButton(onClick = onReturnToOrigin) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = returnToOriginLabel
-                    )
-                }
-            }
             IconButton(onClick = onPrevious, enabled = canGoPrevious) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
