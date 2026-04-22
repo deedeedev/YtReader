@@ -119,23 +119,24 @@ fun LibraryScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            val filteredLibraryItems = remember(libraryItems, searchQuery) {
-                libraryItems.filterByTitle(searchQuery)
+            val filteredLibraryItems: List<LibraryItem>? = remember(libraryItems, searchQuery) {
+                libraryItems?.filterByTitle(searchQuery)
             }
 
             var libraryScrollPosition by remember { mutableStateOf<Pair<Int, Int>>(0 to 0) }
 
-            LibraryListSection(
-                items = filteredLibraryItems,
-                emptyText = stringResource(R.string.library_empty),
-                modifier = Modifier.fillMaxSize(),
-                key = { it.videoId },
-                initialScrollPosition = initialScrollPosition,
-                onGetScrollPosition = { position ->
-                    libraryScrollPosition = position
-                }
-            ) { item ->
-                        LibraryItemCard(
+            if (filteredLibraryItems != null) {
+                LibraryListSection(
+                    items = filteredLibraryItems,
+                    emptyText = stringResource(R.string.library_empty),
+                    modifier = Modifier.fillMaxSize(),
+                    key = { it.videoId },
+                    initialScrollPosition = initialScrollPosition,
+                    onGetScrollPosition = { position ->
+                        libraryScrollPosition = position
+                    }
+                ) { item ->
+                    LibraryItemCard(
                             item = item,
                             onSubtitleClick = { id, _ -> onSubtitleClick(id, libraryScrollPosition) },
                             onVideoClick = { id, _ -> onVideoClick(id, libraryScrollPosition) },
@@ -195,6 +196,7 @@ fun LibraryScreen(
                             },
                             compact = videoCardSize == VideoCardSize.COMPACT
                         )
+                }
             }
         }
     }

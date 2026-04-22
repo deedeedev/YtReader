@@ -72,7 +72,7 @@ class LibraryViewModel(
     val libraryChannels: StateFlow<List<String>> = subtitleRepository.observeLibraryChannels()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val libraryItems: StateFlow<List<LibraryItem>> = uiState
+    val libraryItems: StateFlow<List<LibraryItem>?> = uiState
         .map { state ->
             LibraryQueryParams(
                 channelName = state.selectedChannelFilter,
@@ -96,7 +96,7 @@ class LibraryViewModel(
                     }
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val videoCardSize: StateFlow<VideoCardSize> = userPreferencesRepository.videoCardSize
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VideoCardSize.LARGE)
