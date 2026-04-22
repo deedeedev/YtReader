@@ -1,6 +1,9 @@
 package com.deedeedev.ytreader.ui.reader
 
 import android.app.Activity
+import android.graphics.Color
+import android.os.Build
+import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.lazy.LazyListState
@@ -183,7 +186,8 @@ internal fun ReaderCoreEffects(
 @Composable
 internal fun ReaderSystemBarsEffect(
     activity: Activity?,
-    view: android.view.View
+    view: android.view.View,
+    isDarkTheme: Boolean
 ) {
     val window = activity?.window
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -222,9 +226,27 @@ internal fun ReaderSystemBarsEffect(
     DisposableEffect(activity, view) {
         onDispose {
             if (window != null) {
+                window.statusBarColor = Color.BLACK
                 window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
                 @Suppress("DEPRECATION")
                 window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_VISIBLE
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val controller = window.insetsController ?: return@onDispose
+                    if (isDarkTheme) {
+                        controller.setSystemBarsAppearance(
+                            0,
+                            WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+                                WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+                        )
+                    } else {
+                        controller.setSystemBarsAppearance(
+                            WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+                                WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+                            WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+                                WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+                        )
+                    }
+                }
             }
         }
     }

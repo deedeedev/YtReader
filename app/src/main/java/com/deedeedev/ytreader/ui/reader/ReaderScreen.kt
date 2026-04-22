@@ -117,10 +117,13 @@ internal fun ReaderScreen(
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val subtitle = uiState.subtitle
+    val appTheme by userPreferencesRepository.appTheme.collectAsStateWithLifecycle()
+    val isDarkTheme = appTheme.isDark
 
     ReaderSystemBarsEffect(
         activity = activity,
-        view = view
+        view = view,
+        isDarkTheme = isDarkTheme
     )
 
     if (uiState.isLoading || subtitle == null) {
