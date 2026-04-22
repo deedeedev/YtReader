@@ -49,7 +49,6 @@ internal fun WebViewStudyContentPane(
     onWebViewReady: (WebView) -> Unit,
     onWebViewDestroyed: () -> Unit,
     onEditTextChanged: (String) -> Unit = {},
-    onRemoveEmptyLines: (() -> Unit)? = null,
     onTrimWhitespace: (() -> Unit)? = null,
     onNormalizeSpacing: (() -> Unit)? = null,
     onCapitalizeFirstLetter: (() -> Unit)? = null,

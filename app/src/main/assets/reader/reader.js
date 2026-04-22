@@ -433,18 +433,6 @@ function getSelectedText() {
   return "";
 }
 
-function removeEmptyLines() {
-  var content = document.getElementById("content");
-  var text = content.innerText;
-  var lines = text.split(/\n/);
-  var filtered = lines.filter(function(line) {
-    return !/^\s*$/.test(line);
-  });
-  content.innerText = filtered.join("\n");
-  buildOffsetMap();
-  Bridge.onContentHeightChanged(document.body.scrollHeight);
-}
-
 function trimWhitespace() {
   var content = document.getElementById("content");
   var text = content.innerText;

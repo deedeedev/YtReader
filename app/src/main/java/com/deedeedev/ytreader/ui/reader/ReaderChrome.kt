@@ -143,7 +143,7 @@ internal fun ReaderBottomBar(
     onChangeFontFamily: (String) -> Unit,
     onShareText: (String) -> Unit,
     onReplaceWithClipboard: () -> Unit,
-    onRemoveEmptyLines: () -> Unit,
+    onShowLocalCleaning: () -> Unit,
     onShowFind: () -> Unit,
     onShowVideoNotes: () -> Unit,
     onShowFindAndReplace: () -> Unit,
@@ -169,7 +169,7 @@ internal fun ReaderBottomBar(
     val shareTextLabel = stringResource(R.string.share_text)
     val replaceWithClipboardLabel = stringResource(R.string.reader_replace_with_clipboard)
     val highlightsAndNotesLabel = stringResource(R.string.highlights_and_notes)
-    val removeEmptyLinesLabel = stringResource(R.string.remove_empty_lines)
+    val localCleaningLabel = stringResource(R.string.local_cleaning)
     val findLabel = stringResource(R.string.find)
     val externalAiCleaningLabel = stringResource(R.string.ai_cleaning_external_menu_label)
     val findAndReplaceLabel = stringResource(R.string.find_and_replace)
@@ -282,10 +282,10 @@ internal fun ReaderBottomBar(
                             )
                             if (!isOriginalMode) {
                                 DropdownMenuItem(
-                                    text = { Text(removeEmptyLinesLabel) },
+                                    text = { Text(localCleaningLabel) },
                                     onClick = {
                                         showOverflowMenu = false
-                                        onRemoveEmptyLines()
+                                        onShowLocalCleaning()
                                     }
                                 )
                             }

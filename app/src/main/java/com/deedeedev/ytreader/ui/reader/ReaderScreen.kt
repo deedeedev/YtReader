@@ -51,6 +51,8 @@ import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.BookmarkEntity
+import com.deedeedev.ytreader.domain.LocalCleaningOptions
+import com.deedeedev.ytreader.domain.SubtitleCleaner
 import com.deedeedev.ytreader.domain.SubtitleParser
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
@@ -187,6 +189,7 @@ internal fun ReaderScreen(
     var searchInOriginalQuery by remember { mutableStateOf("") }
     var showAiPreviewDialog by remember { mutableStateOf(false) }
     var showAiErrorDialog by remember { mutableStateOf(false) }
+    var showLocalCleaningDialog by remember { mutableStateOf(false) }
     var pendingAiCleaningSourceText by remember { mutableStateOf<String?>(null) }
     var selectionRange by remember { mutableStateOf<SelectionRange?>(null) }
     var activeHighlight by remember { mutableStateOf<TextHighlight?>(null) }
@@ -1293,12 +1296,8 @@ internal fun ReaderScreen(
                 applyTextUpdate(clipboardText)
             }
         },
-        onRemoveEmptyLines = {
-            val cleaned = currentText()
-                .lines()
-                .filter { it.isNotBlank() }
-                .joinToString("\n")
-            applyTextUpdate(cleaned)
+        onShowLocalCleaning = {
+            showLocalCleaningDialog = true
         },
         onShowFind = {
             clearSearchResultsMode()
@@ -1747,6 +1746,8 @@ internal fun ReaderScreen(
             }
         },
         onDismissJumpToTime = { showJumpToTimeDialog = false },
+        showLocalCleaningDialog = showLocalCleaningDialog,
+        onDismissLocalCleaning = { showLocalCleaningDialog = false },
         snackbarHostState = snackbarHostState,
         coroutineScope = coroutineScope
     )
@@ -1769,6 +1770,35 @@ internal fun ReaderScreen(
             },
             onDismiss = {
                 showSearchInOriginalDialog = false
+            }
+        )
+    }
+
+    if (showLocalCleaningDialog) {
+        LocalCleaningDialog(
+            onApply = {
+                val options = LocalCleaningOptions(
+                    normalizeUnicodeWhitespace = true,
+                    removeHtmlTags = true,
+                    removeAsdCcArtifacts = true,
+                    normalizeQuotationMarks = true,
+                    normalizeEllipsis = true,
+                    removeDuplicateSpaces = true,
+                    removeSpacesBeforePunctuation = true,
+                    trimLines = true,
+                    removeBlankLines = true,
+                    capitalizeFirstLetter = true,
+                    addSpaceAfterPunctuation = true,
+                    capitalizeAfterSentenceEnd = true,
+                    mergeShortFragments = true,
+                    removeMidSentenceLineBreaks = true,
+                    replaceLineBreaksWithSpace = false
+                )
+                val cleaned = SubtitleCleaner.clean(currentText(), options)
+                applyTextUpdate(cleaned)
+            },
+            onDismiss = {
+                showLocalCleaningDialog = false
             }
         )
     }

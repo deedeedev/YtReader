@@ -96,10 +96,56 @@ class UserPreferencesRepository(context: Context) {
     private val _autoBackupIncludeSettings = MutableStateFlow(false)
     val autoBackupIncludeSettings: StateFlow<Boolean> = _autoBackupIncludeSettings.asStateFlow()
 
+    private val _localCleanNormalizeUnicodeWhitespace = MutableStateFlow(true)
+    val localCleanNormalizeUnicodeWhitespace: StateFlow<Boolean> = _localCleanNormalizeUnicodeWhitespace.asStateFlow()
+
+    private val _localCleanRemoveHtmlTags = MutableStateFlow(true)
+    val localCleanRemoveHtmlTags: StateFlow<Boolean> = _localCleanRemoveHtmlTags.asStateFlow()
+
+    private val _localCleanRemoveAsdCcArtifacts = MutableStateFlow(true)
+    val localCleanRemoveAsdCcArtifacts: StateFlow<Boolean> = _localCleanRemoveAsdCcArtifacts.asStateFlow()
+
+    private val _localCleanNormalizeQuotationMarks = MutableStateFlow(true)
+    val localCleanNormalizeQuotationMarks: StateFlow<Boolean> = _localCleanNormalizeQuotationMarks.asStateFlow()
+
+    private val _localCleanNormalizeEllipsis = MutableStateFlow(true)
+    val localCleanNormalizeEllipsis: StateFlow<Boolean> = _localCleanNormalizeEllipsis.asStateFlow()
+
+    private val _localCleanRemoveDuplicateSpaces = MutableStateFlow(true)
+    val localCleanRemoveDuplicateSpaces: StateFlow<Boolean> = _localCleanRemoveDuplicateSpaces.asStateFlow()
+
+    private val _localCleanRemoveSpacesBeforePunctuation = MutableStateFlow(true)
+    val localCleanRemoveSpacesBeforePunctuation: StateFlow<Boolean> = _localCleanRemoveSpacesBeforePunctuation.asStateFlow()
+
+    private val _localCleanTrimLines = MutableStateFlow(true)
+    val localCleanTrimLines: StateFlow<Boolean> = _localCleanTrimLines.asStateFlow()
+
+    private val _localCleanRemoveBlankLines = MutableStateFlow(true)
+    val localCleanRemoveBlankLines: StateFlow<Boolean> = _localCleanRemoveBlankLines.asStateFlow()
+
+    private val _localCleanCapitalizeFirstLetter = MutableStateFlow(true)
+    val localCleanCapitalizeFirstLetter: StateFlow<Boolean> = _localCleanCapitalizeFirstLetter.asStateFlow()
+
+    private val _localCleanAddSpaceAfterPunctuation = MutableStateFlow(true)
+    val localCleanAddSpaceAfterPunctuation: StateFlow<Boolean> = _localCleanAddSpaceAfterPunctuation.asStateFlow()
+
+    private val _localCleanCapitalizeAfterSentenceEnd = MutableStateFlow(true)
+    val localCleanCapitalizeAfterSentenceEnd: StateFlow<Boolean> = _localCleanCapitalizeAfterSentenceEnd.asStateFlow()
+
+    private val _localCleanMergeShortFragments = MutableStateFlow(true)
+    val localCleanMergeShortFragments: StateFlow<Boolean> = _localCleanMergeShortFragments.asStateFlow()
+
+    private val _localCleanRemoveMidSentenceLineBreaks = MutableStateFlow(true)
+    val localCleanRemoveMidSentenceLineBreaks: StateFlow<Boolean> = _localCleanRemoveMidSentenceLineBreaks.asStateFlow()
+
+    private val _localCleanReplaceLineBreaksWithSpace = MutableStateFlow(false)
+    val localCleanReplaceLineBreaksWithSpace: StateFlow<Boolean> = _localCleanReplaceLineBreaksWithSpace.asStateFlow()
+
     init {
         loadFavorites()
         loadDisplaySettings()
         loadAutoBackupSettings()
+        loadLocalCleaningSettings()
     }
 
     private fun loadFavorites() {
@@ -208,6 +254,81 @@ class UserPreferencesRepository(context: Context) {
         _autoBackupIncludeSettings.value = include
     }
 
+    fun setLocalCleanNormalizeUnicodeWhitespace(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_NORMALIZE_UNICODE_WHITESPACE, enabled).apply()
+        _localCleanNormalizeUnicodeWhitespace.value = enabled
+    }
+
+    fun setLocalCleanRemoveHtmlTags(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_REMOVE_HTML_TAGS, enabled).apply()
+        _localCleanRemoveHtmlTags.value = enabled
+    }
+
+    fun setLocalCleanRemoveAsdCcArtifacts(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_REMOVE_ASD_CC_ARTIFACTS, enabled).apply()
+        _localCleanRemoveAsdCcArtifacts.value = enabled
+    }
+
+    fun setLocalCleanNormalizeQuotationMarks(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_NORMALIZE_QUOTATION_MARKS, enabled).apply()
+        _localCleanNormalizeQuotationMarks.value = enabled
+    }
+
+    fun setLocalCleanNormalizeEllipsis(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_NORMALIZE_ELLIPSIS, enabled).apply()
+        _localCleanNormalizeEllipsis.value = enabled
+    }
+
+    fun setLocalCleanRemoveDuplicateSpaces(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_REMOVE_DUPLICATE_SPACES, enabled).apply()
+        _localCleanRemoveDuplicateSpaces.value = enabled
+    }
+
+    fun setLocalCleanRemoveSpacesBeforePunctuation(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_REMOVE_SPACES_BEFORE_PUNCTUATION, enabled).apply()
+        _localCleanRemoveSpacesBeforePunctuation.value = enabled
+    }
+
+    fun setLocalCleanTrimLines(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_TRIM_LINES, enabled).apply()
+        _localCleanTrimLines.value = enabled
+    }
+
+    fun setLocalCleanRemoveBlankLines(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_REMOVE_BLANK_LINES, enabled).apply()
+        _localCleanRemoveBlankLines.value = enabled
+    }
+
+    fun setLocalCleanCapitalizeFirstLetter(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_CAPITALIZE_FIRST_LETTER, enabled).apply()
+        _localCleanCapitalizeFirstLetter.value = enabled
+    }
+
+    fun setLocalCleanAddSpaceAfterPunctuation(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_ADD_SPACE_AFTER_PUNCTUATION, enabled).apply()
+        _localCleanAddSpaceAfterPunctuation.value = enabled
+    }
+
+    fun setLocalCleanCapitalizeAfterSentenceEnd(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_CAPITALIZE_AFTER_SENTENCE_END, enabled).apply()
+        _localCleanCapitalizeAfterSentenceEnd.value = enabled
+    }
+
+    fun setLocalCleanMergeShortFragments(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_MERGE_SHORT_FRAGMENTS, enabled).apply()
+        _localCleanMergeShortFragments.value = enabled
+    }
+
+    fun setLocalCleanRemoveMidSentenceLineBreaks(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_REMOVE_MID_SENTENCE_LINE_BREAKS, enabled).apply()
+        _localCleanRemoveMidSentenceLineBreaks.value = enabled
+    }
+
+    fun setLocalCleanReplaceLineBreaksWithSpace(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCAL_CLEAN_REPLACE_LINE_BREAKS_WITH_SPACE, enabled).apply()
+        _localCleanReplaceLineBreaksWithSpace.value = enabled
+    }
+
     fun getAutoBackupEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_BACKUP_ENABLED, false)
     fun getAutoBackupDirectoryUri(): String? = prefs.getString(KEY_AUTO_BACKUP_DIRECTORY_URI, null)
     fun getAutoBackupTime(): String = prefs.getString(KEY_AUTO_BACKUP_TIME, "02:00") ?: "02:00"
@@ -218,6 +339,24 @@ class UserPreferencesRepository(context: Context) {
         _autoBackupDirectoryUri.value = prefs.getString(KEY_AUTO_BACKUP_DIRECTORY_URI, null)
         _autoBackupTime.value = prefs.getString(KEY_AUTO_BACKUP_TIME, "02:00") ?: "02:00"
         _autoBackupIncludeSettings.value = prefs.getBoolean(KEY_AUTO_BACKUP_INCLUDE_SETTINGS, false)
+    }
+
+    private fun loadLocalCleaningSettings() {
+        _localCleanNormalizeUnicodeWhitespace.value = prefs.getBoolean(KEY_LOCAL_CLEAN_NORMALIZE_UNICODE_WHITESPACE, true)
+        _localCleanRemoveHtmlTags.value = prefs.getBoolean(KEY_LOCAL_CLEAN_REMOVE_HTML_TAGS, true)
+        _localCleanRemoveAsdCcArtifacts.value = prefs.getBoolean(KEY_LOCAL_CLEAN_REMOVE_ASD_CC_ARTIFACTS, true)
+        _localCleanNormalizeQuotationMarks.value = prefs.getBoolean(KEY_LOCAL_CLEAN_NORMALIZE_QUOTATION_MARKS, true)
+        _localCleanNormalizeEllipsis.value = prefs.getBoolean(KEY_LOCAL_CLEAN_NORMALIZE_ELLIPSIS, true)
+        _localCleanRemoveDuplicateSpaces.value = prefs.getBoolean(KEY_LOCAL_CLEAN_REMOVE_DUPLICATE_SPACES, true)
+        _localCleanRemoveSpacesBeforePunctuation.value = prefs.getBoolean(KEY_LOCAL_CLEAN_REMOVE_SPACES_BEFORE_PUNCTUATION, true)
+        _localCleanTrimLines.value = prefs.getBoolean(KEY_LOCAL_CLEAN_TRIM_LINES, true)
+        _localCleanRemoveBlankLines.value = prefs.getBoolean(KEY_LOCAL_CLEAN_REMOVE_BLANK_LINES, true)
+        _localCleanCapitalizeFirstLetter.value = prefs.getBoolean(KEY_LOCAL_CLEAN_CAPITALIZE_FIRST_LETTER, true)
+        _localCleanAddSpaceAfterPunctuation.value = prefs.getBoolean(KEY_LOCAL_CLEAN_ADD_SPACE_AFTER_PUNCTUATION, true)
+        _localCleanCapitalizeAfterSentenceEnd.value = prefs.getBoolean(KEY_LOCAL_CLEAN_CAPITALIZE_AFTER_SENTENCE_END, true)
+        _localCleanMergeShortFragments.value = prefs.getBoolean(KEY_LOCAL_CLEAN_MERGE_SHORT_FRAGMENTS, true)
+        _localCleanRemoveMidSentenceLineBreaks.value = prefs.getBoolean(KEY_LOCAL_CLEAN_REMOVE_MID_SENTENCE_LINE_BREAKS, true)
+        _localCleanReplaceLineBreaksWithSpace.value = prefs.getBoolean(KEY_LOCAL_CLEAN_REPLACE_LINE_BREAKS_WITH_SPACE, false)
     }
 
     fun getAiEndpoint(): String = prefs.getString(KEY_AI_ENDPOINT, "") ?: ""
@@ -345,6 +484,21 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_AUTO_BACKUP_DIRECTORY_URI = "auto_backup_directory_uri"
         private const val KEY_AUTO_BACKUP_TIME = "auto_backup_time"
         private const val KEY_AUTO_BACKUP_INCLUDE_SETTINGS = "auto_backup_include_settings"
+        private const val KEY_LOCAL_CLEAN_NORMALIZE_UNICODE_WHITESPACE = "local_clean_normalize_unicode_whitespace"
+        private const val KEY_LOCAL_CLEAN_REMOVE_HTML_TAGS = "local_clean_remove_html_tags"
+        private const val KEY_LOCAL_CLEAN_REMOVE_ASD_CC_ARTIFACTS = "local_clean_remove_asd_cc_artifacts"
+        private const val KEY_LOCAL_CLEAN_NORMALIZE_QUOTATION_MARKS = "local_clean_normalize_quotation_marks"
+        private const val KEY_LOCAL_CLEAN_NORMALIZE_ELLIPSIS = "local_clean_normalize_ellipsis"
+        private const val KEY_LOCAL_CLEAN_REMOVE_DUPLICATE_SPACES = "local_clean_remove_duplicate_spaces"
+        private const val KEY_LOCAL_CLEAN_REMOVE_SPACES_BEFORE_PUNCTUATION = "local_clean_remove_spaces_before_punctuation"
+        private const val KEY_LOCAL_CLEAN_TRIM_LINES = "local_clean_trim_lines"
+        private const val KEY_LOCAL_CLEAN_REMOVE_BLANK_LINES = "local_clean_remove_blank_lines"
+        private const val KEY_LOCAL_CLEAN_CAPITALIZE_FIRST_LETTER = "local_clean_capitalize_first_letter"
+        private const val KEY_LOCAL_CLEAN_ADD_SPACE_AFTER_PUNCTUATION = "local_clean_add_space_after_punctuation"
+        private const val KEY_LOCAL_CLEAN_CAPITALIZE_AFTER_SENTENCE_END = "local_clean_capitalize_after_sentence_end"
+        private const val KEY_LOCAL_CLEAN_MERGE_SHORT_FRAGMENTS = "local_clean_merge_short_fragments"
+        private const val KEY_LOCAL_CLEAN_REMOVE_MID_SENTENCE_LINE_BREAKS = "local_clean_remove_mid_sentence_line_breaks"
+        private const val KEY_LOCAL_CLEAN_REPLACE_LINE_BREAKS_WITH_SPACE = "local_clean_replace_line_breaks_with_space"
 
         const val BRIGHTNESS_FOLLOW_SYSTEM = -1f
 

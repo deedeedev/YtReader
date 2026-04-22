@@ -144,10 +144,6 @@ internal object WebViewReaderJs {
         }
     }
 
-    fun WebView.removeEmptyLines() {
-        evaluateJavascript("removeEmptyLines()", null)
-    }
-
     fun WebView.trimWhitespace() {
         evaluateJavascript("trimWhitespace()", null)
     }

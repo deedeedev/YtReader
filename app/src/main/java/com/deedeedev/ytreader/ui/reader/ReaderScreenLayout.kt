@@ -88,7 +88,7 @@ internal fun ReaderScreenMainLayer(
     onCopyText: (AnnotatedString) -> Unit,
     onShareText: (String) -> Unit,
     onReplaceWithClipboard: () -> Unit,
-    onRemoveEmptyLines: () -> Unit,
+    onShowLocalCleaning: () -> Unit,
     onShowFind: () -> Unit,
     onShowVideoNotes: () -> Unit,
     onShowFindAndReplace: () -> Unit,
@@ -191,9 +191,6 @@ internal fun ReaderScreenMainLayer(
                     onWebViewReady = { onWebViewStudyReady?.invoke(it) },
                     onWebViewDestroyed = { onWebViewStudyDestroyed?.invoke() },
                     onEditTextChanged = { text -> onEditTextChange(text) },
-                    onRemoveEmptyLines = if (isEditing && wv != null) {
-                        { with(WebViewReaderJs) { wv.removeEmptyLines() } }
-                    } else null,
                     onTrimWhitespace = if (isEditing && wv != null) {
                         { with(WebViewReaderJs) { wv.trimWhitespace() } }
                     } else null,
@@ -306,7 +303,7 @@ internal fun ReaderScreenMainLayer(
             onChangeFontFamily = onChangeFontFamily,
             onShareText = onShareText,
             onReplaceWithClipboard = onReplaceWithClipboard,
-            onRemoveEmptyLines = onRemoveEmptyLines,
+            onShowLocalCleaning = onShowLocalCleaning,
             onShowFind = onShowFind,
             onShowVideoNotes = onShowVideoNotes,
             onShowFindAndReplace = onShowFindAndReplace,

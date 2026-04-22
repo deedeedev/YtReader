@@ -73,6 +73,8 @@ internal fun ReaderDialogHost(
     onJumpToStart: () -> Unit,
     onJumpToEnd: () -> Unit,
     onDismissJumpToTime: () -> Unit,
+    showLocalCleaningDialog: Boolean,
+    onDismissLocalCleaning: () -> Unit,
     snackbarHostState: SnackbarHostState,
     coroutineScope: CoroutineScope
 ) {
