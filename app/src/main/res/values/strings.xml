@@ -5,6 +5,7 @@
     <string name="ai_cleaning_menu_label">AI Cleaning</string>
     <string name="ai_cleaning_running_menu_label">AI Cleaning...</string>
     <string name="ai_cleaning_external_menu_label">AI Cleaning (ext)</string>
+    <string name="cleaning_submenu">Cleaning</string>
     <string name="ai_cleaning_external_share_title">Share AI cleaning prompt</string>
     <string name="ai_cleaning_external_nothing_to_share">Nothing to share.</string>
     <string name="back">Back</string>

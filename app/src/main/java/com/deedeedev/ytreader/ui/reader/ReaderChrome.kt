@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TimerOff
@@ -63,6 +64,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.res.stringResource
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.ui.FontOption
@@ -176,8 +178,10 @@ internal fun ReaderBottomBar(
     val aiCleaningLabel = stringResource(R.string.ai_cleaning_menu_label)
     val aiCleaningRunningLabel = stringResource(R.string.ai_cleaning_running_menu_label)
     val jumpToTimeLabel = stringResource(R.string.reader_jump_to_time)
+    val cleaningSubmenuLabel = stringResource(R.string.cleaning_submenu)
     var showFontMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+    var showCleaningSubmenu by remember { mutableStateOf(false) }
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically(initialOffsetY = { it }),
@@ -280,12 +284,12 @@ internal fun ReaderBottomBar(
                                     onShareText(currentText)
                                 }
                             )
-                            if (!isOriginalMode) {
+if (!isOriginalMode) {
                                 DropdownMenuItem(
-                                    text = { Text(localCleaningLabel) },
+                                    text = { Text(shareTextLabel) },
                                     onClick = {
                                         showOverflowMenu = false
-                                        onShowLocalCleaning()
+                                        onShareText(currentText)
                                     }
                                 )
                             }
@@ -322,29 +326,55 @@ internal fun ReaderBottomBar(
                                         onReplaceWithClipboard()
                                     }
                                 )
-                            }
-                            if (!isOriginalMode) {
                                 DropdownMenuItem(
-                                    text = {
-                                        Text(if (isAiCleaning) aiCleaningRunningLabel else aiCleaningLabel)
-                                    },
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        if (isNotificationPermissionGranted) {
-                                            onStartAiCleaning(currentText)
-                                        } else {
-                                            onRequestNotificationPermission(currentText)
-                                        }
-                                    },
-                                    enabled = !isAiCleaning
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(externalAiCleaningLabel) },
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        onStartExternalAiCleaning(currentText)
+                                    text = { Text(cleaningSubmenuLabel) },
+                                    onClick = { showCleaningSubmenu = true },
+                                    trailingIcon = {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                            contentDescription = null
+                                        )
                                     }
                                 )
+                            }
+                            if (showCleaningSubmenu) {
+                                DropdownMenu(
+                                    expanded = true,
+                                    onDismissRequest = { showCleaningSubmenu = false },
+                                    offset = DpOffset(x = 140.dp, y = 0.dp)
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(localCleaningLabel) },
+                                        onClick = {
+                                            showCleaningSubmenu = false
+                                            showOverflowMenu = false
+                                            onShowLocalCleaning()
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(if (isAiCleaning) aiCleaningRunningLabel else aiCleaningLabel)
+                                        },
+                                        onClick = {
+                                            showCleaningSubmenu = false
+                                            showOverflowMenu = false
+                                            if (isNotificationPermissionGranted) {
+                                                onStartAiCleaning(currentText)
+                                            } else {
+                                                onRequestNotificationPermission(currentText)
+                                            }
+                                        },
+                                        enabled = !isAiCleaning
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(externalAiCleaningLabel) },
+                                        onClick = {
+                                            showCleaningSubmenu = false
+                                            showOverflowMenu = false
+                                            onStartExternalAiCleaning(currentText)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
