@@ -11,6 +11,10 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,6 +50,10 @@ import com.deedeedev.ytreader.ui.reader.ReaderLocation
 import com.deedeedev.ytreader.ui.reader.ReaderScreen
 import com.deedeedev.ytreader.ui.reader.VideoNotesSheetRoute
 import com.deedeedev.ytreader.ui.settings.SettingsScreen
+import com.deedeedev.ytreader.ui.settings.SettingsAppearanceScreen
+import com.deedeedev.ytreader.ui.settings.SettingsReaderScreen
+import com.deedeedev.ytreader.ui.settings.SettingsAiScreen
+import com.deedeedev.ytreader.ui.settings.SettingsBackupScreen
 import kotlinx.coroutines.launch
 
 sealed class Screen(
@@ -59,6 +67,10 @@ sealed class Screen(
     object Collections : Screen("collections", R.string.collections, Icons.Default.CollectionsBookmark)
     object CollectionDetail : Screen("collection/{collectionId}", R.string.collection, Icons.Default.CollectionsBookmark)
     object Settings : Screen("settings", R.string.screen_settings, Icons.Default.Settings)
+    object SettingsAppearance : Screen("settings/appearance", R.string.settings_appearance, Icons.Default.Palette)
+    object SettingsReader : Screen("settings/reader_defaults", R.string.settings_reader_defaults, Icons.Default.TextFields)
+    object SettingsAi : Screen("settings/ai", R.string.settings_ai_configuration, Icons.Default.AutoAwesome)
+    object SettingsBackup : Screen("settings/backup", R.string.settings_backup_restore, Icons.Default.Backup)
     object Reader : Screen(
         "reader/{subtitleId}?highlightStart={highlightStart}&highlightEnd={highlightEnd}&bookmarkStart={bookmarkStart}",
         R.string.screen_reader,
@@ -180,8 +192,12 @@ fun MainScreen(
         bottomBar = {
             val currentDestination = navBackStackEntry?.destination
 
-            // Hide bottom bar on Reader screen
-            if (currentRoute?.startsWith("reader") != true) {
+            // Hide bottom bar on Reader and Settings sub-screens
+            val showBottomBar = currentRoute?.let {
+                !it.startsWith("reader") && !it.startsWith("settings/")
+            } ?: true
+
+            if (showBottomBar) {
                 NavigationBar {
                     val items = listOf(Screen.Library, Screen.Search, Screen.Annotations, Screen.Collections, Screen.Settings)
                     items.forEach { screen ->
@@ -253,7 +269,61 @@ fun MainScreen(
                 popEnterTransition = { null },
                 popExitTransition = { null }
             ) {
-                SettingsScreen(appContainer = appContainer)
+                SettingsScreen(
+                    appContainer = appContainer,
+                    onNavigateToSettingsAppearance = { navController.navigate(Screen.SettingsAppearance.route) },
+                    onNavigateToSettingsReader = { navController.navigate(Screen.SettingsReader.route) },
+                    onNavigateToSettingsAi = { navController.navigate(Screen.SettingsAi.route) },
+                    onNavigateToSettingsBackup = { navController.navigate(Screen.SettingsBackup.route) }
+                )
+            }
+            composable(
+                route = Screen.SettingsAppearance.route,
+                enterTransition = { null },
+                exitTransition = { null },
+                popEnterTransition = { null },
+                popExitTransition = { null }
+            ) {
+                SettingsAppearanceScreen(
+                    appContainer = appContainer,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Screen.SettingsReader.route,
+                enterTransition = { null },
+                exitTransition = { null },
+                popEnterTransition = { null },
+                popExitTransition = { null }
+            ) {
+                SettingsReaderScreen(
+                    appContainer = appContainer,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Screen.SettingsAi.route,
+                enterTransition = { null },
+                exitTransition = { null },
+                popEnterTransition = { null },
+                popExitTransition = { null }
+            ) {
+                SettingsAiScreen(
+                    appContainer = appContainer,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Screen.SettingsBackup.route,
+                enterTransition = { null },
+                exitTransition = { null },
+                popEnterTransition = { null },
+                popExitTransition = { null }
+            ) {
+                SettingsBackupScreen(
+                    appContainer = appContainer,
+                    onBack = { navController.popBackStack() }
+                )
             }
             composable(
                 route = Screen.Collections.route,

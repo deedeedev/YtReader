@@ -444,6 +444,12 @@
     <string name="reader_open_in_youtube">Open in YouTube</string>
     <string name="settings_webview_reader_title">WebView Reader (Experimental)</string>
     <string name="settings_webview_reader_description">Use a WebView-based text renderer. May improve scrolling performance with long texts. Editing and AI cleaning are not yet supported in this mode.</string>
+    <string name="settings_ai_configuration">AI Configuration</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_appearance_description">Theme, language and display options.</string>
+    <string name="settings_reader_description">Font size, font family, and line height.</string>
+    <string name="settings_ai_description">Configure AI endpoint, model and prompts.</string>
+    <string name="settings_backup_description">Export, import, and automatic backup settings.</string>
     <string name="settings_experimental">Experimental</string>
     <string name="reader_webview_edit_unavailable">Editing is not yet available in WebView reader. Switch to the standard reader in Settings to edit text.</string>
 </resources>
