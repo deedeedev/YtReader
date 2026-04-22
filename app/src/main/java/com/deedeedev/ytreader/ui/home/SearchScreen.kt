@@ -168,7 +168,9 @@ fun SearchScreen(
         }
 
         if (uiState.streamInfo == null && uiState.error == null && !uiState.isLoading) {
-            val showHistoryLabel = stringResource(R.string.search_show_history)
+            val showHistoryLabel = stringResource(
+                if (uiState.showHistory) R.string.search_hide_history else R.string.search_show_history
+            )
             val historyEmptyLabel = stringResource(R.string.search_history_empty)
             val deleteLabel = stringResource(R.string.delete)
 

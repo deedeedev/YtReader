@@ -207,6 +207,7 @@
     <string name="search_available_subtitles">Sottotitoli disponibili</string>
     <string name="search_youtube_url">URL YouTube</string>
     <string name="search_show_history">Mostra cronologia</string>
+    <string name="search_hide_history">Nascondi cronologia</string>
     <string name="search_history_empty">Nessuna cronologia</string>
     <string name="selected">Selezionato</string>
     <string name="share_text">Condividi testo</string>

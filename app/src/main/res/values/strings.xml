@@ -207,6 +207,7 @@
     <string name="search_available_subtitles">Available Subtitles</string>
     <string name="search_youtube_url">YouTube URL</string>
     <string name="search_show_history">Show History</string>
+    <string name="search_hide_history">Hide History</string>
     <string name="search_history_empty">No search history</string>
     <string name="selected">Selected</string>
     <string name="share_text">Share text</string>
