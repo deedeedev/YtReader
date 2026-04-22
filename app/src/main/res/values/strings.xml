@@ -223,6 +223,9 @@
     <string name="settings_ai_prompt_placeholder">Describe how subtitle text should be cleaned</string>
     <string name="settings_app_theme">App Theme</string>
     <string name="settings_app_language">App Language</string>
+    <string name="settings_video_card_size">Video Card Size</string>
+    <string name="settings_video_card_large">Large</string>
+    <string name="settings_video_card_compact">Compact</string>
     <string name="language_system">System</string>
     <string name="language_english">English</string>
     <string name="language_italian">Italiano</string>

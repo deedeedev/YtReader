@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import com.deedeedev.ytreader.ui.AppLanguage
+import com.deedeedev.ytreader.ui.home.VideoCardSize
 import com.deedeedev.ytreader.ui.theme.AppTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -71,6 +72,9 @@ class UserPreferencesRepository(context: Context) {
 
     private val _appLanguage = MutableStateFlow(AppLanguage.SYSTEM)
     val appLanguage: StateFlow<AppLanguage> = _appLanguage.asStateFlow()
+
+    private val _videoCardSize = MutableStateFlow(VideoCardSize.LARGE)
+    val videoCardSize: StateFlow<VideoCardSize> = _videoCardSize.asStateFlow()
 
     private val _aiEndpoint = MutableStateFlow("")
     val aiEndpoint: StateFlow<String> = _aiEndpoint.asStateFlow()
@@ -160,6 +164,9 @@ class UserPreferencesRepository(context: Context) {
         _appTheme.value = AppTheme.fromStorageValue(prefs.getString(KEY_APP_THEME, AppTheme.SYSTEM.storageValue))
         _appBrightness.value = prefs.getFloat(KEY_APP_BRIGHTNESS, BRIGHTNESS_FOLLOW_SYSTEM)
         _appLanguage.value = AppLanguage.fromStorageValue(prefs.getString(KEY_APP_LANGUAGE, AppLanguage.SYSTEM.storageValue))
+        _videoCardSize.value = VideoCardSize.valueOf(
+            prefs.getString(KEY_VIDEO_CARD_SIZE, VideoCardSize.LARGE.name) ?: VideoCardSize.LARGE.name
+        )
         _aiEndpoint.value = prefs.getString(KEY_AI_ENDPOINT, "") ?: ""
         _aiApiKey.value = prefs.getString(KEY_AI_API_KEY, "") ?: ""
         _aiModel.value = prefs.getString(KEY_AI_MODEL, DEFAULT_AI_MODEL) ?: DEFAULT_AI_MODEL
@@ -212,6 +219,11 @@ class UserPreferencesRepository(context: Context) {
     fun setAppLanguage(appLanguage: AppLanguage) {
         prefs.edit().putString(KEY_APP_LANGUAGE, appLanguage.storageValue).apply()
         _appLanguage.value = appLanguage
+    }
+
+    fun setVideoCardSize(size: VideoCardSize) {
+        prefs.edit().putString(KEY_VIDEO_CARD_SIZE, size.name).apply()
+        _videoCardSize.value = size
     }
 
     fun setAiEndpoint(endpoint: String) {
@@ -471,6 +483,7 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_APP_THEME = "app_theme"
         private const val KEY_APP_BRIGHTNESS = "app_brightness"
         private const val KEY_APP_LANGUAGE = "app_language"
+        private const val KEY_VIDEO_CARD_SIZE = "video_card_size"
         private const val KEY_AI_ENDPOINT = "ai_endpoint"
         private const val KEY_AI_API_KEY = "ai_api_key"
         private const val KEY_AI_MODEL = "ai_model"

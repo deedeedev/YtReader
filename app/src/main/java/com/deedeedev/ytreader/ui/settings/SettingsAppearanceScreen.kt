@@ -12,6 +12,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.AppContainer
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.ui.home.VideoCardSize
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,6 +114,38 @@ fun SettingsAppearanceScreen(
                             onClick = {
                                 viewModel.setAppLanguage(appLanguage)
                                 languageExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            var videoCardSizeExpanded by remember { mutableStateOf(false) }
+
+            ExposedDropdownMenuBox(
+                expanded = videoCardSizeExpanded,
+                onExpandedChange = { videoCardSizeExpanded = !videoCardSizeExpanded }
+            ) {
+                TextField(
+                    value = stringResource(uiState.videoCardSize.labelRes),
+                    onValueChange = {},
+                    readOnly = true,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = videoCardSizeExpanded) },
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                        .fillMaxWidth(),
+                    label = { Text(stringResource(R.string.settings_video_card_size)) }
+                )
+                ExposedDropdownMenu(
+                    expanded = videoCardSizeExpanded,
+                    onDismissRequest = { videoCardSizeExpanded = false }
+                ) {
+                    uiState.availableVideoCardSizes.forEach { size ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(size.labelRes)) },
+                            onClick = {
+                                viewModel.setVideoCardSize(size)
+                                videoCardSizeExpanded = false
                             }
                         )
                     }

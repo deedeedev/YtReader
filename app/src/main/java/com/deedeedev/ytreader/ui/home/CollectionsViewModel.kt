@@ -17,16 +17,21 @@ import com.deedeedev.ytreader.data.local.SubtitleEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
+import com.deedeedev.ytreader.ui.home.VideoCardSize
 
 data class CollectionsUiState(
     val collections: List<VideoCollection> = emptyList(),
@@ -63,6 +68,9 @@ class CollectionsViewModel(
     val uiState: StateFlow<CollectionsUiState> = _uiState.asStateFlow()
     private val _events = MutableSharedFlow<CollectionsEvent>(extraBufferCapacity = 1)
     val events = _events.asSharedFlow()
+
+    val videoCardSize: StateFlow<VideoCardSize> = userPreferencesRepository.videoCardSize
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VideoCardSize.LARGE)
 
     init {
         loadCollections()

@@ -38,6 +38,7 @@ fun LibraryScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val uniqueChannels by viewModel.libraryChannels.collectAsStateWithLifecycle()
     val libraryItems by viewModel.libraryItems.collectAsStateWithLifecycle()
+    val videoCardSize by viewModel.videoCardSize.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -191,7 +192,8 @@ fun LibraryScreen(
                                 epubExportVideoIds = listOf(videoId)
                                 epubExportTitle = title
                                 showEpubExport = true
-                            }
+                            },
+                            compact = videoCardSize == VideoCardSize.COMPACT
                         )
             }
         }

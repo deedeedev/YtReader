@@ -15,6 +15,7 @@ import com.deedeedev.ytreader.data.YoutubeRepository
 import com.deedeedev.ytreader.data.VideoCollection
 import com.deedeedev.ytreader.data.local.SubtitleEntity
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
+import com.deedeedev.ytreader.ui.home.VideoCardSize
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -96,6 +97,9 @@ class LibraryViewModel(
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val videoCardSize: StateFlow<VideoCardSize> = userPreferencesRepository.videoCardSize
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), VideoCardSize.LARGE)
 
     init {
         loadCollections()

@@ -15,6 +15,7 @@ import com.deedeedev.ytreader.data.preferredThumbnailUrl
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import com.deedeedev.ytreader.ui.AppLanguage
 import com.deedeedev.ytreader.ui.FontOption
+import com.deedeedev.ytreader.ui.home.VideoCardSize
 import com.deedeedev.ytreader.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +32,8 @@ data class SettingsUiState(
     val availableThemes: List<AppTheme> = AppTheme.entries,
     val appLanguage: AppLanguage = AppLanguage.SYSTEM,
     val availableLanguages: List<AppLanguage> = AppLanguage.entries,
+    val videoCardSize: VideoCardSize = VideoCardSize.LARGE,
+    val availableVideoCardSizes: List<VideoCardSize> = VideoCardSize.entries,
     val aiEndpoint: String = "",
     val aiApiKey: String = "",
     val aiModel: String = "",
@@ -77,6 +80,11 @@ class SettingsViewModel(
         viewModelScope.launch {
             userPreferencesRepository.appLanguage.collect { appLanguage ->
                 _uiState.update { it.copy(appLanguage = appLanguage) }
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.videoCardSize.collect { size ->
+                _uiState.update { it.copy(videoCardSize = size) }
             }
         }
         viewModelScope.launch {
@@ -139,6 +147,10 @@ class SettingsViewModel(
 
     fun setAppLanguage(appLanguage: AppLanguage) {
         userPreferencesRepository.setAppLanguage(appLanguage)
+    }
+
+    fun setVideoCardSize(size: VideoCardSize) {
+        userPreferencesRepository.setVideoCardSize(size)
     }
 
     fun setAiEndpoint(endpoint: String) {

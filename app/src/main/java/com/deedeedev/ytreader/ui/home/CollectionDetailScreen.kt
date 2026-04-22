@@ -68,6 +68,7 @@ fun CollectionDetailScreen(
     initialScrollPosition: Pair<Int, Int>? = null
 ) {
     val uiState: CollectionsUiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val videoCardSize by viewModel.videoCardSize.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -311,7 +312,8 @@ fun CollectionDetailScreen(
                                 epubExportVideoIds = listOf(videoId)
                                 epubExportTitle = title
                                 showEpubExport = true
-                            }
+                            },
+                            compact = videoCardSize == VideoCardSize.COMPACT
                         )
             }
         }
