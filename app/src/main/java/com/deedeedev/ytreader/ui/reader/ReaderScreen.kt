@@ -1519,6 +1519,7 @@ internal fun ReaderScreen(
         onFindIsCaseSensitiveChange = { findIsCaseSensitive = it },
         onRunFindSearch = { runFindSearch() },
         onSelectStudyFindResult = { result ->
+            isUiVisible = false
             showFindDialog = false
             selectionRange = null
             activeHighlight = null
@@ -1533,6 +1534,7 @@ internal fun ReaderScreen(
             )
         },
         onSelectOriginalFallbackFindResult = { result ->
+            isUiVisible = false
             showFindDialog = false
             selectionRange = null
             activeHighlight = null
@@ -1547,6 +1549,7 @@ internal fun ReaderScreen(
             )
         },
         onSelectOriginalSegmentFindResult = { result ->
+            isUiVisible = false
             showFindDialog = false
             selectionRange = null
             activeHighlight = null
