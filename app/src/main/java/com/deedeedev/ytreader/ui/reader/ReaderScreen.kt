@@ -272,9 +272,11 @@ internal fun ReaderScreen(
         }
     }
 
-    LaunchedEffect(isUiVisible) {
+    LaunchedEffect(isUiVisible, jumpBackState) {
         if (!isUiVisible) {
-            sliderReturnCharOffset = null
+            if (sliderReturnCharOffset != null && jumpBackState?.reason != ReaderJumpReason.SLIDER_DRAG) {
+                sliderReturnCharOffset = null
+            }
             if (jumpBackState?.reason == ReaderJumpReason.SLIDER_DRAG) {
                 jumpBackState = null
             }
