@@ -56,6 +56,7 @@ import com.deedeedev.ytreader.domain.SubtitleCleaner
 import com.deedeedev.ytreader.domain.SubtitleParser
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import androidx.core.app.ActivityCompat
 import android.webkit.WebView
@@ -81,7 +82,7 @@ private const val TAG = "ReaderScreen"
 
 private val DEFAULT_NOTE_HIGHLIGHT_COLOR = HighlightColor.YELLOW
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, kotlinx.coroutines.FlowPreview::class)
 @Composable
 internal fun ReaderScreen(
     appContainer: AppContainer,
@@ -258,7 +259,9 @@ internal fun ReaderScreen(
     var isSliderDragging by remember { mutableStateOf(false) }
 
     val persistReadingProgress by rememberUpdatedState(newValue = {
-        viewModel.updateLastStudyScroll(webViewCharOffsetAtTop)
+        if (webViewCharOffsetAtTop > 0) {
+            viewModel.updateLastStudyScroll(webViewCharOffsetAtTop)
+        }
     })
 
     val hasInitialNavigationTarget = initialReaderLocation != null ||
@@ -1155,6 +1158,16 @@ internal fun ReaderScreen(
             currentPage = fullscreenPageProgress.currentPage,
             totalPages = fullscreenPageProgress.totalPages
         )
+    }
+
+    LaunchedEffect(Unit) {
+        snapshotFlow { webViewCharOffsetAtTop }
+            .debounce(2000)
+            .collect { offset ->
+                if (offset > 0) {
+                    viewModel.updateLastStudyScroll(offset)
+                }
+            }
     }
 
     val webViewAnnotationScrollOffset = pendingInitialHighlightRange?.start

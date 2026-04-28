@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.WindowInsets
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -222,17 +223,19 @@ internal fun WebViewStudyContentPane(
         if (!isWebViewReady || hasAppliedInitialScroll) return@LaunchedEffect
         if (lastContent.isEmpty()) return@LaunchedEffect
         val wv = webView ?: return@LaunchedEffect
+        delay(200)
         if (annotationScrollOffset != null && annotationScrollOffset > 0) {
             with(WebViewReaderJs) {
                 wv.scrollToCharOffset(annotationScrollOffset)
             }
             onAnnotationNavigated?.invoke()
+            hasAppliedInitialScroll = true
         } else if (initialScrollPercent > 0) {
             with(WebViewReaderJs) {
                 wv.scrollToCharOffset(initialScrollPercent)
             }
+            hasAppliedInitialScroll = true
         }
-        hasAppliedInitialScroll = true
     }
 
     LaunchedEffect(isWebViewReady, isEditMode) {
