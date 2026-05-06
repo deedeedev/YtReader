@@ -375,6 +375,16 @@ document.addEventListener("click", function(e) {
     return;
   }
 
+  // If there's an active selection, dismiss it without forwarding the tap
+  var sel = window.getSelection();
+  if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+    sel.removeAllRanges();
+    if (selectionChangeTimeout) clearTimeout(selectionChangeTimeout);
+    selectionChangeTimeout = null;
+    Bridge.onSelectionChanged(-1, -1);
+    return;
+  }
+
   // General tap zone
   var xFraction = e.clientX / window.innerWidth;
   var yFraction = e.clientY / window.innerHeight;

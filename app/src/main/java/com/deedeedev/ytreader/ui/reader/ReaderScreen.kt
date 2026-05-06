@@ -955,7 +955,15 @@ internal fun ReaderScreen(
 
     fun handleReaderTap(tapPosition: ReaderTapPosition) {
         if (isEditing) return
-        if (selectionRange != null || activeHighlight != null) return
+        if (selectionRange != null) {
+            selectionRange = null
+            with(WebViewReaderJs) { webViewStudyRef?.clearSelection() }
+            return
+        }
+        if (activeHighlight != null) {
+            activeHighlight = null
+            return
+        }
         if (readerMode == ReaderMode.STUDY && isBookmarkCornerTap(tapPosition)) {
             openBookmarkDialog()
             return
