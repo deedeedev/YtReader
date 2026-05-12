@@ -51,7 +51,6 @@ import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
 import com.deedeedev.ytreader.data.local.BookmarkEntity
-import com.deedeedev.ytreader.domain.LocalCleaningOptions
 import com.deedeedev.ytreader.domain.SubtitleCleaner
 import com.deedeedev.ytreader.domain.SubtitleParser
 import kotlinx.coroutines.delay
@@ -1797,24 +1796,7 @@ internal fun ReaderScreen(
 
     if (showLocalCleaningDialog) {
         LocalCleaningDialog(
-            onApply = {
-                val options = LocalCleaningOptions(
-                    normalizeUnicodeWhitespace = true,
-                    removeHtmlTags = true,
-                    removeAsdCcArtifacts = true,
-                    normalizeQuotationMarks = true,
-                    normalizeEllipsis = true,
-                    removeDuplicateSpaces = true,
-                    removeSpacesBeforePunctuation = true,
-                    trimLines = true,
-                    removeBlankLines = true,
-                    capitalizeFirstLetter = true,
-                    addSpaceAfterPunctuation = true,
-                    capitalizeAfterSentenceEnd = true,
-                    mergeShortFragments = true,
-                    removeMidSentenceLineBreaks = true,
-                    replaceLineBreaksWithSpace = false
-                )
+            onApply = { options ->
                 val cleaned = SubtitleCleaner.clean(currentText(), options)
                 applyTextUpdate(cleaned)
             },

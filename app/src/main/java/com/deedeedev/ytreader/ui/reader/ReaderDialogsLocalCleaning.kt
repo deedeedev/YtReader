@@ -22,10 +22,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.domain.LocalCleaningOptions
 
 @Composable
 internal fun LocalCleaningDialog(
-    onApply: () -> Unit,
+    onApply: (LocalCleaningOptions) -> Unit,
     onDismiss: () -> Unit
 ) {
     var normalizeUnicodeWhitespace by remember { mutableStateOf(true) }
@@ -78,7 +79,25 @@ internal fun LocalCleaningDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    onApply()
+                    onApply(
+                        LocalCleaningOptions(
+                            normalizeUnicodeWhitespace = normalizeUnicodeWhitespace,
+                            removeHtmlTags = removeHtmlTags,
+                            removeAsdCcArtifacts = removeAsdCcArtifacts,
+                            normalizeQuotationMarks = normalizeQuotationMarks,
+                            normalizeEllipsis = normalizeEllipsis,
+                            removeDuplicateSpaces = removeDuplicateSpaces,
+                            removeSpacesBeforePunctuation = removeSpacesBeforePunctuation,
+                            trimLines = trimLines,
+                            removeBlankLines = removeBlankLines,
+                            capitalizeFirstLetter = capitalizeFirstLetter,
+                            addSpaceAfterPunctuation = addSpaceAfterPunctuation,
+                            capitalizeAfterSentenceEnd = capitalizeAfterSentenceEnd,
+                            mergeShortFragments = mergeShortFragments,
+                            removeMidSentenceLineBreaks = removeMidSentenceLineBreaks,
+                            replaceLineBreaksWithSpace = replaceLineBreaksWithSpace
+                        )
+                    )
                     onDismiss()
                 }
             ) {
