@@ -2,6 +2,7 @@ package com.deedeedev.ytreader.ui.reader
 
 import android.Manifest
 import android.util.Log
+import kotlin.math.roundToInt
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -1135,8 +1136,9 @@ internal fun ReaderScreen(
             val scrollY = webViewScrollY
             val totalHeight = webViewTotalHeight
             val viewportHeight = webViewViewportHeight
-            if (totalHeight <= viewportHeight) 0
-            else ((scrollY.toFloat() / (totalHeight - viewportHeight)) * 100).toInt().coerceIn(0, 100)
+            val result = if (totalHeight <= viewportHeight) 0
+            else ((scrollY.toFloat() / (totalHeight - viewportHeight)) * 100).roundToInt().coerceIn(0, 100)
+            result
         }
     }
 
@@ -1153,7 +1155,9 @@ internal fun ReaderScreen(
                 PageProgress(currentPage = 1, totalPages = 1)
             } else {
                 val totalPages = ((totalHeight + viewportHeight - 1) / viewportHeight).coerceAtLeast(1)
-                val currentPage = ((scrollY + viewportHeight) / viewportHeight).coerceIn(1, totalPages)
+                val maxScrollY = totalHeight - viewportHeight
+                val currentPage = if (scrollY >= maxScrollY - 1) totalPages
+                    else ((scrollY + viewportHeight) / viewportHeight).coerceIn(1, totalPages)
                 PageProgress(currentPage = currentPage, totalPages = totalPages)
             }
         }
