@@ -1,5 +1,10 @@
 package com.deedeedev.ytreader.ui.home
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
@@ -13,11 +18,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -72,6 +77,7 @@ import com.deedeedev.ytreader.ui.components.EpubExportDialog
 import com.deedeedev.ytreader.ui.home.CollectionsUiState
 import com.deedeedev.ytreader.ui.home.CollectionsEvent
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -296,6 +302,17 @@ private fun CollectionCard(
     onExport: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val isDragging = dragDropState.currentIndex == index
+    val rawOffset = if (isDragging) {
+        dragDropState.draggedDistance
+    } else {
+        dragDropState.displacementFor(collection.id)
+    }
+    val animatedOffset by animateFloatAsState(
+        targetValue = rawOffset,
+        animationSpec = if (isDragging) snap() else spring(stiffness = Spring.StiffnessMediumLow),
+        label = "dragOffset"
+    )
     val videosCountLabel = pluralStringResource(
         R.plurals.collection_videos_count,
         collection.videoIds.size,
@@ -305,15 +322,22 @@ private fun CollectionCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .zIndex(if (dragDropState.currentIndex == index) 1f else 0f)
+            .then(
+                if (isDragging) {
+                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CardDefaults.shape)
+                } else {
+                    Modifier
+                }
+            )
+            .zIndex(if (isDragging) 1f else 0f)
             .graphicsLayer {
-                translationY = dragDropState.translationFor(index)
+                translationY = animatedOffset
             }
             .pointerInput(collection.id) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
                         showMenu = false
-                        dragDropState.startDragging(index)
+                        dragDropState.startDragging(collection.id)
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
@@ -325,7 +349,7 @@ private fun CollectionCard(
             }
             .clickable(onClick = onOpen),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (dragDropState.currentIndex == index) 8.dp else 2.dp
+            defaultElevation = if (isDragging) 8.dp else 2.dp
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -459,11 +483,7 @@ private fun rememberCollectionsDragDropState(
             listState = listState,
             collections = collections,
             onOrderChanged = onOrderChanged,
-            onScroll = { distance ->
-                scope.launch {
-                    listState.scrollBy(distance)
-                }
-            }
+            scope = scope
         )
     }
 }
@@ -472,56 +492,82 @@ private class CollectionsDragDropState(
     private val listState: LazyListState,
     private val collections: SnapshotStateList<VideoCollection>,
     private val onOrderChanged: (List<String>) -> Unit,
-    private val onScroll: (Float) -> Job
+    private val scope: kotlinx.coroutines.CoroutineScope
 ) {
-    private var draggedDistance by mutableFloatStateOf(0f)
+    private var _draggedDistance by mutableFloatStateOf(0f)
+    val draggedDistance: Float get() = _draggedDistance
     private var scrollJob: Job? = null
+    private var _displacements by mutableStateOf<Map<String, Float>>(emptyMap())
+    private var _currentIndex by mutableIntStateOf(-1)
+    val currentIndex: Int get() = _currentIndex
 
-    var currentIndex by mutableIntStateOf(-1)
-        private set
+    fun startDragging(collectionId: String) {
+        val index = collections.indexOfFirst { it.id == collectionId }
+        if (index >= 0) {
+            _currentIndex = index
+            _draggedDistance = 0f
+            _displacements = emptyMap()
+        }
+    }
 
-    fun startDragging(index: Int) {
-        currentIndex = index
-        draggedDistance = 0f
+    fun displacementFor(collectionId: String): Float {
+        return _displacements[collectionId] ?: 0f
     }
 
     fun onDrag(dragAmount: Float) {
-        val activeIndex = currentIndex
-        if (activeIndex !in collections.indices) {
-            return
-        }
+        val activeIndex = _currentIndex
+        if (activeIndex !in collections.indices) return
 
-        draggedDistance += dragAmount
-        val currentItem = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == activeIndex } ?: return
+        _draggedDistance += dragAmount
+        val currentItem = listState.layoutInfo.visibleItemsInfo
+            .firstOrNull { it.index == activeIndex } ?: return
         val targetItem = currentTargetItem(currentItem)
 
         if (targetItem != null && targetItem.index in collections.indices) {
+            val moveDirection = targetItem.index - activeIndex
+            val spacingPx = computeItemSpacing()
+            val displacementAmount = if (moveDirection > 0) {
+                -(currentItem.size + spacingPx)
+            } else {
+                currentItem.size + spacingPx
+            }.toFloat()
+
+            val range = if (moveDirection > 0) {
+                (activeIndex + 1)..targetItem.index
+            } else {
+                targetItem.index until activeIndex
+            }
+
+            val newDisplacements = _displacements.toMutableMap()
+            for (i in range) {
+                val id = collections[i].id
+                newDisplacements[id] = displacementAmount
+            }
+            _displacements = newDisplacements
+
             collections.move(activeIndex, targetItem.index)
-            draggedDistance += currentItem.offset - targetItem.offset
-            currentIndex = targetItem.index
+            _draggedDistance += currentItem.offset - targetItem.offset
+            _currentIndex = targetItem.index
         }
 
-        scheduleAutoScroll(currentItem)
+        scheduleAutoScroll()
     }
 
     fun onDragStopped() {
         scrollJob?.cancel()
         scrollJob = null
 
-        if (currentIndex != -1) {
+        if (_currentIndex != -1) {
             onOrderChanged(collections.map { it.id })
         }
 
-        currentIndex = -1
-        draggedDistance = 0f
-    }
-
-    fun translationFor(index: Int): Float {
-        return if (index == currentIndex) draggedDistance else 0f
+        _currentIndex = -1
+        _draggedDistance = 0f
+        _displacements = emptyMap()
     }
 
     private fun currentTargetItem(currentItem: LazyListItemInfo): LazyListItemInfo? {
-        val startOffset = currentItem.offset + draggedDistance
+        val startOffset = currentItem.offset + _draggedDistance
         val endOffset = startOffset + currentItem.size
         val middleOffset = startOffset + ((endOffset - startOffset) / 2f)
 
@@ -530,27 +576,43 @@ private class CollectionsDragDropState(
         }
     }
 
-    private fun scheduleAutoScroll(currentItem: LazyListItemInfo) {
+    private fun computeItemSpacing(): Int {
+        val items = listState.layoutInfo.visibleItemsInfo.sortedBy { it.index }
+        if (items.size < 2) return 0
+        return items[1].offset - items[0].offset - items[0].size
+    }
+
+    private fun calculateOverscroll(): Float {
+        val activeIndex = _currentIndex
+        if (activeIndex !in collections.indices) return 0f
+        val currentItem = listState.layoutInfo.visibleItemsInfo
+            .firstOrNull { it.index == activeIndex } ?: return 0f
         val layoutInfo = listState.layoutInfo
-        val startOffset = currentItem.offset + draggedDistance
+        val startOffset = currentItem.offset + _draggedDistance
         val endOffset = startOffset + currentItem.size
-        val overscroll = when {
-            draggedDistance > 0 -> endOffset - layoutInfo.viewportEndOffset
-            draggedDistance < 0 -> startOffset - layoutInfo.viewportStartOffset
+        return when {
+            _draggedDistance > 0 -> (endOffset - layoutInfo.viewportEndOffset).coerceAtLeast(0f)
+            _draggedDistance < 0 -> (startOffset - layoutInfo.viewportStartOffset).coerceAtMost(0f)
             else -> 0f
         }
+    }
 
-        if (overscroll == 0f) {
-            scrollJob?.cancel()
-            scrollJob = null
-            return
+    private fun scheduleAutoScroll() {
+        scrollJob?.cancel()
+        scrollJob = scope.launch {
+            while (true) {
+                val overscroll = calculateOverscroll()
+                if (overscroll == 0f) break
+                val speed = overscroll.coerceIn(-MAX_SCROLL_SPEED, MAX_SCROLL_SPEED)
+                listState.scrollBy(speed)
+                delay(AUTO_SCROLL_INTERVAL_MS)
+            }
         }
+    }
 
-        if (scrollJob?.isActive == true) {
-            return
-        }
-
-        scrollJob = onScroll(overscroll)
+    companion object {
+        private const val MAX_SCROLL_SPEED = 20f
+        private const val AUTO_SCROLL_INTERVAL_MS = 16L
     }
 }
 
