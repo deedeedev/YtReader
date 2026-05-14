@@ -223,16 +223,17 @@ internal fun WebViewStudyContentPane(
         if (!isWebViewReady || hasAppliedInitialScroll) return@LaunchedEffect
         if (lastContent.isEmpty()) return@LaunchedEffect
         val wv = webView ?: return@LaunchedEffect
-        delay(200)
         if (annotationScrollOffset != null && annotationScrollOffset > 0) {
+            delay(100)
             with(WebViewReaderJs) {
-                wv.scrollToCharOffset(annotationScrollOffset)
+                wv.scrollToCharOffsetWhenReady(annotationScrollOffset)
             }
             onAnnotationNavigated?.invoke()
             hasAppliedInitialScroll = true
         } else if (initialScrollPercent > 0) {
+            delay(100)
             with(WebViewReaderJs) {
-                wv.scrollToCharOffset(initialScrollPercent)
+                wv.scrollToCharOffsetWhenReady(initialScrollPercent)
             }
             hasAppliedInitialScroll = true
         }

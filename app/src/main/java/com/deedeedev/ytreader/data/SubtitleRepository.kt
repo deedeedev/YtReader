@@ -1,6 +1,7 @@
 package com.deedeedev.ytreader.data
 
 import com.deedeedev.ytreader.data.local.AiCleaningStateDao
+import android.util.Log
 import com.deedeedev.ytreader.data.local.AiCleaningStateEntity
 import com.deedeedev.ytreader.data.local.LibraryVideoRow
 import com.deedeedev.ytreader.data.local.SubtitleDao
@@ -192,6 +193,11 @@ class SubtitleRepository(
     }
 
     suspend fun updateLastStudyScroll(subtitleId: Long, scrollPosition: Int) = withContext(Dispatchers.IO) {
+        Log.d("PosRestore", "updateLastStudyScroll: subtitleId=$subtitleId scroll=$scrollPosition")
+        val existing = readingStateDao.getBySubtitleId(subtitleId)
+        if (existing == null) {
+            readingStateDao.insertIfNotExists(SubtitleReadingStateEntity(subtitleId = subtitleId))
+        }
         readingStateDao.updateLastStudyScroll(subtitleId, scrollPosition)
     }
 

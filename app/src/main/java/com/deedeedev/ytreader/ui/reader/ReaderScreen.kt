@@ -1175,6 +1175,7 @@ internal fun ReaderScreen(
         snapshotFlow { webViewCharOffsetAtTop }
             .debounce(2000)
             .collect { offset ->
+                Log.d("PosRestore", "snapshotFlow: offset=$offset willSave=${offset > 0}")
                 if (offset > 0) {
                     viewModel.updateLastStudyScroll(offset)
                 }
@@ -1474,7 +1475,11 @@ internal fun ReaderScreen(
         showBrightnessIndicator = showBrightnessIndicator,
         brightnessIndicatorPercent = brightnessIndicatorPercent,
         snackbarHostState = snackbarHostState,
-        initialScrollPercent = uiState.lastStudyScroll,
+        initialScrollPercent = run {
+            val v = uiState.lastStudyScroll
+            Log.d("PosRestore", "ReaderScreen: initialScrollPercent=$v subtitleId=${subtitle?.id} isLoading=${uiState.isLoading}")
+            v
+        },
         annotationScrollOffset = webViewAnnotationScrollOffset,
         onAnnotationNavigated = { webViewAnnotationNavigated() },
         useWebView = true,
@@ -1489,6 +1494,7 @@ internal fun ReaderScreen(
             showAndScheduleHideProgressIndicator()
         },
         onWebViewVisibleCharOffset = { offset ->
+            Log.d("PosRestore", "onVisibleCharOffset: offset=$offset")
             webViewCharOffsetAtTop = offset
         },
         onWebViewClearSelection = {

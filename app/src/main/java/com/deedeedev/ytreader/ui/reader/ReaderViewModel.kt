@@ -1,6 +1,7 @@
 package com.deedeedev.ytreader.ui.reader
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -96,6 +97,7 @@ class ReaderViewModel(
                     val subtitle = subtitleWithStates.subtitle
                     val readingState = subtitleWithStates.readingState
                     val aiState = subtitleWithStates.aiCleaningState
+                    Log.d("PosRestore", "loadSubtitle: subtitleId=$subtitleId readingStateNull=${readingState == null} lastStudyScroll=${readingState?.lastStudyScroll}")
                     val originalParsedText = SubtitleParser.parse(subtitle.content)
                     val content = subtitle.studyContent ?: originalParsedText
                     val notesByRange = notes.associateBy { HighlightRangeKey(it.highlightStart, it.highlightEnd) }

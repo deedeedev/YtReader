@@ -2,6 +2,7 @@ package com.deedeedev.ytreader.ui.reader.webview
 
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.webkit.JavascriptInterface
 
 internal class WebViewReaderBridge {
@@ -78,5 +79,10 @@ internal class WebViewReaderBridge {
         mainHandler.post {
             onContentTextChanged?.invoke(text)
         }
+    }
+
+    @JavascriptInterface
+    fun debugLog(msg: String) {
+        Log.d("PosRestoreJS", msg)
     }
 }

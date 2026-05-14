@@ -263,6 +263,46 @@ function scrollToCharOffset(offset) {
   window.scrollTo(0, Math.max(0, targetY));
 }
 
+function scrollToCharOffsetWhenReady(offset) {
+  var maxAttempts = 30;
+  var attempt = 0;
+  var contentEl = document.getElementById("content");
+  var contentLen = contentEl.innerText.length;
+
+  function tryScroll() {
+    attempt++;
+    buildOffsetMap();
+    var entry = findOffsetEntry(offset);
+    if (!entry) {
+      if (attempt < maxAttempts) requestAnimationFrame(tryScroll);
+      return;
+    }
+    var range = document.createRange();
+    range.setStart(entry.node, entry.localOffset);
+    range.collapse(true);
+    var rect = range.getBoundingClientRect();
+    var targetY = window.scrollY + rect.top;
+    if (targetY <= 0 && offset > 0 && attempt < maxAttempts) {
+      if (attempt >= 5 && contentLen > 0) {
+        var percent = (offset / contentLen) * 100;
+        var totalHeight = document.body.scrollHeight;
+        var viewportHeight = window.innerHeight;
+        var maxScroll = totalHeight - viewportHeight;
+        if (maxScroll > 0 && percent > 0 && percent < 100) {
+          var fallbackY = Math.round((percent / 100) * maxScroll);
+          window.scrollTo(0, fallbackY);
+          return;
+        }
+      }
+      requestAnimationFrame(tryScroll);
+      return;
+    }
+    window.scrollTo(0, Math.max(0, targetY));
+  }
+
+  requestAnimationFrame(tryScroll);
+}
+
 function getCharOffsetAtTop() {
   buildOffsetMap();
   var viewportTop = window.scrollY;
@@ -397,7 +437,9 @@ window.addEventListener("scroll", function() {
   scrollThrottleTimeout = setTimeout(function() {
     scrollThrottleTimeout = null;
     Bridge.onScrollProgress(window.scrollY, document.body.scrollHeight, window.innerHeight);
-    Bridge.onVisibleCharOffset(getCharOffsetAtTop());
+    var offsetAtTop = getCharOffsetAtTop();
+    Bridge.debugLog("scrollEvent: scrollY=" + window.scrollY + " charOffsetAtTop=" + offsetAtTop);
+    Bridge.onVisibleCharOffset(offsetAtTop);
   }, 16);
 });
 

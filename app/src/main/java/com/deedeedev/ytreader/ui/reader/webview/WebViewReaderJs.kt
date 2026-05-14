@@ -112,6 +112,10 @@ internal object WebViewReaderJs {
         evaluateJavascript("scrollToCharOffset($offset)", null)
     }
 
+    fun WebView.scrollToCharOffsetWhenReady(offset: Int) {
+        evaluateJavascript("scrollToCharOffsetWhenReady($offset)", null)
+    }
+
     fun WebView.getCharOffsetAtTop(callback: (Int) -> Unit) {
         evaluateJavascript("getCharOffsetAtTop()") { result ->
             val offset = result?.toIntOrNull() ?: 0
