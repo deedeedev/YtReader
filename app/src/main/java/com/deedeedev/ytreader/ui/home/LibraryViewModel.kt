@@ -213,6 +213,12 @@ class LibraryViewModel(
         }
     }
 
+    fun archiveVideo(videoId: String) {
+        viewModelScope.launch {
+            collectionRepository.archiveVideo(videoId)
+        }
+    }
+
     fun resetVideoProgress(videoId: String) {
         viewModelScope.launch {
             ops.resetVideoProgress(videoId)

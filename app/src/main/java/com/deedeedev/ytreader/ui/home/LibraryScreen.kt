@@ -161,6 +161,15 @@ fun LibraryScreen(
                                 )
                             },
                             onResetProgress = { viewModel.resetVideoProgress(item.videoId) },
+                            onArchive = {
+                                viewModel.archiveVideo(item.videoId)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = context.getString(R.string.library_archived),
+                                        duration = SnackbarDuration.Short
+                                    )
+                                }
+                            },
                             onRemoveFromLibrary = {
                                 val deletedSubtitles = item.subtitles
                                 viewModel.removeLibraryItem(deletedSubtitles)

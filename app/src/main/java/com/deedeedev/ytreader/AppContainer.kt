@@ -133,7 +133,7 @@ class DefaultAppContainer(
     }
 
     override val collectionRepository: CollectionRepository by lazy {
-        CollectionRepository(collectionDao, userPreferencesRepository)
+        CollectionRepository(collectionDao, userPreferencesRepository, subtitleRepository)
     }
 
     override val aiCleaningRepository: AiCleaningRepository by lazy {
@@ -158,6 +158,7 @@ class DefaultAppContainer(
 
     override suspend fun runMigrations() {
         collectionRepository.migrateLegacyCollectionsIfNeeded()
+        collectionRepository.ensureArchivedCollectionExists()
     }
 
     override fun closeDatabase() {

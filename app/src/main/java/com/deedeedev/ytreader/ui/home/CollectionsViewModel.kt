@@ -307,6 +307,12 @@ class CollectionsViewModel(
         }
     }
 
+    fun unarchiveVideo(videoId: String) {
+        viewModelScope.launch {
+            collectionRepository.unarchiveVideo(videoId)
+        }
+    }
+
     private fun createInitialUiState(): CollectionsUiState {
         val collectionFilters = userPreferencesRepository.getCollectionFilterStates()
             .mapValues { (_, state) ->

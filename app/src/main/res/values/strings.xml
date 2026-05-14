@@ -456,4 +456,8 @@
     <string name="settings_backup_description">Export, import, and automatic backup settings.</string>
     <string name="settings_experimental">Experimental</string>
     <string name="reader_webview_edit_unavailable">Editing is not yet available in WebView reader. Switch to the standard reader in Settings to edit text.</string>
+    <string name="library_archive">Archive</string>
+    <string name="library_unarchive">Unarchive</string>
+    <string name="library_archived">Video archived</string>
+    <string name="library_unarchived">Video unarchived</string>
 </resources>

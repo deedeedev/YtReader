@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.data.ARCHIVED_COLLECTION_ID
 import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.VideoCollection
@@ -193,6 +194,7 @@ fun CollectionsScreen(
                             onlyInCollectionsCount = onlyInCollectionsCount,
                             dragDropState = dragDropState,
                             index = index,
+                            isSystem = collection.id == ARCHIVED_COLLECTION_ID,
                             onOpen = { onCollectionClick(collection.id) },
                             onRename = { renameTarget = collection },
                             onDelete = { deleteTarget = collection },
@@ -296,6 +298,7 @@ private fun CollectionCard(
     onlyInCollectionsCount: Int,
     dragDropState: CollectionsDragDropState,
     index: Int,
+    isSystem: Boolean,
     onOpen: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
@@ -334,18 +337,20 @@ private fun CollectionCard(
                 translationY = animatedOffset
             }
             .pointerInput(collection.id) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = {
-                        showMenu = false
-                        dragDropState.startDragging(collection.id)
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        dragDropState.onDrag(dragAmount.y)
-                    },
-                    onDragEnd = { dragDropState.onDragStopped() },
-                    onDragCancel = { dragDropState.onDragStopped() }
-                )
+                if (!isSystem) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = {
+                            showMenu = false
+                            dragDropState.startDragging(collection.id)
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            dragDropState.onDrag(dragAmount.y)
+                        },
+                        onDragEnd = { dragDropState.onDragStopped() },
+                        onDragCancel = { dragDropState.onDragStopped() }
+                    )
+                }
             }
             .clickable(onClick = onOpen),
         elevation = CardDefaults.cardElevation(
@@ -402,26 +407,28 @@ private fun CollectionCard(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false }
             ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.collection_rename)) },
-                    onClick = {
-                        showMenu = false
-                        onRename()
-                    },
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.Edit, contentDescription = null)
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.delete)) },
-                    onClick = {
-                        showMenu = false
-                        onDelete()
-                    },
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.Delete, contentDescription = null)
-                    }
-                )
+                if (!isSystem) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.collection_rename)) },
+                        onClick = {
+                            showMenu = false
+                            onRename()
+                        },
+                        leadingIcon = {
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = null)
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.delete)) },
+                        onClick = {
+                            showMenu = false
+                            onDelete()
+                        },
+                        leadingIcon = {
+                            Icon(imageVector = Icons.Default.Delete, contentDescription = null)
+                        }
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.epub_export_collection)) },
                     onClick = {

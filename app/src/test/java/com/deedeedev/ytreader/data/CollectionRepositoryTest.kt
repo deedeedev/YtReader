@@ -14,7 +14,8 @@ import org.mockito.kotlin.whenever
 class CollectionRepositoryTest {
     private val collectionDao = mock<CollectionDao>()
     private val userPreferencesRepository = mock<UserPreferencesRepository>()
-    private val repository = CollectionRepository(collectionDao, userPreferencesRepository)
+    private val subtitleRepository = mock<SubtitleRepository>()
+    private val repository = CollectionRepository(collectionDao, userPreferencesRepository, subtitleRepository)
 
     @Test
     fun createCollection_assignsNextSortOrder() = runTest {

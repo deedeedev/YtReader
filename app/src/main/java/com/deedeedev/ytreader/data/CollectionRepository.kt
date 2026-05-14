@@ -8,9 +8,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.UUID
 
+const val ARCHIVED_COLLECTION_ID = "__archived__"
+const val ARCHIVED_COLLECTION_NAME = "Archived"
+
 class CollectionRepository(
     private val collectionDao: CollectionDao,
-    private val userPreferencesRepository: UserPreferencesRepository
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val subtitleRepository: SubtitleRepository
 ) {
     val collections: Flow<List<VideoCollection>> = collectionDao.observeCollections().map { collections ->
         collections.map { item ->
@@ -145,5 +149,37 @@ class CollectionRepository(
             return null
         }
         return YouTubeVideoIdNormalizer.extractVideoId(trimmed) ?: trimmed
+    }
+
+    suspend fun ensureArchivedCollectionExists() {
+        if (!collectionDao.collectionExists(ARCHIVED_COLLECTION_ID)) {
+            collectionDao.insertCollection(
+                CollectionEntity(
+                    id = ARCHIVED_COLLECTION_ID,
+                    name = ARCHIVED_COLLECTION_NAME,
+                    sortOrder = -1,
+                    createdAt = 0L
+                )
+            )
+        }
+    }
+
+    fun isArchivedCollection(id: String): Boolean = id == ARCHIVED_COLLECTION_ID
+
+    suspend fun archiveVideo(videoId: String) {
+        val normalizedVideoId = normalizeVideoId(videoId) ?: return
+        subtitleRepository.updateLibraryVisibility(normalizedVideoId, false)
+        collectionDao.insertCollectionVideo(
+            CollectionVideoEntity(
+                collectionId = ARCHIVED_COLLECTION_ID,
+                videoId = normalizedVideoId
+            )
+        )
+    }
+
+    suspend fun unarchiveVideo(videoId: String) {
+        val normalizedVideoId = normalizeVideoId(videoId) ?: return
+        collectionDao.removeVideoFromCollection(ARCHIVED_COLLECTION_ID, normalizedVideoId)
+        subtitleRepository.updateLibraryVisibility(normalizedVideoId, true)
     }
 }

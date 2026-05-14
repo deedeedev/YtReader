@@ -12,6 +12,8 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Outbox
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restore
@@ -56,6 +58,8 @@ fun LibraryItemCard(
     onRemoveFromLibrary: (() -> Unit)? = null,
     onRestoreToLibrary: (() -> Unit)? = null,
     onRemoveFromCollection: (() -> Unit)? = null,
+    onArchive: (() -> Unit)? = null,
+    onUnarchive: (() -> Unit)? = null,
     onSubtitleDelete: (SubtitleEntity) -> Unit,
     onSubtitleDownloadAgain: (SubtitleEntity) -> Unit,
     downloadingSubtitleIds: Set<Long>,
@@ -187,6 +191,36 @@ fun LibraryItemCard(
                     )
                 }
             )
+            onArchive?.let { archive ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.library_archive)) },
+                    onClick = {
+                        archive()
+                        showMenu = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Outbox,
+                            contentDescription = null
+                        )
+                    }
+                )
+            }
+            onUnarchive?.let { unarchive ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.library_unarchive)) },
+                    onClick = {
+                        unarchive()
+                        showMenu = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Inbox,
+                            contentDescription = null
+                        )
+                    }
+                )
+            }
             if (item.thumbnailLocalPath == null) {
                 onDownloadThumbnail?.let { downloadThumbnail ->
                     DropdownMenuItem(

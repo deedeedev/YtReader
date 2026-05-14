@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.R
+import com.deedeedev.ytreader.data.ARCHIVED_COLLECTION_ID
 import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.VideoCollection
@@ -87,6 +88,8 @@ fun CollectionDetailScreen(
             }
         }
     }
+
+    val isArchivedCollection = collectionId == ARCHIVED_COLLECTION_ID
 
     var addToCollectionTargetVideoId by remember { mutableStateOf<String?>(null) }
     val filterState: CollectionFilterState = uiState.collectionFilterStates[collectionId] ?: viewModel.getCollectionFilterState(collectionId)
@@ -279,26 +282,44 @@ fun CollectionDetailScreen(
                             onResetProgress = { viewModel.resetVideoProgress(item.videoId) },
                             showLibraryStatusBadge = false,
                             showCollectionBadge = false,
-                            onRestoreToLibrary = if (!item.isInLibrary) {
+                            onRestoreToLibrary = if (!item.isInLibrary && !isArchivedCollection) {
                                 { viewModel.restoreLibraryItem(item.subtitles) }
                             } else {
                                 null
                             },
-                            onRemoveFromCollection = {
-                                viewModel.removeVideoFromCollection(collection.id, item.videoId)
-                                coroutineScope.launch {
-                                    val result = snackbarHostState.showSnackbar(
-                                        message = context.getString(
-                                            R.string.collection_remove_video,
-                                            collection.name
-                                        ),
-                                        actionLabel = context.getString(R.string.undo),
-                                        duration = SnackbarDuration.Short
-                                    )
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        viewModel.addVideoToCollection(collection.id, item.videoId)
+                            onRemoveFromCollection = if (!isArchivedCollection) {
+                                {
+                                    viewModel.removeVideoFromCollection(collection.id, item.videoId)
+                                    coroutineScope.launch {
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = context.getString(
+                                                R.string.collection_remove_video,
+                                                collection.name
+                                            ),
+                                            actionLabel = context.getString(R.string.undo),
+                                            duration = SnackbarDuration.Short
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            viewModel.addVideoToCollection(collection.id, item.videoId)
+                                        }
                                     }
                                 }
+                            } else {
+                                null
+                            },
+                            onArchive = null,
+                            onUnarchive = if (isArchivedCollection) {
+                                {
+                                    viewModel.unarchiveVideo(item.videoId)
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = context.getString(R.string.library_unarchived),
+                                            duration = SnackbarDuration.Short
+                                        )
+                                    }
+                                }
+                            } else {
+                                null
                             },
                             onSubtitleDelete = { subtitle ->
                                 viewModel.deleteSubtitle(subtitle)
