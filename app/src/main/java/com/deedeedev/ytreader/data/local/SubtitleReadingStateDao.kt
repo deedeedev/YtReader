@@ -55,4 +55,13 @@ interface SubtitleReadingStateDao {
 
     @Query("DELETE FROM subtitle_reading_states WHERE subtitleId = :subtitleId")
     suspend fun delete(subtitleId: Long)
+
+    @Query(
+        """
+        UPDATE subtitle_reading_states
+        SET lastOpenedAt = 0
+        WHERE subtitleId IN (SELECT id FROM subtitles WHERE videoId = :videoId)
+        """
+    )
+    suspend fun clearLastOpenedAtForVideo(videoId: String)
 }

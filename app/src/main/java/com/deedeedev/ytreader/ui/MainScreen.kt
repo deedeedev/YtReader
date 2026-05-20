@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.CollectionsBookmark
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.EditNote
@@ -43,6 +44,8 @@ import com.deedeedev.ytreader.ui.home.LibraryViewModel
 import com.deedeedev.ytreader.ui.home.CollectionsViewModel
 import com.deedeedev.ytreader.ui.home.CollectionDetailScreen
 import com.deedeedev.ytreader.ui.home.CollectionsScreen
+import com.deedeedev.ytreader.ui.home.HistoryScreen
+import com.deedeedev.ytreader.ui.home.HistoryViewModel
 import com.deedeedev.ytreader.ui.home.LibraryScreen
 import com.deedeedev.ytreader.ui.home.SearchScreen
 import com.deedeedev.ytreader.ui.reader.JumpBackState
@@ -63,6 +66,7 @@ sealed class Screen(
 ) {
     object Search : Screen("search", R.string.screen_search, Icons.Default.Search)
     object Library : Screen("library", R.string.library, Icons.Default.Home)
+    object History : Screen("history", R.string.screen_history, Icons.Default.History)
     object Annotations : Screen("annotations", R.string.screen_annotations, Icons.Default.EditNote)
     object Collections : Screen("collections", R.string.collections, Icons.Default.CollectionsBookmark)
     object CollectionDetail : Screen("collection/{collectionId}", R.string.collection, Icons.Default.CollectionsBookmark)
@@ -117,6 +121,13 @@ fun MainScreen(
         factory = AnnotationsViewModel.provideFactory(
             appContainer.subtitleRepository,
             appContainer.noteRepository
+        )
+    )
+    val historyViewModel: HistoryViewModel = viewModel(
+        factory = HistoryViewModel.provideFactory(
+            appContainer.subtitleRepository,
+            appContainer.collectionRepository,
+            appContainer.userPreferencesRepository
         )
     )
     val navController = rememberNavController()
@@ -199,7 +210,7 @@ fun MainScreen(
 
             if (showBottomBar) {
                 NavigationBar {
-                    val items = listOf(Screen.Library, Screen.Search, Screen.Annotations, Screen.Collections, Screen.Settings)
+                    val items = listOf(Screen.Library, Screen.History, Screen.Search, Screen.Annotations, Screen.Collections, Screen.Settings)
                     items.forEach { screen ->
                         NavigationBarItem(
                             icon = { Icon(screen.icon, contentDescription = null) },
@@ -260,6 +271,21 @@ fun MainScreen(
                     videoRepository = appContainer.videoRepository,
                     noteRepository = appContainer.noteRepository,
                     initialScrollPosition = libraryScrollPosition
+                )
+            }
+            composable(
+                route = Screen.History.route,
+                enterTransition = { null },
+                exitTransition = { null },
+                popEnterTransition = { null },
+                popExitTransition = { null }
+            ) {
+                HistoryScreen(
+                    viewModel = historyViewModel,
+                    onVideoClick = { videoId, _ ->
+                        openPreferredSubtitleForVideo(videoId, 0 to 0, false)
+                    },
+                    onVideoSearchAgain = searchVideoAgain
                 )
             }
             composable(

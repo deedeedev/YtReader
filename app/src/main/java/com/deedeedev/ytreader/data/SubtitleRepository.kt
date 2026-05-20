@@ -43,6 +43,8 @@ class SubtitleRepository(
         isAscending: Boolean
     ): Flow<List<LibraryVideoRow>> = subtitleDao.observeCollectionVideoRows(videoIds, channelName, sortOption, isAscending)
 
+    fun observeHistoryVideoRows(): Flow<List<LibraryVideoRow>> = subtitleDao.observeHistoryVideoRows()
+
     fun observeCollectionChannels(videoIds: List<String>): Flow<List<String>> =
         subtitleDao.observeCollectionChannels(videoIds)
 
@@ -247,5 +249,9 @@ class SubtitleRepository(
 
     suspend fun getLibraryVideoIds(): List<String> = withContext(Dispatchers.IO) {
         subtitleDao.getLibraryVideoIds()
+    }
+
+    suspend fun clearHistoryForVideo(videoId: String) = withContext(Dispatchers.IO) {
+        readingStateDao.clearLastOpenedAtForVideo(videoId)
     }
 }

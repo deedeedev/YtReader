@@ -416,6 +416,10 @@
     <string name="widget_reader_icon_description">Quick open last reader</string>
     <string name="widget_no_recent">No recent reader</string>
     <string name="screen_annotations">Annotations</string>
+    <string name="screen_history">History</string>
+    <string name="history_empty">No videos opened yet. Videos you open will appear here.</string>
+    <string name="history_removed">Removed from history</string>
+    <string name="history_remove">Remove from history</string>
     <string name="annotations_empty">No annotations yet</string>
     <string name="annotations_empty_description">Add bookmarks and highlights while reading to see them here</string>
     <string name="annotations_no_results">No annotations match your filters</string>

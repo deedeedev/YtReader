@@ -332,4 +332,85 @@ interface SubtitleDao {
         ORDER BY COALESCE(rs.lastOpenedAt, 0) DESC
     """)
     fun observeAllAccessibleSubtitles(): Flow<List<SubtitleEntity>>
+
+    @Query(
+        """
+        SELECT
+            agg.videoId AS videoId,
+            COALESCE(v.videoUrl, (
+                SELECT s.videoUrl
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                ORDER BY s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), '') AS videoUrl,
+            COALESCE(v.title, (
+                SELECT s.title
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                ORDER BY s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), '') AS title,
+            COALESCE(v.channelName, (
+                SELECT s.channelName
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                ORDER BY s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), '') AS channelName,
+            COALESCE(v.uploadDate, (
+                SELECT s.uploadDate
+                FROM subtitles s
+                WHERE s.videoId = agg.videoId
+                ORDER BY s.createdAt DESC, s.id DESC
+                LIMIT 1
+            ), 0) AS uploadDate,
+            v.thumbnailLocalPath AS thumbnailLocalPath,
+            agg.lastDownloaded AS lastDownloaded,
+            COALESCE(agg.lastOpenedAt, 0) AS lastOpenedAt,
+            COALESCE((
+                SELECT rs.readingProgressPercent
+                FROM subtitle_reading_states rs
+                INNER JOIN subtitles s2 ON s2.id = rs.subtitleId
+                WHERE s2.videoId = agg.videoId
+                ORDER BY rs.lastOpenedAt DESC, s2.createdAt DESC, s2.id DESC
+                LIMIT 1
+            ), 0) AS readingProgressPercent,
+            COALESCE((
+                SELECT rs.currentPage
+                FROM subtitle_reading_states rs
+                INNER JOIN subtitles s2 ON s2.id = rs.subtitleId
+                WHERE s2.videoId = agg.videoId
+                ORDER BY rs.lastOpenedAt DESC, s2.createdAt DESC, s2.id DESC
+                LIMIT 1
+            ), 0) AS currentPage,
+            COALESCE((
+                SELECT rs.totalPages
+                FROM subtitle_reading_states rs
+                INNER JOIN subtitles s2 ON s2.id = rs.subtitleId
+                WHERE s2.videoId = agg.videoId
+                ORDER BY rs.lastOpenedAt DESC, s2.createdAt DESC, s2.id DESC
+                LIMIT 1
+            ), 0) AS totalPages,
+            agg.isInLibrary AS isInLibrary
+        FROM (
+            SELECT
+                s.videoId,
+                MAX(s.createdAt) AS lastDownloaded,
+                MAX(rs.lastOpenedAt) AS lastOpenedAt,
+                MAX(s.isInLibrary) AS isInLibrary
+            FROM subtitles s
+            LEFT JOIN subtitle_reading_states rs ON rs.subtitleId = s.id
+            LEFT JOIN collection_videos cv ON cv.videoId = s.videoId
+            WHERE rs.lastOpenedAt > 0
+              AND (s.isInLibrary = 1 OR cv.videoId IS NOT NULL)
+            GROUP BY s.videoId
+            ORDER BY MAX(rs.lastOpenedAt) DESC
+            LIMIT 100
+        ) agg
+        LEFT JOIN videos v ON v.videoId = agg.videoId
+        ORDER BY agg.lastOpenedAt DESC
+        """
+    )
+    fun observeHistoryVideoRows(): Flow<List<LibraryVideoRow>>
 }

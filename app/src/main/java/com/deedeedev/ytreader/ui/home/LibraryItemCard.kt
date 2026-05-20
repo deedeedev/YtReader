@@ -60,6 +60,7 @@ fun LibraryItemCard(
     onRemoveFromCollection: (() -> Unit)? = null,
     onArchive: (() -> Unit)? = null,
     onUnarchive: (() -> Unit)? = null,
+    onRemoveFromHistory: (() -> Unit)? = null,
     onSubtitleDelete: (SubtitleEntity) -> Unit,
     onSubtitleDownloadAgain: (SubtitleEntity) -> Unit,
     downloadingSubtitleIds: Set<Long>,
@@ -313,6 +314,21 @@ fun LibraryItemCard(
                     text = { Text(stringResource(R.string.collection_remove_from_this)) },
                     onClick = {
                         removeFromCollection()
+                        showMenu = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null
+                        )
+                    }
+                )
+            }
+            onRemoveFromHistory?.let { removeFromHistory ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.history_remove)) },
+                    onClick = {
+                        removeFromHistory()
                         showMenu = false
                     },
                     leadingIcon = {
