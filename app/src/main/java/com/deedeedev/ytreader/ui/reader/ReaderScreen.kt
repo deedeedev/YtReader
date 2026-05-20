@@ -48,6 +48,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.AppContainer
 import com.deedeedev.ytreader.ui.FontOption
+import com.deedeedev.ytreader.ui.settings.ProgressIndicatorMode
 import com.deedeedev.ytreader.data.NoteRepository
 import com.deedeedev.ytreader.data.SubtitleRepository
 import com.deedeedev.ytreader.data.UserPreferencesRepository
@@ -121,6 +122,7 @@ internal fun ReaderScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val subtitle = uiState.subtitle
     val appTheme by userPreferencesRepository.appTheme.collectAsStateWithLifecycle()
+    val progressIndicatorMode by userPreferencesRepository.progressIndicatorMode.collectAsStateWithLifecycle()
     val isDarkTheme = appTheme.isDark
 
     ReaderSystemBarsEffect(
@@ -281,6 +283,15 @@ internal fun ReaderScreen(
         }
     }
 
+    LaunchedEffect(progressIndicatorMode) {
+        if (progressIndicatorMode == ProgressIndicatorMode.ALWAYS_VISIBLE) {
+            showProgressIndicator = true
+            progressIndicatorHideJob?.cancel()
+        } else {
+            showProgressIndicator = false
+        }
+    }
+
     LaunchedEffect(isUiVisible, jumpBackState) {
         if (!isUiVisible) {
             if (sliderReturnCharOffset != null && jumpBackState?.reason != ReaderJumpReason.SLIDER_DRAG) {
@@ -303,11 +314,15 @@ internal fun ReaderScreen(
     }
 
     fun showAndScheduleHideProgressIndicator() {
-        showProgressIndicator = true
-        progressIndicatorHideJob?.cancel()
-        progressIndicatorHideJob = coroutineScope.launch {
-            delay(PROGRESS_INDICATOR_HIDE_DELAY_MS)
-            showProgressIndicator = false
+        if (progressIndicatorMode == ProgressIndicatorMode.ALWAYS_VISIBLE) {
+            showProgressIndicator = true
+        } else {
+            showProgressIndicator = true
+            progressIndicatorHideJob?.cancel()
+            progressIndicatorHideJob = coroutineScope.launch {
+                delay(PROGRESS_INDICATOR_HIDE_DELAY_MS)
+                showProgressIndicator = false
+            }
         }
     }
 

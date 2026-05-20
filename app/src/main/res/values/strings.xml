@@ -455,7 +455,10 @@
     <string name="settings_ai_configuration">AI Configuration</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_appearance_description">Theme, language and display options.</string>
-    <string name="settings_reader_description">Font size, font family, and line height.</string>
+    <string name="settings_reader_description">Font size, font family, line height, and progress indicator.</string>
+    <string name="settings_progress_indicator">Progress Indicator</string>
+    <string name="progress_indicator_always_visible">Always visible</string>
+    <string name="progress_indicator_fade_out">Fade out</string>
     <string name="settings_ai_description">Configure AI endpoint, model and prompts.</string>
     <string name="settings_backup_description">Export, import, and automatic backup settings.</string>
     <string name="settings_experimental">Experimental</string>

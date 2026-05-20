@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import com.deedeedev.ytreader.ui.AppLanguage
 import com.deedeedev.ytreader.ui.home.VideoCardSize
+import com.deedeedev.ytreader.ui.settings.ProgressIndicatorMode
 import com.deedeedev.ytreader.ui.theme.AppTheme
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -43,6 +44,7 @@ data class PreferencesBackup(
     val appTheme: String = AppTheme.SYSTEM.storageValue,
     val appBrightness: Float = UserPreferencesRepository.BRIGHTNESS_FOLLOW_SYSTEM,
     val appLanguage: String = AppLanguage.SYSTEM.storageValue,
+    val progressIndicatorMode: String = ProgressIndicatorMode.FADE_OUT.storageValue,
     val aiEndpoint: String = "",
     val aiApiKey: String = "",
     val aiModel: String = DEFAULT_AI_MODEL,
@@ -63,6 +65,9 @@ class UserPreferencesRepository(context: Context) {
 
     private val _lineHeightMultiplier = MutableStateFlow(1.5f)
     val lineHeightMultiplier: StateFlow<Float> = _lineHeightMultiplier.asStateFlow()
+
+    private val _progressIndicatorMode = MutableStateFlow(ProgressIndicatorMode.FADE_OUT)
+    val progressIndicatorMode: StateFlow<ProgressIndicatorMode> = _progressIndicatorMode.asStateFlow()
 
     private val _appTheme = MutableStateFlow(AppTheme.SYSTEM)
     val appTheme: StateFlow<AppTheme> = _appTheme.asStateFlow()
@@ -161,6 +166,9 @@ class UserPreferencesRepository(context: Context) {
         _defaultFontSize.value = prefs.getFloat(KEY_DEFAULT_FONT_SIZE, 16f)
         _fontFamily.value = prefs.getString(KEY_FONT_FAMILY, "Default") ?: "Default"
         _lineHeightMultiplier.value = prefs.getFloat(KEY_LINE_HEIGHT_MULTIPLIER, 1.5f)
+        _progressIndicatorMode.value = ProgressIndicatorMode.fromStorageValue(
+            prefs.getString(KEY_PROGRESS_INDICATOR_MODE, ProgressIndicatorMode.FADE_OUT.storageValue) ?: ProgressIndicatorMode.FADE_OUT.storageValue
+        )
         _appTheme.value = AppTheme.fromStorageValue(prefs.getString(KEY_APP_THEME, AppTheme.SYSTEM.storageValue))
         _appBrightness.value = prefs.getFloat(KEY_APP_BRIGHTNESS, BRIGHTNESS_FOLLOW_SYSTEM)
         _appLanguage.value = AppLanguage.fromStorageValue(prefs.getString(KEY_APP_LANGUAGE, AppLanguage.SYSTEM.storageValue))
@@ -199,6 +207,11 @@ class UserPreferencesRepository(context: Context) {
     fun setLineHeightMultiplier(multiplier: Float) {
         prefs.edit().putFloat(KEY_LINE_HEIGHT_MULTIPLIER, multiplier).apply()
         _lineHeightMultiplier.value = multiplier
+    }
+
+    fun setProgressIndicatorMode(mode: ProgressIndicatorMode) {
+        prefs.edit().putString(KEY_PROGRESS_INDICATOR_MODE, mode.storageValue).apply()
+        _progressIndicatorMode.value = mode
     }
 
     fun setAppTheme(appTheme: AppTheme) {
@@ -386,6 +399,7 @@ class UserPreferencesRepository(context: Context) {
             defaultFontSize = _defaultFontSize.value,
             fontFamily = _fontFamily.value,
             lineHeightMultiplier = _lineHeightMultiplier.value,
+            progressIndicatorMode = _progressIndicatorMode.value.storageValue,
             appTheme = _appTheme.value.storageValue,
             appBrightness = _appBrightness.value,
             appLanguage = _appLanguage.value.storageValue,
@@ -409,6 +423,7 @@ class UserPreferencesRepository(context: Context) {
             .putFloat(KEY_DEFAULT_FONT_SIZE, backup.defaultFontSize)
             .putString(KEY_FONT_FAMILY, backup.fontFamily)
             .putFloat(KEY_LINE_HEIGHT_MULTIPLIER, backup.lineHeightMultiplier)
+            .putString(KEY_PROGRESS_INDICATOR_MODE, backup.progressIndicatorMode)
             .putString(KEY_APP_THEME, backup.appTheme)
             .putFloat(KEY_APP_BRIGHTNESS, backup.appBrightness)
             .putString(KEY_APP_LANGUAGE, backup.appLanguage)
@@ -480,6 +495,7 @@ class UserPreferencesRepository(context: Context) {
         private const val KEY_DEFAULT_FONT_SIZE = "default_font_size"
         private const val KEY_FONT_FAMILY = "font_family"
         private const val KEY_LINE_HEIGHT_MULTIPLIER = "line_height_multiplier"
+        private const val KEY_PROGRESS_INDICATOR_MODE = "progress_indicator_mode"
         private const val KEY_APP_THEME = "app_theme"
         private const val KEY_APP_BRIGHTNESS = "app_brightness"
         private const val KEY_APP_LANGUAGE = "app_language"

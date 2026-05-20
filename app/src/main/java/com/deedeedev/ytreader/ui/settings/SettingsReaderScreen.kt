@@ -15,6 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.deedeedev.ytreader.AppContainer
 import com.deedeedev.ytreader.R
 import com.deedeedev.ytreader.ui.FontOption
+import com.deedeedev.ytreader.ui.settings.ProgressIndicatorMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,6 +129,38 @@ fun SettingsReaderScreen(
                 valueRange = 0.5f..2.5f,
                 steps = 19
             )
+
+            var progressExpanded by remember { mutableStateOf(false) }
+
+            ExposedDropdownMenuBox(
+                expanded = progressExpanded,
+                onExpandedChange = { progressExpanded = !progressExpanded }
+            ) {
+                TextField(
+                    value = stringResource(uiState.progressIndicatorMode.labelRes),
+                    onValueChange = {},
+                    readOnly = true,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = progressExpanded) },
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                        .fillMaxWidth(),
+                    label = { Text(stringResource(R.string.settings_progress_indicator)) }
+                )
+                ExposedDropdownMenu(
+                    expanded = progressExpanded,
+                    onDismissRequest = { progressExpanded = false }
+                ) {
+                    uiState.availableProgressIndicatorModes.forEach { mode ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(mode.labelRes)) },
+                            onClick = {
+                                viewModel.setProgressIndicatorMode(mode)
+                                progressExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }

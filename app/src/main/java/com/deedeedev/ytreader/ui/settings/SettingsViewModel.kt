@@ -16,6 +16,7 @@ import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import com.deedeedev.ytreader.ui.AppLanguage
 import com.deedeedev.ytreader.ui.FontOption
 import com.deedeedev.ytreader.ui.home.VideoCardSize
+import com.deedeedev.ytreader.ui.settings.ProgressIndicatorMode
 import com.deedeedev.ytreader.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +29,8 @@ data class SettingsUiState(
     val fontFamily: String = FontOption.DEFAULT.storageValue,
     val availableFonts: List<String> = FontOption.entries.map { it.storageValue },
     val lineHeightMultiplier: Float = 1.5f,
+    val progressIndicatorMode: ProgressIndicatorMode = ProgressIndicatorMode.FADE_OUT,
+    val availableProgressIndicatorModes: List<ProgressIndicatorMode> = ProgressIndicatorMode.entries,
     val appTheme: AppTheme = AppTheme.SYSTEM,
     val availableThemes: List<AppTheme> = AppTheme.entries,
     val appLanguage: AppLanguage = AppLanguage.SYSTEM,
@@ -70,6 +73,11 @@ class SettingsViewModel(
         viewModelScope.launch {
             userPreferencesRepository.lineHeightMultiplier.collect { multiplier ->
                 _uiState.update { it.copy(lineHeightMultiplier = multiplier) }
+            }
+        }
+        viewModelScope.launch {
+            userPreferencesRepository.progressIndicatorMode.collect { mode ->
+                _uiState.update { it.copy(progressIndicatorMode = mode) }
             }
         }
         viewModelScope.launch {
@@ -139,6 +147,10 @@ class SettingsViewModel(
 
     fun setLineHeightMultiplier(multiplier: Float) {
         userPreferencesRepository.setLineHeightMultiplier(multiplier)
+    }
+
+    fun setProgressIndicatorMode(mode: ProgressIndicatorMode) {
+        userPreferencesRepository.setProgressIndicatorMode(mode)
     }
 
     fun setAppTheme(appTheme: AppTheme) {
