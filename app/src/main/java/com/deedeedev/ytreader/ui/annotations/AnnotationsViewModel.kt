@@ -68,6 +68,7 @@ data class AnnotationCounts(
 data class AnnotationsUiState(
     val isLoading: Boolean = true,
     val typeFilter: Set<AnnotationType> = AnnotationType.entries.toSet(),
+    val colorFilter: Set<HighlightColor> = HighlightColor.entries.toSet(),
     val sortOption: AnnotationSortOption = AnnotationSortOption.NEWEST,
     val groupByVideo: Boolean = true,
     val searchQuery: String = "",
@@ -135,7 +136,7 @@ class AnnotationsViewModel(
             this,
             _uiState
         ) { items, state ->
-            applyFilters(items, state.typeFilter, state.sortOption, state.searchQuery)
+            applyFilters(items, state.typeFilter, state.colorFilter, state.sortOption, state.searchQuery)
         }
 
     private fun loadAnnotations() {
@@ -180,6 +181,14 @@ class AnnotationsViewModel(
             val filter = state.typeFilter.toMutableSet()
             if (!filter.add(type)) filter.remove(type)
             state.copy(typeFilter = filter)
+        }
+    }
+
+    fun toggleColorFilter(color: HighlightColor) {
+        _uiState.update { state ->
+            val filter = state.colorFilter.toMutableSet()
+            if (!filter.add(color)) filter.remove(color)
+            state.copy(colorFilter = filter)
         }
     }
 
@@ -369,12 +378,16 @@ private data class SubtitleInfo(
 private fun applyFilters(
     items: List<AnnotationItem>,
     typeFilter: Set<AnnotationType>,
+    colorFilter: Set<HighlightColor>,
     sortOption: AnnotationSortOption,
     searchQuery: String
 ): List<AnnotationItem> {
     var result = items
     if (typeFilter.isNotEmpty() && typeFilter.size < AnnotationType.entries.size) {
         result = result.filter { it.type in typeFilter }
+    }
+    if (colorFilter.isNotEmpty() && colorFilter.size < HighlightColor.entries.size) {
+        result = result.filter { it.color in colorFilter }
     }
     result = result.applySearch(searchQuery)
     result = when (sortOption) {

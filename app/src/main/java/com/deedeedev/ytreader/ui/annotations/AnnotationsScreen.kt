@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -126,6 +127,11 @@ fun AnnotationsScreen(
             AnnotationsFilterRow(
                 selectedTypes = uiState.typeFilter,
                 onTypeToggle = viewModel::toggleTypeFilter
+            )
+
+            ColorFilterRow(
+                selectedColors = uiState.colorFilter,
+                onColorToggle = viewModel::toggleColorFilter
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -370,6 +376,65 @@ private fun AnnotationsFilterRow(
             onClick = { onTypeToggle(AnnotationType.NOTE) }
         )
     }
+}
+
+@Composable
+private fun ColorFilterRow(
+    selectedColors: Set<HighlightColor>,
+    onColorToggle: (HighlightColor) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        HighlightColor.entries.forEach { color ->
+            ColorFilterChip(
+                color = color,
+                selected = color in selectedColors,
+                onClick = { onColorToggle(color) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ColorFilterChip(
+    color: HighlightColor,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    IconToggleButton(
+        checked = selected,
+        onCheckedChange = { onClick() },
+        colors = IconButtonDefaults.iconToggleButtonColors(
+            checkedContainerColor = highlightColorToCompose(color),
+            checkedContentColor = Color.Black.copy(alpha = 0.7f),
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(6.dp)
+                .size(20.dp)
+                .background(
+                    color = highlightColorToCompose(color),
+                    shape = MaterialTheme.shapes.small
+                )
+        )
+    }
+}
+
+@Composable
+private fun highlightColorToCompose(color: HighlightColor): Color = when (color) {
+    HighlightColor.RED -> Color(0xFFE57373)
+    HighlightColor.BLUE -> Color(0xFF64B5F6)
+    HighlightColor.GREEN -> Color(0xFF81C784)
+    HighlightColor.YELLOW -> Color(0xFFFFF176)
 }
 
 @Composable
