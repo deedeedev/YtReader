@@ -23,5 +23,6 @@ data class SubtitleReadingStateEntity(
     val isRead: Boolean = false,
     val currentPage: Int = 0,
     val totalPages: Int = 0,
-    val lastStudyScroll: Int = 0
+    val lastStudyScroll: Int = 0,
+    val lastProgressRatio: Float = 0f
 )

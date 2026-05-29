@@ -253,6 +253,16 @@ function scrollToPercent(percent) {
   window.scrollTo(0, Math.min(targetY, maxScroll));
 }
 
+function scrollToProgressRatio(ratio) {
+  if (ratio <= 0) return;
+  var totalHeight = document.body.scrollHeight;
+  var viewportHeight = window.innerHeight;
+  var maxScroll = totalHeight - viewportHeight;
+  if (maxScroll <= 0) return;
+  var targetY = Math.round(maxScroll * ratio);
+  window.scrollTo(0, Math.min(targetY, maxScroll));
+}
+
 function scrollToCharOffset(offset) {
   buildOffsetMap();
   var entry = findOffsetEntry(offset);

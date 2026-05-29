@@ -265,18 +265,20 @@ internal fun ReaderScreen(
 
     val persistReadingProgress by rememberUpdatedState(newValue = {
         viewModel.updateLastStudyScroll(webViewCharOffsetAtTop.coerceAtLeast(0))
-        val percent = if (webViewTotalHeight > webViewViewportHeight) {
-            ((webViewScrollY.toFloat() / (webViewTotalHeight - webViewViewportHeight)) * 100).roundToInt().coerceIn(0, 100)
-        } else 0
+        val maxScroll = (webViewTotalHeight - webViewViewportHeight).coerceAtLeast(1)
+        val ratio = if (webViewTotalHeight > webViewViewportHeight) {
+            (webViewScrollY.toFloat() / maxScroll).coerceIn(0f, 1f)
+        } else 0f
+        val percent = (ratio * 100).roundToInt().coerceIn(0, 100)
         val totalPages = if (webViewViewportHeight > 0 && webViewTotalHeight > webViewViewportHeight) {
             ((webViewTotalHeight + webViewViewportHeight - 1) / webViewViewportHeight).coerceAtLeast(1)
         } else 1
         val currentPage = if (totalPages <= 1) 1 else {
-            val maxScrollY = webViewTotalHeight - webViewViewportHeight
-            if (webViewScrollY >= maxScrollY - 1) totalPages
+            if (webViewScrollY >= maxScroll - 1) totalPages
             else ((webViewScrollY + webViewViewportHeight) / webViewViewportHeight).coerceIn(1, totalPages)
         }
         viewModel.updateReadingProgress(percent, currentPage, totalPages)
+        if (ratio > 0f) viewModel.updateProgressRatio(ratio)
     })
 
     val hasInitialNavigationTarget = initialReaderLocation != null ||
@@ -1191,11 +1193,33 @@ internal fun ReaderScreen(
         }
     }
 
+    val fullscreenProgressRatio by remember(
+        webViewScrollY,
+        webViewTotalHeight,
+        webViewViewportHeight
+    ) {
+        derivedStateOf {
+            val scrollY = webViewScrollY
+            val totalHeight = webViewTotalHeight
+            val viewportHeight = webViewViewportHeight
+            if (totalHeight <= viewportHeight) 0f
+            else (scrollY.toFloat() / (totalHeight - viewportHeight)).coerceIn(0f, 1f)
+        }
+    }
+
     LaunchedEffect(Unit) {
         snapshotFlow { Triple(fullscreenProgressPercent, fullscreenPageProgress.currentPage, fullscreenPageProgress.totalPages) }
             .debounce(500)
             .collectLatest { (percent, currentPage, totalPages) ->
                 viewModel.updateReadingProgress(percent, currentPage, totalPages)
+            }
+    }
+
+    LaunchedEffect(Unit) {
+        snapshotFlow { fullscreenProgressRatio }
+            .debounce(500)
+            .collectLatest { ratio ->
+                if (ratio > 0f) viewModel.updateProgressRatio(ratio)
             }
     }
 
@@ -1500,7 +1524,7 @@ internal fun ReaderScreen(
         showBrightnessIndicator = showBrightnessIndicator,
         brightnessIndicatorPercent = brightnessIndicatorPercent,
         snackbarHostState = snackbarHostState,
-        initialScrollPercent = uiState.readingProgressPercent,
+        initialProgressRatio = uiState.lastProgressRatio,
         initialCharOffset = uiState.lastStudyScroll,
         annotationScrollOffset = webViewAnnotationScrollOffset,
         onAnnotationNavigated = { webViewAnnotationNavigated() },

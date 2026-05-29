@@ -17,7 +17,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CollectionVideoEntity::class,
         SearchHistoryEntity::class
     ],
-    version = 24,
+    version = 25,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -393,6 +393,14 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_subtitles_createdAt` ON `subtitles` (`createdAt`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_subtitles_isInLibrary` ON `subtitles` (`isInLibrary`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_subtitles_channelName` ON `subtitles` (`channelName`)")
+            }
+        }
+
+        val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `subtitle_reading_states` ADD COLUMN `lastProgressRatio` REAL NOT NULL DEFAULT 0.0"
+                )
             }
         }
     }

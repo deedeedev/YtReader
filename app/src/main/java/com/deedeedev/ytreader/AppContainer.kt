@@ -72,6 +72,7 @@ class DefaultAppContainer(
             .addMigrations(AppDatabase.MIGRATION_21_22)
             .addMigrations(AppDatabase.MIGRATION_22_23)
             .addMigrations(AppDatabase.MIGRATION_23_24)
+            .addMigrations(AppDatabase.MIGRATION_24_25)
             .fallbackToDestructiveMigration(allowDestructiveMigration)
             .build()
     }

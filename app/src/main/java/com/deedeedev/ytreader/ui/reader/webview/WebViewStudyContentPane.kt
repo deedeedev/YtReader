@@ -37,7 +37,7 @@ internal fun WebViewStudyContentPane(
     fontFamilyName: String,
     readerTextColor: Int,
     readerBackgroundColor: Int,
-    initialScrollPercent: Int = 0,
+    initialProgressRatio: Float = 0f,
     initialCharOffset: Int = 0,
     annotationScrollOffset: Int? = null,
     onAnnotationNavigated: (() -> Unit)? = null,
@@ -72,6 +72,7 @@ internal fun WebViewStudyContentPane(
     var lastBookmarks by remember { mutableStateOf(emptyList<BookmarkEntity>()) }
     var lastSearchRange by remember { mutableStateOf<SelectionRange?>(null) }
     var hasAppliedInitialScroll by remember { mutableStateOf(false) }
+    var charOffsetApplied by remember { mutableStateOf(false) }
     var webViewTotalHeight by remember { mutableStateOf(0) }
 
     val memoizedOnReaderTap by rememberUpdatedState(onReaderTap)
@@ -220,7 +221,8 @@ internal fun WebViewStudyContentPane(
         }
     }
 
-    LaunchedEffect(isWebViewReady, lastContent, initialScrollPercent, initialCharOffset, annotationScrollOffset) {
+    // Phase 1: Immediate scroll using float progress ratio (sub-line precision)
+    LaunchedEffect(isWebViewReady, lastContent, initialProgressRatio, annotationScrollOffset) {
         if (!isWebViewReady || hasAppliedInitialScroll) return@LaunchedEffect
         if (lastContent.isEmpty()) return@LaunchedEffect
         val wv = webView ?: return@LaunchedEffect
@@ -231,21 +233,28 @@ internal fun WebViewStudyContentPane(
             }
             onAnnotationNavigated?.invoke()
             hasAppliedInitialScroll = true
-        } else if (initialScrollPercent > 0 || initialCharOffset > 0) {
+            charOffsetApplied = true
+        } else if (initialProgressRatio > 0f) {
             delay(300)
-            if (initialScrollPercent > 0) {
-                with(WebViewReaderJs) {
-                    wv.scrollToPercent(initialScrollPercent)
-                }
-            }
-            if (initialCharOffset > 0) {
-                delay(100)
-                with(WebViewReaderJs) {
-                    wv.scrollToCharOffsetWhenReady(initialCharOffset)
-                }
+            with(WebViewReaderJs) {
+                wv.scrollToProgressRatio(initialProgressRatio)
             }
             hasAppliedInitialScroll = true
         }
+    }
+
+    // Phase 2: charOffset refinement after highlights/bookmarks are applied
+    LaunchedEffect(isWebViewReady, lastHighlights, lastBookmarks, initialCharOffset, hasAppliedInitialScroll) {
+        if (!hasAppliedInitialScroll) return@LaunchedEffect
+        if (charOffsetApplied) return@LaunchedEffect
+        if (initialCharOffset <= 0) return@LaunchedEffect
+        val wv = webView ?: return@LaunchedEffect
+        if (!isWebViewReady) return@LaunchedEffect
+        delay(150)
+        with(WebViewReaderJs) {
+            wv.scrollToCharOffsetWhenReady(initialCharOffset)
+        }
+        charOffsetApplied = true
     }
 
     LaunchedEffect(isWebViewReady, isEditMode) {

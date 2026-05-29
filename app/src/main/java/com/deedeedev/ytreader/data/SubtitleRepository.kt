@@ -207,6 +207,10 @@ class SubtitleRepository(
         readingStateDao.updateReadingProgress(subtitleId, percent, currentPage, totalPages)
     }
 
+    suspend fun updateProgressRatio(subtitleId: Long, ratio: Float) = withContext(Dispatchers.IO) {
+        readingStateDao.updateProgressRatio(subtitleId, ratio)
+    }
+
     suspend fun updateFontSize(subtitleId: Long, fontSize: Float) = withContext(Dispatchers.IO) {
         subtitleDao.updateFontSize(subtitleId, fontSize)
     }

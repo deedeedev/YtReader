@@ -36,6 +36,9 @@ interface SubtitleReadingStateDao {
     @Query("UPDATE subtitle_reading_states SET readingProgressPercent = :percent, currentPage = :currentPage, totalPages = :totalPages WHERE subtitleId = :subtitleId")
     suspend fun updateReadingProgress(subtitleId: Long, percent: Int, currentPage: Int, totalPages: Int)
 
+    @Query("UPDATE subtitle_reading_states SET lastProgressRatio = :ratio WHERE subtitleId = :subtitleId")
+    suspend fun updateProgressRatio(subtitleId: Long, ratio: Float)
+
     @Query("""
         UPDATE subtitle_reading_states
         SET readingProgressPercent = 0, currentPage = 0, lastStudyScroll = 0, lastTimestamp = 0

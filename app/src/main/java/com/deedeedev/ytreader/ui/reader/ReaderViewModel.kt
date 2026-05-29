@@ -44,6 +44,7 @@ data class ReaderUiState(
     val subtitle: SubtitleEntity? get() = subtitleWithStates?.subtitle
     val lastStudyScroll: Int get() = subtitleWithStates?.readingState?.lastStudyScroll ?: 0
     val readingProgressPercent: Int get() = subtitleWithStates?.readingState?.readingProgressPercent ?: 0
+    val lastProgressRatio: Float get() = subtitleWithStates?.readingState?.lastProgressRatio ?: 0f
     val lastTimestamp: Long get() = subtitleWithStates?.readingState?.lastTimestamp ?: 0L
     val currentPage: Int get() = subtitleWithStates?.readingState?.currentPage ?: 0
     val totalPages: Int get() = subtitleWithStates?.readingState?.totalPages ?: 0
@@ -145,6 +146,16 @@ class ReaderViewModel(
     fun updateLastStudyScroll(scroll: Int) {
         viewModelScope.launch {
             subtitleRepository.updateLastStudyScroll(subtitleId, scroll.coerceAtLeast(0))
+        }
+    }
+
+    private var lastSavedRatio: Float = -1f
+
+    fun updateProgressRatio(ratio: Float) {
+        if (ratio == lastSavedRatio) return
+        lastSavedRatio = ratio
+        viewModelScope.launch {
+            subtitleRepository.updateProgressRatio(subtitleId, ratio.coerceIn(0f, 1f))
         }
     }
 
