@@ -244,11 +244,13 @@ function scrollToOffset(y) {
 }
 
 function scrollToPercent(percent) {
-  if (percent <= 0 || percent >= 100) return;
+  if (percent <= 0) return;
   var totalHeight = document.body.scrollHeight;
-  if (totalHeight <= 0) return;
-  var targetY = Math.round((totalHeight * percent) / 100);
-  window.scrollTo(0, Math.min(targetY, totalHeight - 1));
+  var viewportHeight = window.innerHeight;
+  var maxScroll = totalHeight - viewportHeight;
+  if (maxScroll <= 0) return;
+  var targetY = Math.round((maxScroll * percent) / 100);
+  window.scrollTo(0, Math.min(targetY, maxScroll));
 }
 
 function scrollToCharOffset(offset) {

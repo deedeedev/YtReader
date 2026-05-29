@@ -38,6 +38,7 @@ internal fun WebViewStudyContentPane(
     readerTextColor: Int,
     readerBackgroundColor: Int,
     initialScrollPercent: Int = 0,
+    initialCharOffset: Int = 0,
     annotationScrollOffset: Int? = null,
     onAnnotationNavigated: (() -> Unit)? = null,
     isEditMode: Boolean = false,
@@ -219,21 +220,29 @@ internal fun WebViewStudyContentPane(
         }
     }
 
-    LaunchedEffect(isWebViewReady, lastContent, initialScrollPercent, annotationScrollOffset) {
+    LaunchedEffect(isWebViewReady, lastContent, initialScrollPercent, initialCharOffset, annotationScrollOffset) {
         if (!isWebViewReady || hasAppliedInitialScroll) return@LaunchedEffect
         if (lastContent.isEmpty()) return@LaunchedEffect
         val wv = webView ?: return@LaunchedEffect
         if (annotationScrollOffset != null && annotationScrollOffset > 0) {
-            delay(100)
+            delay(300)
             with(WebViewReaderJs) {
                 wv.scrollToCharOffsetWhenReady(annotationScrollOffset)
             }
             onAnnotationNavigated?.invoke()
             hasAppliedInitialScroll = true
-        } else if (initialScrollPercent > 0) {
-            delay(100)
-            with(WebViewReaderJs) {
-                wv.scrollToCharOffsetWhenReady(initialScrollPercent)
+        } else if (initialScrollPercent > 0 || initialCharOffset > 0) {
+            delay(300)
+            if (initialScrollPercent > 0) {
+                with(WebViewReaderJs) {
+                    wv.scrollToPercent(initialScrollPercent)
+                }
+            }
+            if (initialCharOffset > 0) {
+                delay(100)
+                with(WebViewReaderJs) {
+                    wv.scrollToCharOffsetWhenReady(initialCharOffset)
+                }
             }
             hasAppliedInitialScroll = true
         }

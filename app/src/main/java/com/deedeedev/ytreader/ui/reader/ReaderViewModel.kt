@@ -1,7 +1,6 @@
 package com.deedeedev.ytreader.ui.reader
 
 import android.content.Context
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -44,6 +43,7 @@ data class ReaderUiState(
 ) {
     val subtitle: SubtitleEntity? get() = subtitleWithStates?.subtitle
     val lastStudyScroll: Int get() = subtitleWithStates?.readingState?.lastStudyScroll ?: 0
+    val readingProgressPercent: Int get() = subtitleWithStates?.readingState?.readingProgressPercent ?: 0
     val lastTimestamp: Long get() = subtitleWithStates?.readingState?.lastTimestamp ?: 0L
     val currentPage: Int get() = subtitleWithStates?.readingState?.currentPage ?: 0
     val totalPages: Int get() = subtitleWithStates?.readingState?.totalPages ?: 0
@@ -97,7 +97,6 @@ class ReaderViewModel(
                     val subtitle = subtitleWithStates.subtitle
                     val readingState = subtitleWithStates.readingState
                     val aiState = subtitleWithStates.aiCleaningState
-                    Log.d("PosRestore", "loadSubtitle: subtitleId=$subtitleId readingStateNull=${readingState == null} lastStudyScroll=${readingState?.lastStudyScroll}")
                     val originalParsedText = SubtitleParser.parse(subtitle.content)
                     val content = subtitle.studyContent ?: originalParsedText
                     val notesByRange = notes.associateBy { HighlightRangeKey(it.highlightStart, it.highlightEnd) }
@@ -149,18 +148,24 @@ class ReaderViewModel(
         }
     }
 
-    private val lastSavedPercent = MutableStateFlow(0)
+    private data class ProgressState(val percent: Int, val currentPage: Int, val totalPages: Int)
+
+    private val lastSavedProgress = MutableStateFlow<ProgressState?>(null)
 
     fun updateReadingProgress(percent: Int, currentPage: Int, totalPages: Int) {
-        val currentSaved = lastSavedPercent.value
-        if (percent < currentSaved && percent < 100) return
-        lastSavedPercent.value = percent.coerceIn(0, 100)
+        val progress = ProgressState(
+            percent.coerceIn(0, 100),
+            currentPage.coerceAtLeast(0),
+            totalPages.coerceAtLeast(0)
+        )
+        if (progress == lastSavedProgress.value) return
+        lastSavedProgress.value = progress
         viewModelScope.launch {
             subtitleRepository.updateReadingProgress(
                 subtitleId = subtitleId,
-                percent = percent.coerceIn(0, 100),
-                currentPage = currentPage.coerceAtLeast(0),
-                totalPages = totalPages.coerceAtLeast(0)
+                percent = progress.percent,
+                currentPage = progress.currentPage,
+                totalPages = progress.totalPages
             )
         }
     }

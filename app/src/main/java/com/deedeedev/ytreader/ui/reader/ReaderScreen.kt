@@ -56,7 +56,10 @@ import com.deedeedev.ytreader.data.local.BookmarkEntity
 import com.deedeedev.ytreader.domain.SubtitleCleaner
 import com.deedeedev.ytreader.domain.SubtitleParser
 import kotlinx.coroutines.delay
+
 import kotlinx.coroutines.Job
+
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import androidx.core.app.ActivityCompat
@@ -261,9 +264,19 @@ internal fun ReaderScreen(
     var isSliderDragging by remember { mutableStateOf(false) }
 
     val persistReadingProgress by rememberUpdatedState(newValue = {
-        if (webViewCharOffsetAtTop > 0) {
-            viewModel.updateLastStudyScroll(webViewCharOffsetAtTop)
+        viewModel.updateLastStudyScroll(webViewCharOffsetAtTop.coerceAtLeast(0))
+        val percent = if (webViewTotalHeight > webViewViewportHeight) {
+            ((webViewScrollY.toFloat() / (webViewTotalHeight - webViewViewportHeight)) * 100).roundToInt().coerceIn(0, 100)
+        } else 0
+        val totalPages = if (webViewViewportHeight > 0 && webViewTotalHeight > webViewViewportHeight) {
+            ((webViewTotalHeight + webViewViewportHeight - 1) / webViewViewportHeight).coerceAtLeast(1)
+        } else 1
+        val currentPage = if (totalPages <= 1) 1 else {
+            val maxScrollY = webViewTotalHeight - webViewViewportHeight
+            if (webViewScrollY >= maxScrollY - 1) totalPages
+            else ((webViewScrollY + webViewViewportHeight) / webViewViewportHeight).coerceIn(1, totalPages)
         }
+        viewModel.updateReadingProgress(percent, currentPage, totalPages)
     })
 
     val hasInitialNavigationTarget = initialReaderLocation != null ||
@@ -1178,22 +1191,19 @@ internal fun ReaderScreen(
         }
     }
 
-    LaunchedEffect(fullscreenProgressPercent, fullscreenPageProgress) {
-        viewModel.updateReadingProgress(
-            percent = fullscreenProgressPercent,
-            currentPage = fullscreenPageProgress.currentPage,
-            totalPages = fullscreenPageProgress.totalPages
-        )
+    LaunchedEffect(Unit) {
+        snapshotFlow { Triple(fullscreenProgressPercent, fullscreenPageProgress.currentPage, fullscreenPageProgress.totalPages) }
+            .debounce(500)
+            .collectLatest { (percent, currentPage, totalPages) ->
+                viewModel.updateReadingProgress(percent, currentPage, totalPages)
+            }
     }
 
     LaunchedEffect(Unit) {
         snapshotFlow { webViewCharOffsetAtTop }
-            .debounce(2000)
+            .debounce(500)
             .collect { offset ->
-                Log.d("PosRestore", "snapshotFlow: offset=$offset willSave=${offset > 0}")
-                if (offset > 0) {
-                    viewModel.updateLastStudyScroll(offset)
-                }
+                viewModel.updateLastStudyScroll(offset.coerceAtLeast(0))
             }
     }
 
@@ -1490,11 +1500,8 @@ internal fun ReaderScreen(
         showBrightnessIndicator = showBrightnessIndicator,
         brightnessIndicatorPercent = brightnessIndicatorPercent,
         snackbarHostState = snackbarHostState,
-        initialScrollPercent = run {
-            val v = uiState.lastStudyScroll
-            Log.d("PosRestore", "ReaderScreen: initialScrollPercent=$v subtitleId=${subtitle?.id} isLoading=${uiState.isLoading}")
-            v
-        },
+        initialScrollPercent = uiState.readingProgressPercent,
+        initialCharOffset = uiState.lastStudyScroll,
         annotationScrollOffset = webViewAnnotationScrollOffset,
         onAnnotationNavigated = { webViewAnnotationNavigated() },
         useWebView = true,
@@ -1509,7 +1516,6 @@ internal fun ReaderScreen(
             showAndScheduleHideProgressIndicator()
         },
         onWebViewVisibleCharOffset = { offset ->
-            Log.d("PosRestore", "onVisibleCharOffset: offset=$offset")
             webViewCharOffsetAtTop = offset
         },
         onWebViewClearSelection = {
