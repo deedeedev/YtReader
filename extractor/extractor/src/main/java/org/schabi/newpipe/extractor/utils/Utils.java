@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.utils;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -34,7 +35,11 @@ public final class Utils {
      * @return The encoded URL.
      */
     public static String encodeUrlUtf8(final String string) {
-        return URLEncoder.encode(string, StandardCharsets.UTF_8);
+        try {
+            return URLEncoder.encode(string, StandardCharsets.UTF_8.name());
+        } catch (final UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -43,7 +48,11 @@ public final class Utils {
      * @return The decoded URL.
      */
     public static String decodeUrlUtf8(final String url) {
-        return URLDecoder.decode(url, StandardCharsets.UTF_8);
+        try {
+            return URLDecoder.decode(url, StandardCharsets.UTF_8.name());
+        } catch (final UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
