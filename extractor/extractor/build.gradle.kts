@@ -5,7 +5,7 @@
 
 plugins {
     `java-library`
-    id("com.google.protobuf") version "0.9.4"
+    id("com.google.protobuf") version "0.10.0"
     `maven-publish`
 }
 
@@ -37,10 +37,9 @@ dependencies {
     implementation(libs.mozilla.rhino.core)
     implementation(libs.mozilla.rhino.engine)
 
-    testImplementation(libs.junit)
     testImplementation(libs.junit.jupiter)
     testImplementation("org.junit.platform:junit-platform-launcher:1.10.0")
-    testImplementation(libs.okhttp)
+    testImplementation("com.squareup.okhttp3:okhttp:${libs.versions.okhttp.get()}")
     testImplementation(libs.google.gson)
     testImplementation("com.google.errorprone:error_prone_annotations:2.21.1")
 }
