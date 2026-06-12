@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -70,6 +71,7 @@ fun SettingsAiScreen(
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.settings_ai_api_key)) },
                 placeholder = { Text(stringResource(R.string.settings_ai_api_key_placeholder)) },
+                visualTransformation = PasswordVisualTransformation(),
                 singleLine = true
             )
 
