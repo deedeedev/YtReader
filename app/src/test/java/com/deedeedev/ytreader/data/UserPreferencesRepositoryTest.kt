@@ -37,9 +37,19 @@ class UserPreferencesRepositoryTest {
         assertEquals(1.8f, restoredRepository.lineHeightMultiplier.value)
         assertEquals(0.7f, restoredRepository.appBrightness.value)
         assertEquals("https://example.com", restoredRepository.aiEndpoint.value)
-        assertEquals("secret", restoredRepository.aiApiKey.value)
         assertEquals("gpt-test", restoredRepository.aiModel.value)
         assertEquals("Clean this", restoredRepository.aiPrompt.value)
+    }
+
+    @Test
+    fun exportPreferencesJson_doesNotLeakApiKey() {
+        val repository = createRepository()
+        repository.setAiApiKey("super-secret-key")
+
+        val json = repository.exportPreferencesJson()
+
+        assertFalse(json.contains("super-secret-key"))
+        assertFalse(json.contains("\"aiApiKey\":\"super-secret-key\""))
     }
 
     @Test
