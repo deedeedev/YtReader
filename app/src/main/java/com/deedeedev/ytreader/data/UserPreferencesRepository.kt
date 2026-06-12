@@ -2,6 +2,8 @@ package com.deedeedev.ytreader.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.deedeedev.ytreader.domain.YouTubeVideoIdNormalizer
 import com.deedeedev.ytreader.ui.AppLanguage
 import com.deedeedev.ytreader.ui.home.VideoCardSize
@@ -52,7 +54,27 @@ data class PreferencesBackup(
 )
 
 class UserPreferencesRepository(context: Context) {
+    private val context: Context = context
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    private val encryptedPrefs: SharedPreferences by lazy {
+        try {
+            val masterKey = MasterKey.Builder(context.applicationContext ?: context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            EncryptedSharedPreferences.create(
+                context.applicationContext ?: context,
+                "ytreader_secure_prefs",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (_: Exception) {
+            // Fallback for environments without Android Keystore (e.g. unit tests with mock context)
+            prefs
+        }
+    }
+
     private val gson = Gson()
     private val _favoriteLanguages = MutableStateFlow<Set<String>>(emptySet())
     val favoriteLanguages: StateFlow<Set<String>> = _favoriteLanguages.asStateFlow()
@@ -176,7 +198,7 @@ class UserPreferencesRepository(context: Context) {
             prefs.getString(KEY_VIDEO_CARD_SIZE, VideoCardSize.LARGE.name) ?: VideoCardSize.LARGE.name
         )
         _aiEndpoint.value = prefs.getString(KEY_AI_ENDPOINT, "") ?: ""
-        _aiApiKey.value = prefs.getString(KEY_AI_API_KEY, "") ?: ""
+        _aiApiKey.value = encryptedPrefs.getString(KEY_AI_API_KEY, "") ?: ""
         _aiModel.value = prefs.getString(KEY_AI_MODEL, DEFAULT_AI_MODEL) ?: DEFAULT_AI_MODEL
         _aiPrompt.value = prefs.getString(KEY_AI_PROMPT, DEFAULT_AI_CLEANING_PROMPT)
             ?: DEFAULT_AI_CLEANING_PROMPT
@@ -245,7 +267,7 @@ class UserPreferencesRepository(context: Context) {
     }
 
     fun setAiApiKey(key: String) {
-        prefs.edit().putString(KEY_AI_API_KEY, key).apply()
+        encryptedPrefs.edit().putString(KEY_AI_API_KEY, key).apply()
         _aiApiKey.value = key
     }
 
@@ -386,7 +408,7 @@ class UserPreferencesRepository(context: Context) {
 
     fun getAiEndpoint(): String = prefs.getString(KEY_AI_ENDPOINT, "") ?: ""
 
-    fun getAiApiKey(): String = prefs.getString(KEY_AI_API_KEY, "") ?: ""
+    fun getAiApiKey(): String = encryptedPrefs.getString(KEY_AI_API_KEY, "") ?: ""
 
     fun getAiModel(): String = prefs.getString(KEY_AI_MODEL, DEFAULT_AI_MODEL) ?: DEFAULT_AI_MODEL
 
@@ -432,7 +454,8 @@ class UserPreferencesRepository(context: Context) {
             .putString(KEY_AI_PROMPT, backup.aiPrompt)
 
         if (backup.aiApiKey.isNotEmpty()) {
-            editor.putString(KEY_AI_API_KEY, backup.aiApiKey)
+            encryptedPrefs.edit().putString(KEY_AI_API_KEY, backup.aiApiKey).apply()
+            _aiApiKey.value = backup.aiApiKey
         }
 
         editor.apply()

@@ -98,4 +98,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
 
     coreLibraryDesugaring(libs.desugar.jdk.libs)
+
+    // Encrypted preferences for API key
+    implementation(libs.androidx.security.crypto)
 }

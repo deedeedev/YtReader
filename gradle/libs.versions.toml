@@ -24,6 +24,7 @@ desugar_jdk_libs = "2.1.3"
 work = "2.10.5"
 coroutinesTest = "1.10.2"
 coil = "2.7.0"
+security-crypto = "1.1.0-alpha06"
 
 # Extractor dependencies
 protobuf-plugin = "0.10.0"
@@ -72,6 +73,7 @@ androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx"
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar_jdk_libs" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "security-crypto" }
 
 # Extractor libs
 google-protobuf = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf-lib" }
