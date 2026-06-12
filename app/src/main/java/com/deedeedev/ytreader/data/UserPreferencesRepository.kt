@@ -404,7 +404,7 @@ class UserPreferencesRepository(context: Context) {
             appBrightness = _appBrightness.value,
             appLanguage = _appLanguage.value.storageValue,
             aiEndpoint = _aiEndpoint.value,
-            aiApiKey = _aiApiKey.value,
+            aiApiKey = "",
             aiModel = _aiModel.value,
             aiPrompt = _aiPrompt.value
         )
@@ -418,7 +418,7 @@ class UserPreferencesRepository(context: Context) {
             null
         } ?: return false
 
-        prefs.edit()
+        val editor = prefs.edit()
             .putStringSet(KEY_FAVORITE_LANGUAGES, backup.favoriteLanguages.toMutableSet())
             .putFloat(KEY_DEFAULT_FONT_SIZE, backup.defaultFontSize)
             .putString(KEY_FONT_FAMILY, backup.fontFamily)
@@ -428,10 +428,14 @@ class UserPreferencesRepository(context: Context) {
             .putFloat(KEY_APP_BRIGHTNESS, backup.appBrightness)
             .putString(KEY_APP_LANGUAGE, backup.appLanguage)
             .putString(KEY_AI_ENDPOINT, backup.aiEndpoint)
-            .putString(KEY_AI_API_KEY, backup.aiApiKey)
             .putString(KEY_AI_MODEL, backup.aiModel)
             .putString(KEY_AI_PROMPT, backup.aiPrompt)
-            .apply()
+
+        if (backup.aiApiKey.isNotEmpty()) {
+            editor.putString(KEY_AI_API_KEY, backup.aiApiKey)
+        }
+
+        editor.apply()
         return true
     }
 
