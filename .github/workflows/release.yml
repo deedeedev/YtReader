@@ -47,7 +47,7 @@ jobs:
           MINOR=$(echo "$VERSION" | cut -d. -f2)
           PATCH=$(echo "$VERSION" | cut -d. -f3)
           PATCH="${PATCH:-0}"
-          VERSION_CODE=$((MAJOR * 1000000 + MINOR * 1000 + PATCH))
+          VERSION_CODE=$((MAJOR * 1000000 + MINOR * 1000 + PATCH + 1))
           echo "versionName=$VERSION" >> $GITHUB_OUTPUT
           echo "versionCode=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
