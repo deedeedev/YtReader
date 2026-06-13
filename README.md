@@ -1,5 +1,9 @@
 # YtReader
 
+[![License: GPL-3.0](https://img.shields.io/github/license/deedeedev/YtReader)](LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/deedeedev/YtReader)](https://github.com/deedeedev/YtReader/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/deedeedev/YtReader/release.yml)](https://github.com/deedeedev/YtReader/actions)
+
 An Android app for reading YouTube video subtitles with AI-powered text cleaning.
 
 ## Features
@@ -29,6 +33,18 @@ Requirements:
 - Android SDK 36 (compile)
 - Min SDK 26
 - JDK 11 (app module)
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, test commands, and contribution guidelines.
+
+## Releases
+
+Tagged releases (`v*.*.*`) automatically produce signed APKs via GitHub Actions. See the [Releases page](https://github.com/deedeedev/YtReader/releases) for downloads.
+
+## Community
+
+- Read the [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
+- Use [GitHub Issues](https://github.com/deedeedev/YtReader/issues) for bug reports and feature requests.
+- Discussions will be enabled once the project is public.
 
 ## License
 

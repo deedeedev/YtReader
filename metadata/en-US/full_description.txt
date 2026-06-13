@@ -1,0 +1,24 @@
+<p>YtReader turns YouTube into a focused reading experience. Search for videos, follow subtitles with synchronized highlighting, and save the parts that matter.</p>
+
+<p><b>Features</b></p>
+<ul>
+  <li>Browse and search YouTube videos</li>
+  <li>Read subtitles with synchronized word highlighting</li>
+  <li>AI-powered subtitle text cleaning (OpenAI-compatible API, bring your own key)</li>
+  <li>Organize videos into collections</li>
+  <li>Highlight and annotate text</li>
+  <li>Adjustable font, size, and line height for comfortable reading</li>
+  <li>Light, dark, and system themes</li>
+  <li>Home screen widget for quick access to your library</li>
+</ul>
+
+<p><b>Privacy</b></p>
+<ul>
+  <li>No account required</li>
+  <li>No tracking or analytics</li>
+  <li>AI features are opt-in and use your own API key</li>
+  <li>All data stored locally on your device</li>
+</ul>
+
+<p><b>Source code</b><br>
+YtReader is free and open source software licensed under the GNU General Public License v3.0. The source code is available on GitHub.</p>

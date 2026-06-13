@@ -1,0 +1,85 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in the information below to help us reproduce and fix it.
+
+  - type: dropdown
+    id: version
+    attributes:
+      label: App version
+      description: What version of YtReader are you running?
+      options:
+        - Latest release
+        - Specific version (please specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: android-version
+    attributes:
+      label: Android version
+      description: What version of Android are you running?
+      options:
+        - Android 14
+        - Android 13
+        - Android 12
+        - Android 11
+        - Android 10
+        - Android 9
+        - Android 8
+        - Other (specify in description)
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: What device are you using? (e.g., Pixel 6, Samsung Galaxy S23)
+      placeholder: Pixel 6
+    validations:
+      required: false
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: When I open a YouTube video and try to read subtitles, the app crashes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      description: What you expected the app to do.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps to reproduce the bug.
+      placeholder: |
+        1. Open the app
+        2. Paste a YouTube URL
+        3. Tap "Read subtitles"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Paste any error messages, logs, or attach screenshots.
+    validations:
+      required: false
