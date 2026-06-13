@@ -34,7 +34,7 @@ configure<ApplicationExtension> {
     signingConfigs {
         create("release") {
             if (signingStoreFilePath != null) {
-                storeFile = file(signingStoreFilePath)
+                storeFile = rootProject.file(signingStoreFilePath)
                 storePassword = signingStorePassword
                 keyAlias = signingKeyAlias
                 keyPassword = signingKeyPassword
