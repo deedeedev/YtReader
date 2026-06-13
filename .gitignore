@@ -20,6 +20,7 @@ local.properties
 google-services.json
 secrets.properties
 apikey.properties
+keystore.properties
 *.log
 *.ap_
 *.dex
