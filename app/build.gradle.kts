@@ -1,6 +1,7 @@
 import com.android.build.api.dsl.ApplicationExtension
 import org.gradle.kotlin.dsl.configure
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -8,16 +9,45 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
+}
+
+val signingStoreFilePath = keystoreProperties.getProperty("storeFile")
+    ?: System.getenv("ANDROID_KEYSTORE_FILE")
+val signingStorePassword = keystoreProperties.getProperty("storePassword")
+    ?: System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
+val signingKeyAlias = keystoreProperties.getProperty("keyAlias")
+    ?: System.getenv("ANDROID_KEY_ALIAS") ?: ""
+val signingKeyPassword = keystoreProperties.getProperty("keyPassword")
+    ?: System.getenv("ANDROID_KEY_PASSWORD") ?: ""
+
+val appVersionName: String = (project.findProperty("versionName") as? String) ?: "0.0.0-local"
+val appVersionCode: Int = (project.findProperty("versionCode") as? String)?.toIntOrNull() ?: 1
+
 configure<ApplicationExtension> {
     namespace = "com.deedeedev.ytreader"
     compileSdk = 36
+
+    signingConfigs {
+        create("release") {
+            if (signingStoreFilePath != null) {
+                storeFile = file(signingStoreFilePath)
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.deedeedev.ytreader"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -30,6 +60,9 @@ configure<ApplicationExtension> {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (signingStoreFilePath != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
