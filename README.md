@@ -20,7 +20,7 @@ An Android app for reading YouTube video subtitles with AI-powered text cleaning
 - Kotlin + Jetpack Compose
 - Room database
 - OkHttp + Jsoup
-- NewPipe Extractor
+- [NewPipe Extractor](https://github.com/TeamNewPipe/NewPipeExtractor) — core video and subtitle fetching
 - WorkManager for background tasks
 
 ## Building
@@ -49,3 +49,7 @@ Tagged releases (`v*.*.*`) automatically produce signed APKs via GitHub Actions.
 ## License
 
 This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](LICENSE) file for details.
+
+## Credits
+
+This app uses [NewPipe Extractor](https://github.com/TeamNewPipe/NewPipeExtractor) by the [TeamNewPipe](https://github.com/TeamNewPipe) project for video and subtitle data extraction. NewPipe Extractor is licensed under the GNU General Public License v3.0.
