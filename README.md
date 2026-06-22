@@ -44,7 +44,7 @@ Tagged releases (`v*.*.*`) automatically produce signed APKs via GitHub Actions.
 
 - Read the [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
 - Use [GitHub Issues](https://github.com/deedeedev/YtReader/issues) for bug reports and feature requests.
-- Discussions will be enabled once the project is public.
+- Use [GitHub Discussions](https://github.com/deedeedev/YtReader/discussions) for questions and community chat.
 
 ## License
 
