@@ -24,6 +24,7 @@ keystore.properties
 *.log
 *.ap_
 *.dex
+.opencode/
 .idea/
 !.idea/codeStyles/
 !.idea/.gitignore
