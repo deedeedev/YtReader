@@ -1,29 +1,3 @@
-# These are supported funding model platforms
-
-# Replace the empty strings below with your real usernames/links.
-# If you don't use any of these platforms, leave them commented out or empty.
-
-# github: [deedeedev]
-
-# open_collective:
-
-# ko_fi:
-
-# tidelift:
-
-# community_bridge:
-
-# liberapay:
-
-# issuehunt:
-
-# otechie:
-
-# lfx_crowdfunding:
-
-# polar:
-
-# buy_me_a_coffee:
-
-# custom:
-#   - https://example.com/your-custom-funding-page
+ko_fi: deedeedev
+buy_me_a_coffee: deedeedev
+github: [deedeedev]
