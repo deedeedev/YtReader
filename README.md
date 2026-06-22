@@ -11,6 +11,7 @@ An Android app for reading YouTube video subtitles with AI-powered text cleaning
 - Browse and search YouTube videos
 - Read and navigate subtitles with highlighting
 - AI-powered subtitle text cleaning (OpenAI compatible API)
+- Local text cleaning and formatting
 - Organize videos into collections
 - Highlight and annotate text
 - Home screen widget for quick access
