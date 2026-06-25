@@ -1,6 +1,9 @@
 import com.android.build.api.dsl.ApplicationExtension
 import org.gradle.kotlin.dsl.configure
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.provider.ValueSource
+import org.gradle.api.provider.ValueSourceParameters
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -24,8 +27,43 @@ val signingKeyAlias = keystoreProperties.getProperty("keyAlias")
 val signingKeyPassword = keystoreProperties.getProperty("keyPassword")
     ?: System.getenv("ANDROID_KEY_PASSWORD") ?: ""
 
-val appVersionName: String = (project.findProperty("versionName") as? String) ?: "0.0.0-local"
-val appVersionCode: Int = (project.findProperty("versionCode") as? String)?.toIntOrNull() ?: 1
+abstract class GitTagValueSource : ValueSource<String, GitTagValueSource.Parameters> {
+    interface Parameters : ValueSourceParameters {
+        var rootDir: String
+    }
+    override fun obtain(): String {
+        return try {
+            val process = ProcessBuilder("git", "describe", "--tags", "--abbrev=0")
+                .directory(File(parameters.rootDir))
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start()
+            val tag = process.inputStream.bufferedReader().readText().trim()
+            val exitCode = process.waitFor()
+            if (exitCode == 0) tag else ""
+        } catch (e: Exception) {
+            ""
+        }
+    }
+}
+
+val gitTagProvider = providers.of(GitTagValueSource::class.java) {
+    parameters.rootDir = rootProject.projectDir.absolutePath
+}
+
+val gitTag: String = gitTagProvider.get()
+
+val appVersionName: String = (project.findProperty("versionName") as? String)
+    ?: if (gitTag.isNotEmpty()) gitTag.removePrefix("v") else "0.0.0-local"
+
+val appVersionCode: Int = (project.findProperty("versionCode") as? String)?.toIntOrNull()
+    ?: if (gitTag.isNotEmpty()) {
+        val version = gitTag.removePrefix("v")
+        val parts = version.split(".")
+        val major = parts.getOrNull(0)?.toIntOrNull() ?: 0
+        val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        val patch = parts.getOrNull(2)?.toIntOrNull() ?: 0
+        major * 1000000 + minor * 1000 + patch + 1
+    } else 1
 
 configure<ApplicationExtension> {
     namespace = "com.deedeedev.ytreader"

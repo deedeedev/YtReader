@@ -42,14 +42,6 @@ jobs:
         id: version
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          VERSION="${TAG#v}"
-          MAJOR=$(echo "$VERSION" | cut -d. -f1)
-          MINOR=$(echo "$VERSION" | cut -d. -f2)
-          PATCH=$(echo "$VERSION" | cut -d. -f3)
-          PATCH="${PATCH:-0}"
-          VERSION_CODE=$((MAJOR * 1000000 + MINOR * 1000 + PATCH + 1))
-          echo "versionName=$VERSION" >> $GITHUB_OUTPUT
-          echo "versionCode=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Build release APK
@@ -59,9 +51,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          ./gradlew :app:assembleRelease \
-            -PversionName=${{ steps.version.outputs.versionName }} \
-            -PversionCode=${{ steps.version.outputs.versionCode }}
+          ./gradlew :app:assembleRelease
 
       - name: Find APK
         id: apk
