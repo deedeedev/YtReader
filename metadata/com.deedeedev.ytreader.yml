@@ -20,7 +20,7 @@ Builds:
       - yes
     output: build/outputs/apk/release/app-release-unsigned.apk
 
-AutoUpdateMode: Version v%v
-UpdateCheckMode: Tags
+AutoUpdateMode: None
+UpdateCheckMode: Static
 CurrentVersion: 0.8.2
 CurrentVersionCode: 8003
