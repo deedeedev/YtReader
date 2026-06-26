@@ -111,6 +111,10 @@ configure<ApplicationExtension> {
     buildFeatures {
         compose = true
     }
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
 
 }
 
