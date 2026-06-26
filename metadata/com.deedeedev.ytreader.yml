@@ -11,9 +11,9 @@ Repo: https://github.com/deedeedev/YtReader.git
 Binaries: https://github.com/deedeedev/YtReader/releases/download/v%v/app-release.apk
 
 Builds:
-  - versionName: 0.8.2
-    versionCode: 8003
-    commit: f89e75499e5060962e63aede698e88c89e770cf7
+  - versionName: 0.8.3
+    versionCode: 8004
+    commit: c21c0d089e97ca3ffffcdfaaf02f31e8ba9030e4
     subdir: app
     gradle:
       - yes
@@ -23,5 +23,5 @@ AllowedAPKSigningKeys: 5291d9d62ec431c78f866445f8135dfec44ecfacb8befa598d743ecc8
 
 AutoUpdateMode: None
 UpdateCheckMode: Static
-CurrentVersion: 0.8.2
-CurrentVersionCode: 8003
+CurrentVersion: 0.8.3
+CurrentVersionCode: 8004
