@@ -38,7 +38,7 @@ jobs:
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > app/release.jks
 
-- name: Extract version from tag
+      - name: Extract version from tag
         id: version
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
