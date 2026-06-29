@@ -52,10 +52,18 @@ val gitTagProvider = providers.of(GitTagValueSource::class.java) {
 
 val gitTag: String = gitTagProvider.get()
 
+val versionPropsFile = rootProject.file("version.properties")
+val versionProps = Properties()
+if (versionPropsFile.exists()) {
+    versionProps.load(versionPropsFile.inputStream())
+}
+
 val appVersionName: String = (project.findProperty("versionName") as? String)
+    ?: versionProps.getProperty("VERSION_NAME")
     ?: if (gitTag.isNotEmpty()) gitTag.removePrefix("v") else "0.0.0-local"
 
 val appVersionCode: Int = (project.findProperty("versionCode") as? String)?.toIntOrNull()
+    ?: versionProps.getProperty("VERSION_CODE")?.toIntOrNull()
     ?: if (gitTag.isNotEmpty()) {
         val version = gitTag.removePrefix("v")
         val parts = version.split(".")

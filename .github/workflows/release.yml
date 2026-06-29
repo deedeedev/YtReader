@@ -42,7 +42,20 @@ jobs:
         id: version
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          PATCH=$(echo "$VERSION" | cut -d. -f3)
+          PATCH="${PATCH:-0}"
+          VERSION_CODE=$((MAJOR * 1000000 + MINOR * 1000 + PATCH + 1))
           echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+          echo "VERSION_NAME=$VERSION" >> $GITHUB_ENV
+
+      - name: Write version.properties
+        run: |
+          echo "VERSION_CODE=$VERSION_CODE" > version.properties
+          echo "VERSION_NAME=$VERSION_NAME" >> version.properties
 
       - name: Build release APK
         env:
