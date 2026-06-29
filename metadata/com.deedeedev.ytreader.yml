@@ -6,6 +6,8 @@ WebSite: https://github.com/deedeedev/YtReader
 SourceCode: https://github.com/deedeedev/YtReader
 IssueTracker: https://github.com/deedeedev/YtReader/issues
 
+AutoName: YtReader
+
 RepoType: git
 Repo: https://github.com/deedeedev/YtReader.git
 Binaries: https://github.com/deedeedev/YtReader/releases/download/v%v/app-release.apk
