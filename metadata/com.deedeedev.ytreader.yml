@@ -13,7 +13,7 @@ Binaries: https://github.com/deedeedev/YtReader/releases/download/v%v/app-releas
 Builds:
   - versionName: 0.8.5
     versionCode: 8006
-    commit: PLACEHOLDER
+    commit: dda399754ab197ef507f7c3dd457315828941d5a
     subdir: app
     gradle:
       - yes
