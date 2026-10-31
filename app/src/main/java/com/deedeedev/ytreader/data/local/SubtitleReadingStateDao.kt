@@ -15,6 +15,15 @@ interface SubtitleReadingStateDao {
     @Query("SELECT * FROM subtitle_reading_states WHERE subtitleId = :subtitleId")
     suspend fun getBySubtitleId(subtitleId: Long): SubtitleReadingStateEntity?
 
+    @Query("""
+        SELECT s.videoId, MAX(COALESCE(rs.readingProgressPercent, 0)) AS readingProgressPercent
+        FROM subtitles s
+        LEFT JOIN subtitle_reading_states rs ON rs.subtitleId = s.id
+        WHERE s.videoId IN (:videoIds)
+        GROUP BY s.videoId
+    """)
+    suspend fun getMaxReadingProgressForVideos(videoIds: List<String>): List<VideoReadingProgress>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(state: SubtitleReadingStateEntity)
 

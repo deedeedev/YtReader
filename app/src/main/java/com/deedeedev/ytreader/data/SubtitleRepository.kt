@@ -64,12 +64,9 @@ class SubtitleRepository(
     }
 
     suspend fun getMaxReadingProgressForVideos(videoIds: List<String>): Map<String, Int> = withContext(Dispatchers.IO) {
-        val allSubtitles = subtitleDao.getAllSync()
-        val relevantSubtitles = allSubtitles.filter { it.videoId in videoIds }
-        if (relevantSubtitles.isEmpty()) return@withContext emptyMap()
-        val states = getReadingStatesForSubtitles(relevantSubtitles.map { it.id })
-        relevantSubtitles.groupBy { it.videoId }.mapValues { (_, subs) ->
-            subs.maxOfOrNull { states[it.id]?.readingProgressPercent ?: 0 } ?: 0
+        if (videoIds.isEmpty()) return@withContext emptyMap()
+        readingStateDao.getMaxReadingProgressForVideos(videoIds).associate {
+            it.videoId to it.readingProgressPercent
         }
     }
 
