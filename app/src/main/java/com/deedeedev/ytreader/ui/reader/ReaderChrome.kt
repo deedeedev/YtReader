@@ -284,15 +284,6 @@ internal fun ReaderBottomBar(
                                     onShareText(currentText)
                                 }
                             )
-if (!isOriginalMode) {
-                                DropdownMenuItem(
-                                    text = { Text(shareTextLabel) },
-                                    onClick = {
-                                        showOverflowMenu = false
-                                        onShareText(currentText)
-                                    }
-                                )
-                            }
                             if (!(isEditing && !isOriginalMode)) {
                                 DropdownMenuItem(
                                     text = { Text(findLabel) },
