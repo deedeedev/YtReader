@@ -1,0 +1,1 @@
+- Settings: importing a preferences backup now applies the restored values immediately, without restarting the app
