@@ -1,0 +1,2 @@
+- Reader: removed the duplicated "Share text" entry from the overflow menu
+- Library: reading progress is now computed by the database query instead of loading subtitle text, which makes the library much faster with large subtitles
