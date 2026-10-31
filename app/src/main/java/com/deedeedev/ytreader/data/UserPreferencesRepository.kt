@@ -173,6 +173,14 @@ class UserPreferencesRepository(context: Context) {
     val localCleanReplaceLineBreaksWithSpace: StateFlow<Boolean> = _localCleanReplaceLineBreaksWithSpace.asStateFlow()
 
     init {
+        reloadStoredPreferences()
+    }
+
+    /**
+     * Re-reads every preference from storage and republishes it through the state flows.
+     * Needed after bulk writes (e.g. restoring a backup) that bypass the setters.
+     */
+    private fun reloadStoredPreferences() {
         loadFavorites()
         loadDisplaySettings()
         loadAutoBackupSettings()
@@ -459,6 +467,7 @@ class UserPreferencesRepository(context: Context) {
         }
 
         editor.apply()
+        reloadStoredPreferences()
         return true
     }
 
